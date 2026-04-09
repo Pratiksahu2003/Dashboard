@@ -91,9 +91,9 @@ const handleRegister = async () => {
             }
             const next = response.data.next_step;
             if (next === 'email_verification' || !response.data.user?.email_verified_at) {
-                router.visit(route('auth.verify.email'));
+                router.visit(route('auth.verify.email'), { replace: true });
             } else {
-                router.visit(route('dashboard'));
+                router.visit(route('dashboard'), { replace: true });
             }
         }
     } catch (err) {

@@ -25,17 +25,21 @@ Route::middleware('guest')->group(function () {
             'email' => request()->query('email', ''),
         ]);
     })->name('password.reset');
-
-    // SuGanta Custom Auth Routes
-    Route::get('otp-verify', function () {
-        return Inertia::render('Auth/VerifyOtp');
-    })->name('auth.otp.verify');
-
-    Route::get('payment-required', function () {
-        return Inertia::render('Auth/RegistrationFee');
-    })->name('auth.payment.required');
-
-    Route::get('verify-email', function () {
-        return Inertia::render('Auth/VerifyEmail');
-    })->name('auth.verify.email');
 });
+
+/*
+ * Not under `guest`: these screens must load when the user already has a Sanctum/API session
+ * or Laravel web auth. `guest` redirects authenticated users to /dashboard, which caused a
+ * loop with AppLayout redirecting unverified users back to /verify-email.
+ */
+Route::get('otp-verify', function () {
+    return Inertia::render('Auth/VerifyOtp');
+})->name('auth.otp.verify');
+
+Route::get('payment-required', function () {
+    return Inertia::render('Auth/RegistrationFee');
+})->name('auth.payment.required');
+
+Route::get('verify-email', function () {
+    return Inertia::render('Auth/VerifyEmail');
+})->name('auth.verify.email');
