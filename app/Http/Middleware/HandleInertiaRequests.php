@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -29,11 +30,21 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $slideVersion = (string) config('auth_slides.version', '1');
+        $slideTtl = (int) config('auth_slides.cache_ttl', 86400);
+        $cacheKey = 'inertia:auth_slides:manifest:v'.$slideVersion;
+
+        $authSlides = Cache::remember($cacheKey, $slideTtl, function () {
+            return config('auth_slides.items', []);
+        });
+
         return [
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user(),
             ],
+            'authSlides' => $authSlides,
+            'authSlidesVersion' => $slideVersion,
         ];
     }
 }

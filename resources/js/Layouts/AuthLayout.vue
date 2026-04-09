@@ -1,40 +1,45 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
-import { useAuth } from '@/composables/useAuth';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { isEmailVerified, useAuth } from '@/composables/useAuth';
 
-const appSlides = [
-    {
-        image: '/App/1.png',
-        title: 'Smart learning dashboard',
-        subtitle: 'Track lessons, goals, and your growth in one place.',
-        tag: 'Dashboard',
-    },
-    {
-        image: '/App/2.png',
-        title: 'Personalized progress',
-        subtitle: 'See performance insights with a clean visual timeline.',
-        tag: 'Progress',
-    },
-    {
-        image: '/App/3.png',
-        title: 'Connect and collaborate',
-        subtitle: 'Learn with peers, teachers, and your community instantly.',
-        tag: 'Community',
-    },
+/** Used only if Inertia shared props are missing (e.g. error boundary). Mirrors config/auth_slides.php */
+const FALLBACK_SLIDES = [
+    { image: '/App/1.png', title: 'Smart learning dashboard', subtitle: 'Track lessons, goals, and your growth in one place.', tag: 'Dashboard' },
+    { image: '/App/2.png', title: 'Personalized progress', subtitle: 'See performance insights with a clean visual timeline.', tag: 'Progress' },
+    { image: '/App/3.png', title: 'Connect and collaborate', subtitle: 'Learn with peers, teachers, and your community instantly.', tag: 'Community' },
     { image: '/App/4.png', title: 'Assignments made easy', subtitle: 'Complete work faster with guided workflows.', tag: 'Tasks' },
     { image: '/App/5.png', title: 'Anytime mobile access', subtitle: 'Stay consistent with learning on the go.', tag: 'Mobile' },
     { image: '/App/6.png', title: 'Insights that motivate', subtitle: 'Beautiful reports to keep momentum high.', tag: 'Insights' },
     { image: '/App/7.png', title: 'One app for everything', subtitle: 'From classes to outcomes - all in SuGanta.', tag: 'All-in-one' },
 ];
 
+const page = usePage();
+const slideVersion = computed(() => String(page.props.authSlidesVersion ?? '1'));
+
+const appSlides = computed(() => {
+    const s = page.props.authSlides;
+    return Array.isArray(s) && s.length > 0 ? s : FALLBACK_SLIDES;
+});
+
+/** Cache-bust query aligns with Redis-cached manifest version so browsers re-fetch after deploy. */
+const publicAssetUrl = path => {
+    if (!path || typeof path !== 'string') return '';
+    if (/^https?:\/\//i.test(path)) return path;
+    const sep = path.includes('?') ? '&' : '?';
+    return `${path}${sep}v=${encodeURIComponent(slideVersion.value)}`;
+};
+
 const currentSlide = ref(0);
 const showDemoModal = ref(false);
 const demoPlaying = ref(false);
-const { isAuthenticated } = useAuth();
+const { getToken, getUser } = useAuth();
 let intervalId = null;
 
-const activeSlide = computed(() => appSlides[currentSlide.value]);
+const activeSlide = computed(() => {
+    const slides = appSlides.value;
+    return slides[currentSlide.value] ?? slides[0];
+});
 
 const nextSlide = () => {
     currentSlide.value = (currentSlide.value + 1) % appSlides.length;
@@ -67,8 +72,26 @@ const playDemoVideo = () => {
 };
 
 onMounted(() => {
-    if (isAuthenticated()) {
-        router.visit(route('dashboard'));
+    const token = getToken();
+    if (!token) {
+        startAutoPlay();
+        return;
+    }
+    const u = getUser();
+    // Fully signed in (verified email) → app home only.
+    if (u && isEmailVerified(u)) {
+        router.replace(route('dashboard'));
+        return;
+    }
+    // Token but email not verified: never show auth screens as "already logged in" or send to dashboard.
+    const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
+    const allowPendingVerification =
+        path.includes('verify-email') ||
+        path.includes('payment-required') ||
+        path.includes('otp-verify') ||
+        /\/reset-password\//.test(path);
+    if (!allowPendingVerification) {
+        router.replace(route('auth.verify.email'));
         return;
     }
     startAutoPlay();
@@ -213,11 +236,20 @@ onBeforeUnmount(() => {
                     <div class="mt-5 lg:mt-6 relative flex-1 min-h-0">
                         <div class="absolute -inset-3 rounded-[30px] bg-gradient-to-r from-blue-200/45 to-indigo-200/45 blur-xl"></div>
                         <div class="relative h-full rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur p-3 lg:p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] flex flex-col">
-                            <div class="rounded-[20px] bg-slate-50 border border-slate-200 overflow-hidden flex-1 min-h-0 flex items-center justify-center">
+                            <div class="rounded-[20px] bg-slate-50 border border-slate-200 overflow-hidden flex-1 min-h-0 flex items-center justify-center relative">
+                                <!-- Stacked images: browser caches all slides; only visibility toggles (no reload per slide). -->
                                 <img
-                                    :src="activeSlide.image"
-                                    :alt="activeSlide.title"
-                                    class="w-full h-full object-contain object-center"
+                                    v-for="(slide, i) in appSlides"
+                                    :key="slide.image"
+                                    :src="publicAssetUrl(slide.image)"
+                                    :alt="slide.title"
+                                    :loading="i === 0 ? 'eager' : 'lazy'"
+                                    :fetchpriority="i === 0 ? 'high' : 'low'"
+                                    decoding="async"
+                                    width="1200"
+                                    height="900"
+                                    class="absolute inset-0 w-full h-full max-h-full object-contain object-center transition-opacity duration-300"
+                                    :class="i === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'"
                                 />
                             </div>
                             <div class="mt-3 flex items-start justify-between gap-3">
@@ -302,8 +334,10 @@ onBeforeUnmount(() => {
                     aria-label="Play demo video"
                 >
                     <img
-                        src="/Launch.png"
+                        :src="publicAssetUrl('/Launch.png')"
                         alt="SuGanta app launch preview"
+                        loading="lazy"
+                        decoding="async"
                         class="absolute inset-0 w-full h-full object-cover"
                     />
                     <div class="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors"></div>

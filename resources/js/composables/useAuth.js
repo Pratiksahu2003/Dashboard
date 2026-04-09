@@ -66,7 +66,14 @@ export const useAuth = () => {
         }
     };
 
+    /** True when a Sanctum/API token exists (may still need email verification). */
     const isAuthenticated = () => !!getToken();
+
+    /** True only when the user may use the app shell: token + stored user + verified email. */
+    const canAccessDashboard = () => {
+        const u = getUser();
+        return !!getToken() && !!u && isEmailVerified(u);
+    };
 
     const setSession = ({ token, user }) => {
         if (token && typeof token === 'string' && token.length > 10) {
@@ -110,9 +117,19 @@ export const useAuth = () => {
     };
 
     const requireAuth = () => {
-        if (!isAuthenticated()) {
+        if (!getToken()) {
             clearSession();
-            router.visit(route('login'));
+            router.replace(route('login'));
+            return false;
+        }
+        const u = getUser();
+        if (!u) {
+            clearSession();
+            router.replace(route('login'));
+            return false;
+        }
+        if (!isEmailVerified(u)) {
+            router.replace(route('auth.verify.email'));
             return false;
         }
         return true;
@@ -122,6 +139,7 @@ export const useAuth = () => {
         getToken,
         getUser,
         isAuthenticated,
+        canAccessDashboard,
         setSession,
         clearSession,
         requireAuth,
