@@ -1,7 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { isEmailVerified, useAuth } from '@/composables/useAuth';
+import {
+    ensureRegistrationPaymentDetails,
+    isEmailVerified,
+    isRegistrationFeeSatisfied,
+    useAuth,
+} from '@/composables/useAuth';
 
 /** Used only if Inertia shared props are missing (e.g. error boundary). Mirrors config/auth_slides.php */
 const FALLBACK_SLIDES = [
@@ -33,7 +38,7 @@ const publicAssetUrl = path => {
 const currentSlide = ref(0);
 const showDemoModal = ref(false);
 const demoPlaying = ref(false);
-const { getToken, getUser } = useAuth();
+const { getToken, getUser, canAccessDashboard, getRegistrationChargesContext } = useAuth();
 let intervalId = null;
 
 const activeSlide = computed(() => {
@@ -78,12 +83,12 @@ onMounted(() => {
         return;
     }
     const u = getUser();
-    // Fully signed in (verified email) → app home only.
-    if (u && isEmailVerified(u)) {
+    // Fully signed in: verified email + fee satisfied (AuthApi.md) → app home only.
+    if (u && canAccessDashboard()) {
         router.replace(route('dashboard'));
         return;
     }
-    // Token but email not verified: never show auth screens as "already logged in" or send to dashboard.
+    // Token present but onboarding incomplete: send to the right auth screen (not dashboard).
     const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
     const allowPendingVerification =
         path.includes('verify-email') ||
@@ -91,8 +96,15 @@ onMounted(() => {
         path.includes('otp-verify') ||
         /\/reset-password\//.test(path);
     if (!allowPendingVerification) {
-        router.replace(route('auth.verify.email'));
-        return;
+        if (u && isEmailVerified(u) && !isRegistrationFeeSatisfied(u)) {
+            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+            router.replace(route('auth.payment.required'));
+            return;
+        }
+        if (u && !isEmailVerified(u)) {
+            router.replace(route('auth.verify.email'));
+            return;
+        }
     }
     startAutoPlay();
 });

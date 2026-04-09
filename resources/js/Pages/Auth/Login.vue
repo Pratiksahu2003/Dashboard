@@ -130,7 +130,11 @@ const handlePasswordLogin = async () => {
                           response.data.registration_fee_status ?? u.registration_fee_status,
                   }
                 : u;
-            setSession({ token: response.data.token, user: merged });
+            setSession({
+                token: response.data.token,
+                user: merged,
+                deviceToken: response.data.device_token,
+            });
             router.visit(route('dashboard'));
         }
     } catch (err) {

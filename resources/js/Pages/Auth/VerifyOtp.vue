@@ -17,6 +17,8 @@ const countdown = ref(0);
 const countdownTimer = ref(null);
 const verifyAttempts = ref(0);
 const verifyLockoutUntil = ref(0);
+/** Maps to API `remember_device` → optional `device_token` (see AuthApi.md). */
+const trustThisBrowser = ref(false);
 const { setSession } = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
 
@@ -66,7 +68,8 @@ const verifyOtp = async () => {
         const response = await api.post('/auth/login/verify', {
             identifier: identifier.value,
             otp: code,
-            device_name: 'Web Browser'
+            remember_device: trustThisBrowser.value,
+            device_name: 'Web Browser',
         });
         if (response && response.success === false) {
             const requiresPayment = !!(response.errors?.requires_registration_payment);
@@ -106,7 +109,11 @@ const verifyOtp = async () => {
                           response.data.registration_fee_status ?? u.registration_fee_status,
                   }
                 : u;
-            setSession({ token: response.data.token, user: merged });
+            setSession({
+                token: response.data.token,
+                user: merged,
+                deviceToken: response.data.device_token,
+            });
             localStorage.removeItem('auth_identifier');
             router.visit(route('dashboard'));
         }
@@ -196,6 +203,13 @@ onBeforeUnmount(() => {
                     class="w-full h-14 sm:h-16 text-center text-2xl font-black bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-gray-100 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none dark:text-white shadow-sm"
                 />
             </div>
+
+            <label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left dark:border-slate-700 dark:bg-slate-900/40">
+                <input v-model="trustThisBrowser" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                <span class="text-xs font-semibold leading-snug text-slate-600 dark:text-slate-300">
+                    Trust this browser (optional). Helps reduce extra verification on future sign-ins when supported by your account.
+                </span>
+            </label>
 
             <SuButton @click="verifyOtp" :loading="loading" :disabled="otp.join('').length !== 6" class="w-full">
                 Verify Secure Identity

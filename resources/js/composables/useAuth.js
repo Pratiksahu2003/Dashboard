@@ -1,14 +1,24 @@
 import { router } from '@inertiajs/vue3';
+import {
+    AUTH_DEVICE_TOKEN_KEY,
+    AUTH_IDENTIFIER_KEY,
+    AUTH_SESSION_TS_KEY,
+    AUTH_TOKEN_KEY,
+    AUTH_USER_KEY,
+    EMAIL_VERIFY_LOGIN_FLOW_KEY,
+    PAYMENT_DETAILS_KEY,
+    REGISTRATION_CHARGES_KEY,
+} from '@/constants/authStorage';
 
-const AUTH_TOKEN_KEY = 'auth_token';
-const AUTH_USER_KEY = 'user';
-const AUTH_SESSION_TS_KEY = 'auth_session_ts';
-const PAYMENT_DETAILS_KEY = 'payment_details';
-const AUTH_IDENTIFIER_KEY = 'auth_identifier';
-const REGISTRATION_CHARGES_KEY = 'registration_charges_context';
+/** Re-export for pages that import keys from composable (stable public API). */
+export {
+    AUTH_DEVICE_TOKEN_KEY,
+    EMAIL_VERIFY_LOGIN_FLOW_KEY,
+} from '@/constants/authStorage';
 
-/** Session flag: verify-email page without Bearer (uses `/auth/login/send-otp` + `/auth/login/verify`). */
-export const EMAIL_VERIFY_LOGIN_FLOW_KEY = 'email_verify_login_flow';
+/** Shown on login after successful `/auth/verification/verify` (API revokes the old token — user must sign in again). */
+export const POST_EMAIL_VERIFY_RELOGIN_MESSAGE =
+    'Email verified successfully. For your security, your previous session was ended. Please sign in again with your email and password.';
 
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -39,6 +49,43 @@ export const isRegistrationFeeSatisfied = user => {
     return true;
 };
 
+/**
+ * Ensures `payment_details` exists for RegistrationFee when fee is unpaid (uses register-time `registration_charges_context`).
+ * @param {Record<string, unknown>} user
+ * @param {() => unknown} getCharges
+ */
+export const ensureRegistrationPaymentDetails = (user, getCharges) => {
+    if (!user || typeof user !== 'object') return;
+    if (isRegistrationFeeSatisfied(user)) return;
+    if (user.payment_required === false) return;
+    try {
+        const raw = localStorage.getItem(PAYMENT_DETAILS_KEY);
+        const p = raw ? JSON.parse(raw) : {};
+        const info = p?.errors && typeof p.errors === 'object' ? p.errors : p;
+        if (info?.requires_registration_payment) return;
+    } catch {
+        /* ignore */
+    }
+    const charges = getCharges?.();
+    if (!charges || typeof charges !== 'object') return;
+    localStorage.setItem(
+        PAYMENT_DETAILS_KEY,
+        JSON.stringify({
+            success: false,
+            message: 'Registration fee payment is required to complete login.',
+            errors: {
+                requires_registration_payment: true,
+                actual_price: charges.actual_price,
+                discounted_price: charges.discounted_price,
+                description: charges.description,
+                currency: charges.currency,
+                role: user.role,
+            },
+            code: 200,
+        }),
+    );
+};
+
 const isSessionExpired = () => {
     const ts = localStorage.getItem(AUTH_SESSION_TS_KEY);
     if (!ts) return true;
@@ -66,16 +113,18 @@ export const useAuth = () => {
         }
     };
 
-    /** True when a Sanctum/API token exists (may still need email verification). */
+    /** True when a Sanctum/API token exists (may still need email verification or payment). */
     const isAuthenticated = () => !!getToken();
 
-    /** True only when the user may use the app shell: token + stored user + verified email. */
+    /**
+     * Token + user + verified email + registration fee satisfied (per AuthApi.md login rules).
+     */
     const canAccessDashboard = () => {
         const u = getUser();
-        return !!getToken() && !!u && isEmailVerified(u);
+        return !!getToken() && !!u && isEmailVerified(u) && isRegistrationFeeSatisfied(u);
     };
 
-    const setSession = ({ token, user }) => {
+    const setSession = ({ token, user, deviceToken } = {}) => {
         if (token && typeof token === 'string' && token.length > 10) {
             localStorage.setItem(AUTH_TOKEN_KEY, token);
             localStorage.setItem(AUTH_SESSION_TS_KEY, Date.now().toString());
@@ -87,12 +136,16 @@ export const useAuth = () => {
             delete safe.remember_token;
             localStorage.setItem(AUTH_USER_KEY, JSON.stringify(safe));
         }
+        if (deviceToken && typeof deviceToken === 'string' && deviceToken.length > 0) {
+            localStorage.setItem(AUTH_DEVICE_TOKEN_KEY, deviceToken);
+        }
     };
 
     const clearSession = () => {
         localStorage.removeItem(AUTH_TOKEN_KEY);
         localStorage.removeItem(AUTH_USER_KEY);
         localStorage.removeItem(AUTH_SESSION_TS_KEY);
+        localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
         localStorage.removeItem(PAYMENT_DETAILS_KEY);
         localStorage.removeItem(AUTH_IDENTIFIER_KEY);
         localStorage.removeItem(REGISTRATION_CHARGES_KEY);
@@ -132,12 +185,20 @@ export const useAuth = () => {
             router.replace(route('auth.verify.email'));
             return false;
         }
+        if (!isRegistrationFeeSatisfied(u)) {
+            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+            router.replace(route('auth.payment.required'));
+            return false;
+        }
         return true;
     };
+
+    const getDeviceToken = () => localStorage.getItem(AUTH_DEVICE_TOKEN_KEY);
 
     return {
         getToken,
         getUser,
+        getDeviceToken,
         isAuthenticated,
         canAccessDashboard,
         setSession,

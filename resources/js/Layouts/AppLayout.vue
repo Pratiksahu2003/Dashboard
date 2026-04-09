@@ -1,7 +1,12 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
-import { isEmailVerified, useAuth } from '@/composables/useAuth';
+import {
+    ensureRegistrationPaymentDetails,
+    isEmailVerified,
+    isRegistrationFeeSatisfied,
+    useAuth,
+} from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
@@ -9,7 +14,7 @@ import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
 
 const user = ref(null);
 const sidebarOpen = ref(false);
-const { getUser, getToken, isAuthenticated, clearSession } = useAuth();
+const { getUser, getToken, isAuthenticated, clearSession, getRegistrationChargesContext } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 
 const notifications = ref([]);
@@ -40,6 +45,19 @@ const enforceEmailVerifiedOrLeave = () => {
         if (emailGateRedirectScheduled) return false;
         emailGateRedirectScheduled = true;
         router.replace(route('auth.verify.email'), {
+            preserveState: false,
+            preserveScroll: false,
+        });
+        setTimeout(() => {
+            emailGateRedirectScheduled = false;
+        }, 2000);
+        return false;
+    }
+    if (stored && !isRegistrationFeeSatisfied(stored)) {
+        if (emailGateRedirectScheduled) return false;
+        emailGateRedirectScheduled = true;
+        ensureRegistrationPaymentDetails(stored, getRegistrationChargesContext);
+        router.replace(route('auth.payment.required'), {
             preserveState: false,
             preserveScroll: false,
         });

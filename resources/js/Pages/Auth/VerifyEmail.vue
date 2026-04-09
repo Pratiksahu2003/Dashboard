@@ -8,6 +8,7 @@ import {
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     isEmailVerified,
     isRegistrationFeeSatisfied,
+    POST_EMAIL_VERIFY_RELOGIN_MESSAGE,
     useAuth,
 } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -22,6 +23,8 @@ const countdownTimer = ref(null);
 /** Uses public `login/send-otp` + `login/verify` (no Bearer). */
 const loginOtpMode = ref(false);
 const loginFlowIdentifier = ref('');
+/** Maps to API `remember_device` → optional `device_token` for trusted browser (see AuthApi.md). */
+const trustThisBrowser = ref(false);
 
 const { getToken, getUser, clearSession, setSession, getRegistrationChargesContext } = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
@@ -173,6 +176,7 @@ const verifyLoginOtp = async code => {
     const response = await api.post('/auth/login/verify', {
         identifier: loginFlowIdentifier.value,
         otp: code,
+        remember_device: trustThisBrowser.value,
         device_name: 'Web Browser',
     });
 
@@ -207,7 +211,11 @@ const verifyLoginOtp = async code => {
                       response.data.registration_fee_status ?? u.registration_fee_status,
               }
             : u;
-        setSession({ token: response.data.token, user: merged });
+        setSession({
+            token: response.data.token,
+            user: merged,
+            deviceToken: response.data.device_token,
+        });
         localStorage.removeItem('auth_identifier');
         router.replace(route('dashboard'));
     }
@@ -234,11 +242,9 @@ const verify = async () => {
 
         if (response.success && response.data?.user) {
             showSuccess(response.message || 'Email verified successfully.');
+            // API revokes the current token — clear all local credentials before navigating (docs: expect 401 if old token used).
             clearSession();
-            sessionStorage.setItem(
-                'post_verify_notice',
-                'Email verified. Please sign in to continue. If your role requires a registration fee, you will complete payment after signing in.',
-            );
+            sessionStorage.setItem('post_verify_notice', POST_EMAIL_VERIFY_RELOGIN_MESSAGE);
             router.replace(route('login'));
         }
     } catch (err) {
@@ -309,8 +315,18 @@ onBeforeUnmount(() => {
                 />
             </div>
 
+            <label
+                v-if="loginOtpMode"
+                class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left dark:border-slate-700 dark:bg-slate-900/40"
+            >
+                <input v-model="trustThisBrowser" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                <span class="text-xs font-semibold leading-snug text-slate-600 dark:text-slate-300">
+                    Trust this browser (optional). If your account allows it, we will remember this device for fewer prompts on future sign-ins.
+                </span>
+            </label>
+
             <SuButton :loading="loading" :disabled="codeString.length !== 6" class="w-full" @click="verify">
-                {{ loginOtpMode ? 'Verify &amp; continue' : 'Verify email' }}
+                {{ loginOtpMode ? 'Verify & continue' : 'Verify email' }}
             </SuButton>
 
             <div class="text-center text-xs font-bold text-slate-500">

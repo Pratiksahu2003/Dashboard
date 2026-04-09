@@ -1,7 +1,11 @@
 import axios from 'axios';
-
-const AUTH_TOKEN_KEY = 'auth_token';
-const AUTH_REDIRECT_REASON_KEY = 'auth_redirect_reason';
+import {
+    AUTH_DEVICE_TOKEN_KEY,
+    AUTH_REDIRECT_REASON_KEY,
+    AUTH_SESSION_TS_KEY,
+    AUTH_TOKEN_KEY,
+    AUTH_USER_KEY,
+} from '@/constants/authStorage';
 const ALLOWED_API_ORIGIN = 'https://www.suganta.in';
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
@@ -11,8 +15,6 @@ const getStorage = () => {
     if (typeof window === 'undefined') return null;
     return window.localStorage;
 };
-
-const AUTH_SESSION_TS_KEY = 'auth_session_ts';
 
 const redirectToLoginIfNeeded = () => {
     if (typeof window === 'undefined') return;
@@ -79,6 +81,11 @@ api.interceptors.request.use(config => {
         config.headers.Authorization = `Bearer ${token}`;
     }
 
+    const deviceToken = storage?.getItem(AUTH_DEVICE_TOKEN_KEY);
+    if (deviceToken) {
+        config.headers['X-Device-Token'] = deviceToken;
+    }
+
     config.headers['X-Client-Fingerprint'] = getDeviceFingerprint();
     config.headers['X-Request-Timestamp'] = Date.now().toString();
 
@@ -109,8 +116,9 @@ api.interceptors.response.use(
         if (response?.status === 401) {
             const storage = getStorage();
             storage?.removeItem(AUTH_TOKEN_KEY);
-            storage?.removeItem('user');
+            storage?.removeItem(AUTH_USER_KEY);
             storage?.removeItem(AUTH_SESSION_TS_KEY);
+            storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
             redirectToLoginIfNeeded();
         }
@@ -119,8 +127,9 @@ api.interceptors.response.use(
             if (!shouldPreserveAuthOn403()) {
                 const storage = getStorage();
                 storage?.removeItem(AUTH_TOKEN_KEY);
-                storage?.removeItem('user');
+                storage?.removeItem(AUTH_USER_KEY);
                 storage?.removeItem(AUTH_SESSION_TS_KEY);
+                storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
                 const msg = sanitizeString(
                     response?.data?.message || 'Access denied. Please sign in again.',
                 );

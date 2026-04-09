@@ -538,4 +538,49 @@ If any provided OTP is wrong, message combines results; `user` may still be incl
 
 ---
 
-*Generated from `routes/api/v1.php` auth routes, `AuthController`, `VerificationController`, `AuthService`, and form requests.*
+## Inertia / SPA integration (this dashboard)
+
+The Vue + Inertia client (`resources/js/api.js`, `useAuth.js`, auth pages) implements the contract below so behavior matches the sections above.
+
+### Headers the client sends
+
+| Header | When |
+|--------|------|
+| `Authorization: Bearer {token}` | A Sanctum token is stored after register, login, or `login/verify`. |
+| `X-Device-Token` | A `device_token` was saved from `POST /auth/login/verify` with `remember_device: true` (trusted browser). |
+| `X-Client-Fingerprint` | Stable-ish browser fingerprint (defense in depth; not a substitute for `device_token`). |
+| `Accept: application/json` | Always (Axios default for this app). |
+
+Password **`POST /auth/login`** uses the stored device token when present so the API can skip **`requires_otp`** for recognized devices (see **Headers (authenticated routes)** / login optional header at the top of this doc).
+
+### Session lifecycle
+
+1. **`401`** — Access token invalid/expired: client clears token, user payload, session timestamp, **and** stored `device_token`, then redirects to `/login` (unless already on a public auth route).
+2. **`403`** — Same clearing behavior outside verify / OTP / payment pages (those paths preserve the token briefly to avoid redirect loops while the user finishes verification).
+3. **`POST /auth/verification/verify` success** — Server revokes the current token. Client clears **all** local auth state, shows a **sign in again** notice, and navigates to `/login` (no reuse of the old bearer token).
+
+### When the dashboard is allowed
+
+The app treats the user as allowed to enter the main shell only if **all** are true:
+
+- A valid token exists (within the client-side max session age).
+- `email_verified_at` is set (see **Login** business rules).
+- Registration fee is satisfied for that role (`registration_fee_status` / `payment_required` aligned with **Login – registration payment required**).
+
+Otherwise the user is routed to **Verify email**, **Payment required**, or **Login** as appropriate.
+
+### Typical flows
+
+| Flow | Client steps |
+|------|----------------|
+| **Register → verify email** | Store token + user + `registration_charges` → Bearer **`/auth/verification/resend`** / **`verify`** → on success clear storage → **Login** → optional payment → dashboard. |
+| **Login, untrusted device** | **`requires_otp`** → **`/auth/login/send-otp`** (if needed) → **`/auth/login/verify`** → store token (+ optional `device_token`) → dashboard or payment. |
+| **Login, fee unpaid** | Response `success: false` with `errors.requires_registration_payment` → persist `payment_details` JSON → payment page → external `payment_link`. |
+
+### Browser storage keys (stable; do not rename in code without a migration plan)
+
+Local storage uses fixed string keys such as `auth_token`, `user`, `auth_device_token`, `registration_charges_context`, `payment_details`. The dashboard source of truth is `resources/js/constants/authStorage.js`.
+
+---
+
+*Generated from `routes/api/v1.php` auth routes, `AuthController`, `VerificationController`, `AuthService`, and form requests. SPA behavior cross-checked with `resources/js/api.js` and `resources/js/composables/useAuth.js`.*
