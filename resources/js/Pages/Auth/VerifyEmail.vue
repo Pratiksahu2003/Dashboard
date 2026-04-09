@@ -288,29 +288,54 @@ const verify = async () => {
                     setRegistrationChargesContext(savedCharges);
                 }
                 ensureRegistrationPaymentDetails(verifiedUser, () => savedCharges);
+
+                const defaultDescription =
+                    'Your email is verified. Complete the one-time registration fee, then sign in to access your dashboard.';
+                let mergedErrors = {
+                    requires_registration_payment: true,
+                    role: verifiedUser.role,
+                    description: defaultDescription,
+                };
                 try {
                     const raw = localStorage.getItem(PAYMENT_DETAILS_KEY);
                     const parsed = raw ? JSON.parse(raw) : {};
-                    const hasGate = !!(parsed?.errors && parsed.errors.requires_registration_payment);
-                    if (!hasGate) {
-                        localStorage.setItem(
-                            PAYMENT_DETAILS_KEY,
-                            JSON.stringify({
-                                success: false,
-                                message: 'Registration fee payment is required to activate your account.',
-                                errors: {
-                                    requires_registration_payment: true,
-                                    role: verifiedUser.role,
-                                    description:
-                                        'Complete the one-time registration fee to continue after signing in.',
-                                },
-                                code: 200,
-                            }),
-                        );
+                    if (parsed.errors && typeof parsed.errors === 'object') {
+                        mergedErrors = {
+                            ...parsed.errors,
+                            requires_registration_payment: true,
+                            role: verifiedUser.role ?? parsed.errors.role,
+                        };
                     }
                 } catch {
                     /* ignore */
                 }
+                if (
+                    !mergedErrors.description ||
+                    typeof mergedErrors.description !== 'string' ||
+                    !mergedErrors.description.trim()
+                ) {
+                    mergedErrors.description =
+                        (savedCharges &&
+                            typeof savedCharges === 'object' &&
+                            typeof savedCharges.description === 'string' &&
+                            savedCharges.description.trim()) ||
+                        defaultDescription;
+                }
+
+                localStorage.setItem(
+                    PAYMENT_DETAILS_KEY,
+                    JSON.stringify({
+                        success: true,
+                        message:
+                            typeof response.message === 'string' && response.message.trim()
+                                ? response.message.trim()
+                                : 'Email verified successfully.',
+                        code: response.code ?? 200,
+                        source: 'email_verification',
+                        verified_user: verifiedUser,
+                        errors: mergedErrors,
+                    }),
+                );
                 router.visit(route('auth.payment.required'), { replace: true });
                 return;
             }

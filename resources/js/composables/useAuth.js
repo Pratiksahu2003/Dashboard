@@ -47,9 +47,11 @@ export const isRegistrationFeeSatisfied = user => {
     if (s === false) return false;
     if (typeof s === 'string') {
         const lower = s.toLowerCase();
-        if (lower === 'pending' || lower === 'unpaid') return false;
         if (lower === 'paid' || lower === 'completed') return true;
+        if (lower === 'pending' || lower === 'unpaid') return false;
     }
+    /** API may send `registration_fee_status: null` with `payment_required: true` (e.g. after email verify). */
+    if (user.payment_required === true) return false;
     return true;
 };
 
