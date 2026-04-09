@@ -55,13 +55,23 @@ const form = ref({
     status: 'active',
 });
 const uploadFile = ref(null);
-const existingImagesInEdit = ref([]);
-const thumbnailFileInputRef = ref(null);
+/** Up to 6 gallery images; API requires 4–6. First item is cover / thumbnail. */
+const galleryItems = ref([]);
+const galleryFileInputRef = ref(null);
 const softFileInputRef = ref(null);
-const thumbDragDepth = ref(0);
+const galleryDragDepth = ref(0);
 const uploadDragDepth = ref(0);
-const thumbnailDropActive = computed(() => thumbDragDepth.value > 0);
+const galleryDropActive = computed(() => galleryDragDepth.value > 0);
 const uploadDropActive = computed(() => uploadDragDepth.value > 0);
+
+const MIN_GALLERY = 4;
+const MAX_GALLERY = 6;
+
+const galleryCountLabel = computed(() => {
+    const n = galleryItems.value.length;
+    if (n < MIN_GALLERY) return `${n} / ${MAX_GALLERY} — add at least ${MIN_GALLERY - n} more`;
+    return `${n} / ${MAX_GALLERY}`;
+});
 
 const quillToolbar = [
     ['bold', 'italic', 'underline'],
@@ -75,21 +85,22 @@ const hasListingsNext = computed(() => (listingsMeta.value?.current_page || 1) <
 const hasMinePrev = computed(() => (myListingsMeta.value?.current_page || 1) > 1);
 const hasMineNext = computed(() => (myListingsMeta.value?.current_page || 1) < (myListingsMeta.value?.last_page || 1));
 
-/** API expects 4–6 image URLs; create uses thumbnail ×4; edit uses saved images (trimmed to 6, padded with thumbnail if needed). */
+/** API expects exactly 4–6 image URL strings (https or data URLs from uploads). */
 const buildImagesForSubmit = () => {
-    const thumb = String(form.value.thumbnail || '').trim();
-    if (myFormMode.value === 'edit') {
-        let imgs = [...existingImagesInEdit.value];
-        if (imgs.length > 6) imgs = imgs.slice(0, 6);
-        if (imgs.length >= 4) return imgs;
-        if (thumb) {
-            while (imgs.length < 4) imgs.push(thumb);
-            return imgs.slice(0, 6);
-        }
-        return imgs;
-    }
-    if (thumb) return [thumb, thumb, thumb, thumb];
-    return [];
+    const n = galleryItems.value.length;
+    if (n < MIN_GALLERY || n > MAX_GALLERY) return [];
+    return galleryItems.value.map(item => item.url);
+};
+
+const thumbnailForPayload = () => {
+    const first = galleryItems.value[0]?.url;
+    if (first) return String(first).trim();
+    return String(form.value.thumbnail || '').trim();
+};
+
+const syncThumbnailFromGallery = () => {
+    const t = galleryItems.value[0]?.url;
+    if (t) form.value.thumbnail = String(t);
 };
 
 const formatMoney = (amount, currency = 'INR') => {
@@ -333,7 +344,7 @@ const resetForm = () => {
         status: 'active',
     };
     uploadFile.value = null;
-    existingImagesInEdit.value = [];
+    galleryItems.value = [];
     editingId.value = null;
     myFormMode.value = 'create';
 };
@@ -354,13 +365,31 @@ const openEdit = listing => {
         status: listing?.status || 'active',
     };
     uploadFile.value = null;
-    existingImagesInEdit.value = Array.isArray(listing?.images) ? listing.images : [];
+    const imgs = Array.isArray(listing?.images) ? listing.images : [];
+    galleryItems.value = imgs.slice(0, MAX_GALLERY).map((url, i) => ({
+        id: `remote-${listing?.id}-${i}-${String(url).slice(0, 24)}`,
+        url: String(url),
+        name: `Image ${i + 1}`,
+        remote: true,
+    }));
+    form.value.thumbnail = String(listing?.thumbnail || galleryItems.value[0]?.url || '');
     editingId.value = listing?.id || null;
     myFormMode.value = 'edit';
     myFormOpen.value = true;
 };
 
-const MAX_THUMB_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_GALLERY_FILE_BYTES = 2 * 1024 * 1024;
+
+const makeGalleryId = () =>
+    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `g-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+
+const readImageFileAsDataUrl = file =>
+    new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('read'));
+        reader.readAsDataURL(file);
+    });
 
 const setUploadFile = file => {
     uploadFile.value = file || null;
@@ -371,58 +400,74 @@ const onUploadFileChanged = event => {
     setUploadFile(file);
 };
 
-const setThumbnailFromFile = file => {
-    if (!file || !String(file.type || '').startsWith('image/')) {
-        showInfo('Please drop or choose an image file.', 'Marketplace');
+const addGalleryFiles = async fileList => {
+    const files = Array.from(fileList || []).filter(f => String(f.type || '').startsWith('image/'));
+    if (!files.length) {
+        showInfo('Add image files (PNG, JPG, WebP, GIF, etc.).', 'Marketplace');
         return;
     }
-    if (file.size > MAX_THUMB_FILE_BYTES) {
-        showInfo('Image must be 2 MB or smaller.', 'Marketplace');
-        return;
+    for (const file of files) {
+        if (galleryItems.value.length >= MAX_GALLERY) {
+            showInfo(`You can add at most ${MAX_GALLERY} images.`, 'Marketplace');
+            break;
+        }
+        if (file.size > MAX_GALLERY_FILE_BYTES) {
+            showInfo(`"${file.name}" is over 2 MB and was skipped.`, 'Marketplace');
+            continue;
+        }
+        try {
+            const dataUrl = await readImageFileAsDataUrl(file);
+            galleryItems.value.push({
+                id: makeGalleryId(),
+                url: dataUrl,
+                name: file.name,
+                remote: false,
+            });
+        } catch {
+            showInfo(`Could not read "${file.name}".`, 'Marketplace');
+        }
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-        form.value.thumbnail = String(reader.result || '');
-    };
-    reader.onerror = () => {
-        showInfo('Could not read that image.', 'Marketplace');
-    };
-    reader.readAsDataURL(file);
+    syncThumbnailFromGallery();
 };
 
-const onThumbnailFileInputChange = event => {
-    const file = event?.target?.files?.[0] || null;
-    if (file) setThumbnailFromFile(file);
+const removeGalleryItem = id => {
+    galleryItems.value = galleryItems.value.filter(item => item.id !== id);
+    syncThumbnailFromGallery();
+};
+
+const onGalleryFileInputChange = async event => {
+    const list = event?.target?.files;
+    if (list?.length) await addGalleryFiles(list);
     event.target.value = '';
 };
 
-const openThumbnailFilePicker = () => {
-    thumbnailFileInputRef.value?.click();
+const openGalleryFilePicker = () => {
+    galleryFileInputRef.value?.click();
 };
 
-const onThumbnailDragEnter = e => {
+const onGalleryDragEnter = e => {
     e.preventDefault();
     e.stopPropagation();
-    thumbDragDepth.value += 1;
+    galleryDragDepth.value += 1;
 };
 
-const onThumbnailDragLeave = e => {
+const onGalleryDragLeave = e => {
     e.preventDefault();
     e.stopPropagation();
-    thumbDragDepth.value = Math.max(0, thumbDragDepth.value - 1);
+    galleryDragDepth.value = Math.max(0, galleryDragDepth.value - 1);
 };
 
-const onThumbnailDragOver = e => {
+const onGalleryDragOver = e => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
 };
 
-const onThumbnailDrop = e => {
+const onGalleryDrop = async e => {
     e.preventDefault();
     e.stopPropagation();
-    thumbDragDepth.value = 0;
-    const file = e.dataTransfer?.files?.[0] || null;
-    if (file) setThumbnailFromFile(file);
+    galleryDragDepth.value = 0;
+    const list = e.dataTransfer?.files;
+    if (list?.length) await addGalleryFiles(list);
 };
 
 const onUploadDragEnter = e => {
@@ -468,12 +513,13 @@ const submitMyListing = async () => {
         showInfo('Valid price is required.', 'Marketplace');
         return;
     }
-    if (images.length < 4 || images.length > 6) {
-        if (myFormMode.value === 'create') {
-            showInfo('Add a thumbnail URL — it is used to build the required gallery image set.', 'Marketplace');
-        } else {
-            showInfo('Listing must have 4 to 6 images. Refresh and try again, or contact support.', 'Marketplace');
-        }
+    if (images.length < MIN_GALLERY || images.length > MAX_GALLERY) {
+        showInfo(`Add between ${MIN_GALLERY} and ${MAX_GALLERY} gallery images (drag, drop, or browse).`, 'Marketplace');
+        return;
+    }
+    const thumbOut = thumbnailForPayload();
+    if (!thumbOut) {
+        showInfo('The first gallery image is used as the cover; add images above.', 'Marketplace');
         return;
     }
     if (form.value.type === 'soft' && myFormMode.value === 'create' && !uploadFile.value) {
@@ -487,7 +533,7 @@ const submitMyListing = async () => {
     payload.append('price', String(form.value.price));
     payload.append('type', form.value.type);
     payload.append('category', form.value.category.trim());
-    payload.append('thumbnail', form.value.thumbnail.trim());
+    payload.append('thumbnail', thumbOut);
     payload.append('status', form.value.status);
     images.forEach(url => payload.append('images[]', url));
     if (uploadFile.value) payload.append('file_path', uploadFile.value);
@@ -880,90 +926,80 @@ onMounted(async () => {
                             <div>
                                 <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Media</p>
                                 <div class="mt-4 space-y-5">
-                                    <label class="block">
-                                        <span class="mb-2 block text-xs font-bold text-slate-700">Thumbnail URL</span>
-                                        <input
-                                            v-model="form.thumbnail"
-                                            type="url"
-                                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
-                                            placeholder="https://… or drop an image below"
-                                        />
-                                        <p class="mt-2 text-xs font-medium leading-relaxed text-slate-500">
-                                            For new listings, this image is repeated to meet the gallery image requirement (4 URLs).
-                                        </p>
-                                    </label>
-
-                                    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
-                                        <div
-                                            class="group relative overflow-hidden rounded-2xl border-2 border-dashed bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm transition-all duration-200"
-                                            :class="thumbnailDropActive ? 'border-violet-400 from-violet-50/90 to-white shadow-md ring-2 ring-violet-500/20' : 'border-slate-200 hover:border-slate-300'"
-                                            @dragenter="onThumbnailDragEnter"
-                                            @dragleave="onThumbnailDragLeave"
-                                            @dragover="onThumbnailDragOver"
-                                            @drop="onThumbnailDrop"
-                                        >
-                                            <input
-                                                ref="thumbnailFileInputRef"
-                                                type="file"
-                                                accept="image/*"
-                                                class="sr-only"
-                                                @change="onThumbnailFileInputChange"
-                                            />
-                                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                                <div>
-                                                    <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Cover image</p>
-                                                    <p class="mt-0.5 text-xs font-medium text-slate-500">Drop PNG or JPG · max 2 MB</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
-                                                    @click.stop="openThumbnailFilePicker"
-                                                >
-                                                    Browse
-                                                </button>
-                                            </div>
-                                            <div v-if="!form.thumbnail?.trim()" class="mt-4 flex min-h-[8rem] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200/80 bg-white/70 px-4 text-center">
-                                                <div
-                                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-slate-100 text-violet-600 shadow-inner"
-                                                    aria-hidden="true"
-                                                >
-                                                    <svg class="h-5 w-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path
-                                                            stroke-linecap="round"
-                                                            stroke-linejoin="round"
-                                                            stroke-width="1.75"
-                                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                                        />
-                                                    </svg>
-                                                </div>
-                                                <p class="mt-3 text-xs font-semibold text-slate-400">Drag an image here</p>
-                                            </div>
-                                            <div v-else class="mt-4 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-inner">
-                                                <img :src="form.thumbnail" alt="Thumbnail preview" class="h-36 w-full object-cover transition group-hover:scale-[1.02]" />
-                                            </div>
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <span class="text-xs font-bold text-slate-700">Gallery images</span>
+                                            <span class="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">4–6 required</span>
                                         </div>
+                                        <span
+                                            class="text-xs font-black"
+                                            :class="galleryItems.length >= MIN_GALLERY && galleryItems.length <= MAX_GALLERY ? 'text-emerald-600' : 'text-amber-600'"
+                                        >
+                                            {{ galleryCountLabel }}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs font-medium leading-relaxed text-slate-500">
+                                        Add {{ MIN_GALLERY }} to {{ MAX_GALLERY }} images. The first image is the listing cover. You can select several files at once or drag them in together.
+                                    </p>
 
-                                        <div class="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/80 to-white p-4 shadow-sm">
-                                            <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Gallery (saved)</p>
-                                            <p class="mt-1 text-xs font-medium text-slate-500">Images already stored for this listing.</p>
-                                            <div v-if="myFormMode !== 'edit'" class="mt-6 flex min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 text-center text-xs font-semibold text-slate-400">
-                                                Shown when you edit a listing
+                                    <div
+                                        class="rounded-2xl border-2 border-dashed bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm transition-all duration-200"
+                                        :class="galleryDropActive ? 'border-violet-400 from-violet-50/90 to-white shadow-md ring-2 ring-violet-500/20' : 'border-slate-200 hover:border-slate-300'"
+                                        @dragenter="onGalleryDragEnter"
+                                        @dragleave="onGalleryDragLeave"
+                                        @dragover="onGalleryDragOver"
+                                        @drop="onGalleryDrop"
+                                    >
+                                        <input
+                                            ref="galleryFileInputRef"
+                                            type="file"
+                                            accept="image/*"
+                                            multiple
+                                            class="sr-only"
+                                            @change="onGalleryFileInputChange"
+                                        />
+                                        <div class="flex flex-wrap items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Drop images here</p>
+                                                <p class="mt-0.5 text-xs font-medium text-slate-500">PNG, JPG, WebP… · max 2 MB each · up to {{ MAX_GALLERY }} total</p>
                                             </div>
-                                            <div v-else-if="existingImagesInEdit.length === 0" class="mt-6 flex min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 text-center text-xs font-semibold text-slate-400">
-                                                No saved images yet
-                                            </div>
-                                            <div v-else class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                                <a
-                                                    v-for="(url, idx) in existingImagesInEdit"
-                                                    :key="`existing-image-${idx}-${url}`"
-                                                    :href="url"
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    class="group/img overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm transition hover:ring-2 hover:ring-violet-300/60"
-                                                >
-                                                    <img :src="url" alt="Listing image" class="h-24 w-full object-cover transition group-hover/img:scale-105" />
-                                                </a>
-                                            </div>
+                                            <button
+                                                type="button"
+                                                class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                                                @click.stop="openGalleryFilePicker"
+                                            >
+                                                Browse images
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="galleryItems.length === 0" class="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-10 text-center text-xs font-semibold text-slate-400">
+                                        No images yet — use drop zone or Browse to add your gallery.
+                                    </div>
+                                    <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                                        <div
+                                            v-for="(item, idx) in galleryItems"
+                                            :key="item.id"
+                                            class="group/slot relative overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
+                                        >
+                                            <span
+                                                class="absolute left-2 top-2 z-10 rounded-md px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wide"
+                                                :class="idx === 0 ? 'bg-violet-600 text-white' : 'bg-white/90 text-slate-600 shadow-sm'"
+                                            >
+                                                {{ idx === 0 ? 'Cover' : idx + 1 }}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                class="absolute right-2 top-2 z-10 rounded-lg border border-slate-200 bg-white/95 p-1 text-slate-500 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                                                :title="'Remove'"
+                                                @click="removeGalleryItem(item.id)"
+                                            >
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                            <img :src="item.url" :alt="item.name || `Gallery ${idx + 1}`" class="aspect-square w-full object-cover transition group-hover/slot:scale-[1.03]" />
+                                            <p v-if="item.name" class="truncate px-2 py-1.5 text-[10px] font-semibold text-slate-500" :title="item.name">{{ item.name }}</p>
                                         </div>
                                     </div>
                                 </div>
