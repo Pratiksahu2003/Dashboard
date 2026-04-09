@@ -27,15 +27,17 @@ const appSlides = computed(() => {
     return Array.isArray(s) && s.length > 0 ? s : FALLBACK_SLIDES;
 });
 
-/** Prefix with Vite base when the app is served from a subpath. Cache-bust aligns with authSlidesVersion. */
+/**
+ * Root-relative URLs for files in Laravel `public/` (e.g. public/App/1.png → /App/1.png).
+ * Do not use import.meta.env.BASE_URL — in production it is often `/build/` (Vite output only), which
+ * incorrectly produced /build/App/1.png and 404s. Static public assets are never under /build/.
+ */
 const publicAssetUrl = path => {
     if (!path || typeof path !== 'string') return '';
     if (/^https?:\/\//i.test(path)) return path;
-    const base = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '');
     const normalized = path.startsWith('/') ? path : `/${path}`;
-    const full = `${base}${normalized}`;
-    const sep = full.includes('?') ? '&' : '?';
-    return `${full}${sep}v=${encodeURIComponent(slideVersion.value)}`;
+    const sep = normalized.includes('?') ? '&' : '?';
+    return `${normalized}${sep}v=${encodeURIComponent(slideVersion.value)}`;
 };
 
 const onSlideImageError = e => {
