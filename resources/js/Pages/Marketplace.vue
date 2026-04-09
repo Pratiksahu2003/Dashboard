@@ -52,11 +52,16 @@ const form = ref({
     category: '',
     type: 'soft',
     thumbnail: '',
-    imagesText: '',
     status: 'active',
 });
 const uploadFile = ref(null);
 const existingImagesInEdit = ref([]);
+const thumbnailFileInputRef = ref(null);
+const softFileInputRef = ref(null);
+const thumbDragDepth = ref(0);
+const uploadDragDepth = ref(0);
+const thumbnailDropActive = computed(() => thumbDragDepth.value > 0);
+const uploadDropActive = computed(() => uploadDragDepth.value > 0);
 
 const quillToolbar = [
     ['bold', 'italic', 'underline'],
@@ -70,12 +75,22 @@ const hasListingsNext = computed(() => (listingsMeta.value?.current_page || 1) <
 const hasMinePrev = computed(() => (myListingsMeta.value?.current_page || 1) > 1);
 const hasMineNext = computed(() => (myListingsMeta.value?.current_page || 1) < (myListingsMeta.value?.last_page || 1));
 
-const parseImages = text => String(text || '')
-    .split('\n')
-    .map(v => v.trim())
-    .filter(Boolean);
-const selectedImageUrls = computed(() => parseImages(form.value.imagesText));
-const uniqueSelectedImageUrls = computed(() => Array.from(new Set(selectedImageUrls.value)));
+/** API expects 4–6 image URLs; create uses thumbnail ×4; edit uses saved images (trimmed to 6, padded with thumbnail if needed). */
+const buildImagesForSubmit = () => {
+    const thumb = String(form.value.thumbnail || '').trim();
+    if (myFormMode.value === 'edit') {
+        let imgs = [...existingImagesInEdit.value];
+        if (imgs.length > 6) imgs = imgs.slice(0, 6);
+        if (imgs.length >= 4) return imgs;
+        if (thumb) {
+            while (imgs.length < 4) imgs.push(thumb);
+            return imgs.slice(0, 6);
+        }
+        return imgs;
+    }
+    if (thumb) return [thumb, thumb, thumb, thumb];
+    return [];
+};
 
 const formatMoney = (amount, currency = 'INR') => {
     const numericAmount = Number(amount ?? 0);
@@ -315,7 +330,6 @@ const resetForm = () => {
         category: '',
         type: 'soft',
         thumbnail: '',
-        imagesText: '',
         status: 'active',
     };
     uploadFile.value = null;
@@ -337,7 +351,6 @@ const openEdit = listing => {
         category: listing?.category || '',
         type: listing?.type || 'soft',
         thumbnail: listing?.thumbnail || '',
-        imagesText: Array.isArray(listing?.images) ? listing.images.join('\n') : '',
         status: listing?.status || 'active',
     };
     uploadFile.value = null;
@@ -347,13 +360,102 @@ const openEdit = listing => {
     myFormOpen.value = true;
 };
 
+const MAX_THUMB_FILE_BYTES = 2 * 1024 * 1024;
+
+const setUploadFile = file => {
+    uploadFile.value = file || null;
+};
+
 const onUploadFileChanged = event => {
     const file = event?.target?.files?.[0] || null;
-    uploadFile.value = file;
+    setUploadFile(file);
+};
+
+const setThumbnailFromFile = file => {
+    if (!file || !String(file.type || '').startsWith('image/')) {
+        showInfo('Please drop or choose an image file.', 'Marketplace');
+        return;
+    }
+    if (file.size > MAX_THUMB_FILE_BYTES) {
+        showInfo('Image must be 2 MB or smaller.', 'Marketplace');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        form.value.thumbnail = String(reader.result || '');
+    };
+    reader.onerror = () => {
+        showInfo('Could not read that image.', 'Marketplace');
+    };
+    reader.readAsDataURL(file);
+};
+
+const onThumbnailFileInputChange = event => {
+    const file = event?.target?.files?.[0] || null;
+    if (file) setThumbnailFromFile(file);
+    event.target.value = '';
+};
+
+const openThumbnailFilePicker = () => {
+    thumbnailFileInputRef.value?.click();
+};
+
+const onThumbnailDragEnter = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    thumbDragDepth.value += 1;
+};
+
+const onThumbnailDragLeave = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    thumbDragDepth.value = Math.max(0, thumbDragDepth.value - 1);
+};
+
+const onThumbnailDragOver = e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+};
+
+const onThumbnailDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    thumbDragDepth.value = 0;
+    const file = e.dataTransfer?.files?.[0] || null;
+    if (file) setThumbnailFromFile(file);
+};
+
+const onUploadDragEnter = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepth.value += 1;
+};
+
+const onUploadDragLeave = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepth.value = Math.max(0, uploadDragDepth.value - 1);
+};
+
+const onUploadDragOver = e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+};
+
+const onUploadDrop = e => {
+    e.preventDefault();
+    e.stopPropagation();
+    uploadDragDepth.value = 0;
+    const file = e.dataTransfer?.files?.[0] || null;
+    if (file) setUploadFile(file);
+};
+
+const openSoftFilePicker = () => {
+    softFileInputRef.value?.click();
 };
 
 const submitMyListing = async () => {
-    const images = parseImages(form.value.imagesText);
+    const images = buildImagesForSubmit();
     if (!form.value.title.trim()) {
         showInfo('Title is required.', 'Marketplace');
         return;
@@ -367,7 +469,11 @@ const submitMyListing = async () => {
         return;
     }
     if (images.length < 4 || images.length > 6) {
-        showInfo('Images must contain 4 to 6 URLs.', 'Marketplace');
+        if (myFormMode.value === 'create') {
+            showInfo('Add a thumbnail URL — it is used to build the required gallery image set.', 'Marketplace');
+        } else {
+            showInfo('Listing must have 4 to 6 images. Refresh and try again, or contact support.', 'Marketplace');
+        }
         return;
     }
     if (form.value.type === 'soft' && myFormMode.value === 'create' && !uploadFile.value) {
@@ -664,110 +770,260 @@ onMounted(async () => {
                     </div>
                 </section>
 
-                <section v-if="myFormOpen" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 class="text-base font-black text-slate-900">{{ myFormMode === 'edit' ? 'Update Listing' : 'Create Listing' }}</h3>
-                    <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                        <label class="block md:col-span-2">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Title</span>
-                            <input v-model="form.title" type="text" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" />
-                        </label>
-                        <label class="block md:col-span-2">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Description</span>
-                            <QuillEditor
-                                v-model:content="form.description"
-                                content-type="html"
-                                theme="snow"
-                                :toolbar="quillToolbar"
-                                class="quill-editor"
-                            />
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Price</span>
-                            <input v-model="form.price" type="number" min="0" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" />
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Category</span>
-                            <input v-model="form.category" type="text" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" />
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Type</span>
-                            <select v-model="form.type" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700">
-                                <option value="soft">Soft</option>
-                                <option value="hard">Hard</option>
-                            </select>
-                        </label>
-                        <label class="block">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Status</span>
-                            <select v-model="form.status" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700">
-                                <option value="active">Active</option>
-                                <option value="sold">Sold</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </label>
-                        <label class="block md:col-span-2">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Thumbnail URL</span>
-                            <input v-model="form.thumbnail" type="url" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" />
-                        </label>
-                        <label class="block md:col-span-2">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Image URLs (4 to 6, one per line)</span>
-                            <textarea v-model="form.imagesText" rows="5" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700"></textarea>
-                            <p class="mt-1 text-[11px] font-semibold text-slate-500">
-                                Selected URLs: {{ uniqueSelectedImageUrls.length }} (required: 4 to 6)
-                            </p>
-                        </label>
-                        <div class="md:col-span-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Current Selected Images</p>
-                                <div v-if="uniqueSelectedImageUrls.length === 0" class="mt-2 text-xs font-semibold text-slate-500">
-                                    No selected image URLs.
-                                </div>
-                                <div v-else class="mt-2 grid grid-cols-2 gap-2">
-                                    <a
-                                        v-for="(url, idx) in uniqueSelectedImageUrls"
-                                        :key="`selected-image-${idx}-${url}`"
-                                        :href="url"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                <section
+                    v-if="myFormOpen"
+                    class="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-gradient-to-b from-white via-white to-slate-50/90 shadow-xl shadow-slate-300/30 ring-1 ring-slate-900/5"
+                >
+                    <div class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400" aria-hidden="true"></div>
+                    <div class="p-6 sm:p-8">
+                        <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide"
+                                        :class="myFormMode === 'edit' ? 'bg-violet-100 text-violet-800 ring-1 ring-violet-200/80' : 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200/80'"
                                     >
-                                        <img :src="url" alt="Selected image" class="h-24 w-full object-cover" />
-                                    </a>
+                                        {{ myFormMode === 'edit' ? 'Edit' : 'Create' }}
+                                    </span>
+                                    <span v-if="myFormMode === 'edit' && editingId" class="text-xs font-semibold text-slate-500">ID {{ editingId }}</span>
+                                </div>
+                                <h3 class="mt-2 text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
+                                    {{ myFormMode === 'edit' ? 'Update your listing' : 'Publish a new listing' }}
+                                </h3>
+                                <p class="mt-1 max-w-xl text-sm font-medium leading-relaxed text-slate-600">
+                                    {{
+                                        myFormMode === 'edit'
+                                            ? 'Adjust details, media, and delivery. Changes apply after you save.'
+                                            : 'Add a title, rich description, pricing, and media. Soft listings need an upload on first save.'
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="mt-8 space-y-10">
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Basics</p>
+                                <div class="mt-4 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <label class="block md:col-span-2 group">
+                                        <span class="mb-2 flex items-center gap-2 text-xs font-bold text-slate-700">
+                                            Title
+                                            <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Required</span>
+                                        </span>
+                                        <input
+                                            v-model="form.title"
+                                            type="text"
+                                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                            placeholder="e.g. Class 12 Physics notes bundle"
+                                        />
+                                    </label>
+                                    <label class="block md:col-span-2">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Description</span>
+                                        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-900/[0.04] transition focus-within:border-violet-400 focus-within:ring-4 focus-within:ring-violet-500/15">
+                                            <QuillEditor
+                                                v-model:content="form.description"
+                                                content-type="html"
+                                                theme="snow"
+                                                :toolbar="quillToolbar"
+                                                class="quill-editor--modern"
+                                            />
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
-                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Already Uploaded Images</p>
-                                <div v-if="myFormMode !== 'edit'" class="mt-2 text-xs font-semibold text-slate-500">
-                                    Existing images are shown when editing a listing.
+
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Pricing &amp; type</p>
+                                <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Price (INR)</span>
+                                        <input
+                                            v-model="form.price"
+                                            type="number"
+                                            min="0"
+                                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                            placeholder="0"
+                                        />
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Category</span>
+                                        <input
+                                            v-model="form.category"
+                                            type="text"
+                                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                            placeholder="Education, Science…"
+                                        />
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Listing type</span>
+                                        <select
+                                            v-model="form.type"
+                                            class="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                        >
+                                            <option value="soft">Soft copy</option>
+                                            <option value="hard">Hard copy</option>
+                                        </select>
+                                    </label>
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Status</span>
+                                        <select
+                                            v-model="form.status"
+                                            class="w-full cursor-pointer rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="sold">Sold</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </label>
                                 </div>
-                                <div v-else-if="existingImagesInEdit.length === 0" class="mt-2 text-xs font-semibold text-slate-500">
-                                    No existing images on this listing.
+                            </div>
+
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Media</p>
+                                <div class="mt-4 space-y-5">
+                                    <label class="block">
+                                        <span class="mb-2 block text-xs font-bold text-slate-700">Thumbnail URL</span>
+                                        <input
+                                            v-model="form.thumbnail"
+                                            type="url"
+                                            class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-violet-400 focus:outline-none focus:ring-4 focus:ring-violet-500/15"
+                                            placeholder="https://… or drop an image below"
+                                        />
+                                        <p class="mt-2 text-xs font-medium leading-relaxed text-slate-500">
+                                            For new listings, this image is repeated to meet the gallery image requirement (4 URLs).
+                                        </p>
+                                    </label>
+
+                                    <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                                        <div
+                                            class="group relative overflow-hidden rounded-2xl border-2 border-dashed bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm transition-all duration-200"
+                                            :class="thumbnailDropActive ? 'border-violet-400 from-violet-50/90 to-white shadow-md ring-2 ring-violet-500/20' : 'border-slate-200 hover:border-slate-300'"
+                                            @dragenter="onThumbnailDragEnter"
+                                            @dragleave="onThumbnailDragLeave"
+                                            @dragover="onThumbnailDragOver"
+                                            @drop="onThumbnailDrop"
+                                        >
+                                            <input
+                                                ref="thumbnailFileInputRef"
+                                                type="file"
+                                                accept="image/*"
+                                                class="sr-only"
+                                                @change="onThumbnailFileInputChange"
+                                            />
+                                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Cover image</p>
+                                                    <p class="mt-0.5 text-xs font-medium text-slate-500">Drop PNG or JPG · max 2 MB</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                                                    @click.stop="openThumbnailFilePicker"
+                                                >
+                                                    Browse
+                                                </button>
+                                            </div>
+                                            <div v-if="!form.thumbnail?.trim()" class="mt-4 flex min-h-[8rem] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200/80 bg-white/70 px-4 text-center">
+                                                <div
+                                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-100 to-slate-100 text-violet-600 shadow-inner"
+                                                    aria-hidden="true"
+                                                >
+                                                    <svg class="h-5 w-5 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            stroke-width="1.75"
+                                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                                        />
+                                                    </svg>
+                                                </div>
+                                                <p class="mt-3 text-xs font-semibold text-slate-400">Drag an image here</p>
+                                            </div>
+                                            <div v-else class="mt-4 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-inner">
+                                                <img :src="form.thumbnail" alt="Thumbnail preview" class="h-36 w-full object-cover transition group-hover:scale-[1.02]" />
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-slate-50/80 to-white p-4 shadow-sm">
+                                            <p class="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Gallery (saved)</p>
+                                            <p class="mt-1 text-xs font-medium text-slate-500">Images already stored for this listing.</p>
+                                            <div v-if="myFormMode !== 'edit'" class="mt-6 flex min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 text-center text-xs font-semibold text-slate-400">
+                                                Shown when you edit a listing
+                                            </div>
+                                            <div v-else-if="existingImagesInEdit.length === 0" class="mt-6 flex min-h-[8rem] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 text-center text-xs font-semibold text-slate-400">
+                                                No saved images yet
+                                            </div>
+                                            <div v-else class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                                <a
+                                                    v-for="(url, idx) in existingImagesInEdit"
+                                                    :key="`existing-image-${idx}-${url}`"
+                                                    :href="url"
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    class="group/img overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm transition hover:ring-2 hover:ring-violet-300/60"
+                                                >
+                                                    <img :src="url" alt="Listing image" class="h-24 w-full object-cover transition group-hover/img:scale-105" />
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div v-else class="mt-2 grid grid-cols-2 gap-2">
-                                    <a
-                                        v-for="(url, idx) in existingImagesInEdit"
-                                        :key="`existing-image-${idx}-${url}`"
-                                        :href="url"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                                    >
-                                        <img :src="url" alt="Existing image" class="h-24 w-full object-cover" />
-                                    </a>
+                            </div>
+
+                            <div>
+                                <p class="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Delivery file</p>
+                                <p class="mt-1 text-xs font-medium text-slate-500">Required when creating a soft-copy listing.</p>
+                                <input ref="softFileInputRef" type="file" class="sr-only" @change="onUploadFileChanged" />
+                                <div
+                                    class="mt-4 rounded-2xl border-2 border-dashed px-4 py-8 text-center transition-all duration-200"
+                                    :class="uploadDropActive ? 'border-violet-400 bg-violet-50/80 shadow-md ring-2 ring-violet-500/20' : 'border-slate-200 bg-gradient-to-br from-slate-50/90 to-white hover:border-slate-300'"
+                                    @dragenter="onUploadDragEnter"
+                                    @dragleave="onUploadDragLeave"
+                                    @dragover="onUploadDragOver"
+                                    @drop="onUploadDrop"
+                                >
+                                    <p class="text-sm font-semibold text-slate-700">
+                                        Drop your file here, or
+                                        <button
+                                            type="button"
+                                            class="font-black text-violet-600 underline decoration-2 underline-offset-4 transition hover:text-violet-800"
+                                            @click="openSoftFilePicker"
+                                        >
+                                            browse
+                                        </button>
+                                    </p>
+                                    <p v-if="uploadFile" class="mt-3 inline-flex max-w-full items-center gap-2 truncate rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200/80">
+                                        <svg class="h-3.5 w-3.5 shrink-0 text-emerald-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-7.25 7.25a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414l2.293 2.293 6.543-6.543a1 1 0 011.414 0z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                        {{ uploadFile.name }}
+                                    </p>
+                                    <p v-else class="mt-3 text-xs font-medium text-slate-400">No file selected</p>
                                 </div>
                             </div>
                         </div>
-                        <label class="block md:col-span-2">
-                            <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Soft Copy File Upload (required for type=soft create)</span>
-                            <input type="file" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" @change="onUploadFileChanged" />
-                        </label>
-                    </div>
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        <button type="button" class="rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-60" :disabled="submitLoading" @click="submitMyListing">
-                            {{ submitLoading ? 'Saving...' : (myFormMode === 'edit' ? 'Update Listing' : 'Create Listing') }}
-                        </button>
-                        <button type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100" :disabled="submitLoading" @click="myFormOpen = false; resetForm()">
-                            Cancel
-                        </button>
+
+                        <div class="mt-10 flex flex-col-reverse gap-3 border-t border-slate-200/80 pt-6 sm:flex-row sm:items-center sm:justify-end">
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
+                                :disabled="submitLoading"
+                                @click="myFormOpen = false; resetForm()"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-2xl border border-transparent bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-3 text-sm font-black text-white shadow-lg shadow-slate-900/25 transition hover:from-slate-800 hover:to-slate-700 disabled:opacity-60"
+                                :disabled="submitLoading"
+                                @click="submitMyListing"
+                            >
+                                {{ submitLoading ? 'Saving…' : (myFormMode === 'edit' ? 'Save changes' : 'Publish listing') }}
+                            </button>
+                        </div>
                     </div>
                 </section>
 
@@ -878,18 +1134,28 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.quill-editor :deep(.ql-toolbar) {
-    border-top-left-radius: 0.5rem;
-    border-top-right-radius: 0.5rem;
-    border: 1px solid rgb(203 213 225);
+.quill-editor--modern :deep(.ql-toolbar.ql-snow) {
+    border: 0;
+    border-bottom: 1px solid rgb(226 232 240);
+    border-radius: 0;
+    background: rgb(248 250 252);
+    padding: 0.5rem 0.75rem;
 }
 
-.quill-editor :deep(.ql-container) {
-    min-height: 140px;
-    border-bottom-left-radius: 0.5rem;
-    border-bottom-right-radius: 0.5rem;
-    border: 1px solid rgb(203 213 225);
-    border-top: 0;
+.quill-editor--modern :deep(.ql-container.ql-snow) {
+    border: 0;
+    min-height: 168px;
     font-size: 0.875rem;
+    color: rgb(15 23 42);
+}
+
+.quill-editor--modern :deep(.ql-editor) {
+    min-height: 140px;
+    padding: 0.75rem 1rem;
+}
+
+.quill-editor--modern :deep(.ql-editor.ql-blank::before) {
+    color: rgb(148 163 184);
+    font-style: normal;
 }
 </style>
