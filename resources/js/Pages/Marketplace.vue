@@ -755,7 +755,7 @@ onMounted(async () => {
                                     </a>
                                 </div>
                             </div>
-                        </label>
+                        </div>
                         <label class="block md:col-span-2">
                             <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Soft Copy File Upload (required for type=soft create)</span>
                             <input type="file" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700" @change="onUploadFileChanged" />
