@@ -7,6 +7,9 @@ const PAYMENT_DETAILS_KEY = 'payment_details';
 const AUTH_IDENTIFIER_KEY = 'auth_identifier';
 const REGISTRATION_CHARGES_KEY = 'registration_charges_context';
 
+/** Session flag: verify-email page without Bearer (uses `/auth/login/send-otp` + `/auth/login/verify`). */
+export const EMAIL_VERIFY_LOGIN_FLOW_KEY = 'email_verify_login_flow';
+
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** @param {Record<string, unknown>|null|undefined} user */
@@ -83,6 +86,9 @@ export const useAuth = () => {
         localStorage.removeItem(PAYMENT_DETAILS_KEY);
         localStorage.removeItem(AUTH_IDENTIFIER_KEY);
         localStorage.removeItem(REGISTRATION_CHARGES_KEY);
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
+        }
         sessionStorage.clear();
     };
 

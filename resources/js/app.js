@@ -1,6 +1,5 @@
 import '../css/app.css';
 import './bootstrap';
-import '@vueup/vue-quill/dist/vue-quill.snow.css';
 
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -78,10 +77,10 @@ const applyPageMeta = () => {
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
-    resolve: (name) =>
+    resolve: name =>
         resolvePageComponent(
             `./Pages/${name}.vue`,
-            import.meta.glob('./Pages/**/*.vue'),
+            import.meta.glob('./Pages/**/*.vue', { eager: false }),
         ),
     setup({ el, App, props, plugin }) {
         const vueApp = createApp({ render: () => h(App, props) })
@@ -100,5 +99,7 @@ createInertiaApp({
     },
     progress: {
         color: '#4B5563',
+        delay: 120,
+        includeCSS: false,
     },
 });

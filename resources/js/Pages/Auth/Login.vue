@@ -5,7 +5,7 @@ import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
-import { useAuth } from '@/composables/useAuth';
+import { EMAIL_VERIFY_LOGIN_FLOW_KEY, useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 
 const props = defineProps({
@@ -16,7 +16,6 @@ const props = defineProps({
 const form = reactive({
     identifier: '',
     password: '',
-    otp: '',
     remember: false,
     device_name: 'Web Browser',
 });
@@ -24,10 +23,8 @@ const form = reactive({
 const mode = ref('password');
 const loading = ref(false);
 const otpLoading = ref(false);
-const verifyLoading = ref(false);
 const fieldErrors = ref({});
 const otpStatus = ref(null);
-const otpSent = ref(false);
 const loginAttempts = ref(0);
 const lockoutUntil = ref(0);
 const { setSession } = useAuth();
@@ -54,9 +51,7 @@ const trackFailedAttempt = () => {
 };
 
 watch(() => form.identifier, () => {
-    otpSent.value = false;
     otpStatus.value = null;
-    form.otp = '';
 });
 
 onMounted(() => {
@@ -139,6 +134,22 @@ const handlePasswordLogin = async () => {
             router.visit(route('dashboard'));
         }
     } catch (err) {
+        const msg = String(err?.message || '');
+        const isEmailNotVerified =
+            err?.code === 403 && /email/i.test(msg) && /verif/i.test(msg);
+        if (isEmailNotVerified) {
+            const id = sanitizeString(form.identifier.trim());
+            if (id) {
+                localStorage.removeItem('auth_redirect_reason');
+                sessionStorage.setItem(
+                    EMAIL_VERIFY_LOGIN_FLOW_KEY,
+                    JSON.stringify({ identifier: id, otpAlreadySent: false }),
+                );
+                router.visit(route('auth.verify.email'));
+                return;
+            }
+        }
+
         trackFailedAttempt();
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
         if (requiresPayment) {
@@ -174,89 +185,20 @@ const handleSendOtp = async () => {
         const response = await api.post('/auth/login/send-otp', { identifier });
         if (response.success) {
             localStorage.setItem('auth_identifier', identifier);
-            otpSent.value = true;
             const sentTo = sanitizeString(response?.data?.identifier || identifier);
-            otpStatus.value = `OTP sent successfully to ${sentTo}. Please enter the 6-digit code.`;
-            showSuccess('OTP sent successfully.');
+            sessionStorage.setItem(
+                EMAIL_VERIFY_LOGIN_FLOW_KEY,
+                JSON.stringify({ identifier, otpAlreadySent: true }),
+            );
+            otpStatus.value = `Opening verification… code sent to ${sentTo}.`;
+            showSuccess(response?.message || 'Code sent. Continue on the next screen.');
+            router.visit(route('auth.verify.email'));
         }
     } catch (err) {
         trackFailedAttempt();
         showError(err.message || 'OTP request failed. Please check your data.');
-        otpSent.value = false;
     } finally {
         otpLoading.value = false;
-    }
-};
-
-const handleVerifyOtp = async () => {
-    if (isLockedOut()) {
-        const secs = Math.ceil((lockoutUntil.value - Date.now()) / 1000);
-        showError(`Too many attempts. Try again in ${secs}s.`);
-        return;
-    }
-
-    if (!otpSent.value) return;
-    if (!/^\d{6}$/.test(form.otp.trim())) {
-        showError('Please enter a valid 6-digit OTP.');
-        return;
-    }
-
-    verifyLoading.value = true;
-    fieldErrors.value = {};
-
-    try {
-        const response = await api.post('/auth/login/verify', {
-            identifier: sanitizeString(form.identifier.trim()),
-            otp: form.otp.trim().replace(/\D/g, ''),
-            device_name: form.device_name,
-        });
-
-        if (response && response.success === false) {
-            const requiresPayment = !!(response.errors?.requires_registration_payment);
-            if (requiresPayment) {
-                localStorage.setItem(
-                    'payment_details',
-                    JSON.stringify({
-                        success: false,
-                        message: response.message,
-                        errors: response.errors,
-                        code: response.code,
-                    }),
-                );
-                router.visit(route('auth.payment.required'));
-                return;
-            }
-            showError(response.message || 'Unable to complete sign in.');
-            return;
-        }
-
-        if (response.success && response.data?.token) {
-            loginAttempts.value = 0;
-            const u = response.data.user;
-            const merged = u
-                ? {
-                      ...u,
-                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
-                      registration_fee_status:
-                          response.data.registration_fee_status ?? u.registration_fee_status,
-                  }
-                : u;
-            setSession({ token: response.data.token, user: merged });
-            localStorage.removeItem('auth_identifier');
-            router.visit(route('dashboard'));
-        }
-    } catch (err) {
-        trackFailedAttempt();
-        const requiresPayment = !!(err?.errors?.requires_registration_payment);
-        if (requiresPayment) {
-            localStorage.setItem('payment_details', JSON.stringify(err));
-            router.visit(route('auth.payment.required'));
-        } else {
-            fieldErrors.value = err.errors || {};
-            showError(err.message || 'OTP verification failed. Please check your code.');
-        }
-    } finally {
-        verifyLoading.value = false;
     }
 };
 </script>
@@ -266,7 +208,9 @@ const handleVerifyOtp = async () => {
         <Head title="Sign In" />
 
         <template #title>Sign in</template>
-        <template #subtitle>Enter your email or phone number to sign in with password or OTP.</template>
+        <template #subtitle>
+            Enter your email or phone to sign in with password, or use OTP to open the verification screen and complete sign-in.
+        </template>
 
         <div class="mb-6 rounded-xl bg-slate-100 p-1 grid grid-cols-2 gap-1">
             <button
@@ -345,39 +289,17 @@ const handleVerifyOtp = async () => {
                 autofocus
             />
 
-            <SuButton
-                type="button"
-                :loading="otpLoading"
-                class="w-full"
-                @click="handleSendOtp"
-            >
-                Send OTP
+            <p class="text-xs text-slate-600">
+                We will send a code to your email or phone, then take you to the <strong>Verify your email</strong> screen to enter it and finish signing in.
+            </p>
+
+            <SuButton type="button" :loading="otpLoading" class="w-full" @click="handleSendOtp">
+                Send OTP &amp; continue
             </SuButton>
 
             <div v-if="otpStatus" class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700">
                 {{ otpStatus }}
             </div>
-
-            <template v-if="otpSent">
-                <SuInput
-                    v-model="form.otp"
-                    label="Verification Code"
-                    placeholder="000000"
-                    :error="fieldErrors.otp?.[0]"
-                    required
-                />
-                <p class="text-xs text-slate-500 -mt-2">Enter the 6-digit code sent to your email or phone.</p>
-            </template>
-
-            <SuButton
-                type="button"
-                :loading="verifyLoading"
-                :disabled="!otpSent || !form.otp"
-                class="w-full"
-                @click="handleVerifyOtp"
-            >
-                Verify & Sign In
-            </SuButton>
         </div>
 
         <template #footer>
