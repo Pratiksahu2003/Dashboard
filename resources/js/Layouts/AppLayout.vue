@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
-import { useAuth } from '@/composables/useAuth';
+import { isEmailVerified, useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
@@ -34,7 +34,12 @@ onMounted(() => {
         router.visit(route('login'));
         return;
     }
-    user.value = getUser();
+    const stored = getUser();
+    if (stored && !isEmailVerified(stored)) {
+        router.visit(route('auth.verify.email'));
+        return;
+    }
+    user.value = stored;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     loadNotificationSummary();

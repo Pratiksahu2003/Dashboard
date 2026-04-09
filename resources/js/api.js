@@ -12,10 +12,18 @@ const getStorage = () => {
     return window.localStorage;
 };
 
+const AUTH_SESSION_TS_KEY = 'auth_session_ts';
+
 const redirectToLoginIfNeeded = () => {
     if (typeof window === 'undefined') return;
     const path = window.location.pathname || '';
-    const isAuthPage = path.startsWith('/login') || path.startsWith('/register') || path.startsWith('/password');
+    const isAuthPage =
+        path.startsWith('/login') ||
+        path.startsWith('/register') ||
+        path.startsWith('/password') ||
+        path.startsWith('/verify-email') ||
+        path.startsWith('/otp-verify') ||
+        path.startsWith('/payment-required');
     if (!isAuthPage) {
         window.location.assign('/login');
     }
@@ -91,6 +99,7 @@ api.interceptors.response.use(
             const storage = getStorage();
             storage?.removeItem(AUTH_TOKEN_KEY);
             storage?.removeItem('user');
+            storage?.removeItem(AUTH_SESSION_TS_KEY);
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
             redirectToLoginIfNeeded();
         }
@@ -99,7 +108,11 @@ api.interceptors.response.use(
             const storage = getStorage();
             storage?.removeItem(AUTH_TOKEN_KEY);
             storage?.removeItem('user');
-            storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Access denied. Please sign in again.');
+            storage?.removeItem(AUTH_SESSION_TS_KEY);
+            const msg = sanitizeString(
+                response?.data?.message || 'Access denied. Please sign in again.',
+            );
+            storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
             redirectToLoginIfNeeded();
         }
 

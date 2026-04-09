@@ -34,4 +34,8 @@ Route::middleware('guest')->group(function () {
     Route::get('payment-required', function () {
         return Inertia::render('Auth/RegistrationFee');
     })->name('auth.payment.required');
+
+    Route::get('verify-email', function () {
+        return Inertia::render('Auth/VerifyEmail');
+    })->name('auth.verify.email');
 });

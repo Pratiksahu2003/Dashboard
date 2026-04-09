@@ -68,10 +68,45 @@ const verifyOtp = async () => {
             otp: code,
             device_name: 'Web Browser'
         });
+        if (response && response.success === false) {
+            const requiresPayment = !!(response.errors?.requires_registration_payment);
+            if (requiresPayment) {
+                localStorage.setItem(
+                    'payment_details',
+                    JSON.stringify({
+                        success: false,
+                        message: response.message,
+                        errors: response.errors,
+                        code: response.code,
+                    }),
+                );
+                router.visit(route('auth.payment.required'));
+                return;
+            }
+            verifyAttempts.value++;
+            if (verifyAttempts.value >= MAX_VERIFY_ATTEMPTS) {
+                verifyLockoutUntil.value = Date.now() + VERIFY_LOCKOUT_MS;
+                showError('Too many failed attempts. Please wait 2 minutes.');
+            } else {
+                showError(response.message || 'Verification failed.');
+            }
+            otp.value = ['', '', '', '', '', ''];
+            if (inputs.value[0]) inputs.value[0].focus();
+            return;
+        }
         if (response.success && response.data?.token) {
             verifyAttempts.value = 0;
             showSuccess('Verification successful.');
-            setSession({ token: response.data.token, user: response.data.user });
+            const u = response.data.user;
+            const merged = u
+                ? {
+                      ...u,
+                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
+                      registration_fee_status:
+                          response.data.registration_fee_status ?? u.registration_fee_status,
+                  }
+                : u;
+            setSession({ token: response.data.token, user: merged });
             localStorage.removeItem('auth_identifier');
             router.visit(route('dashboard'));
         }

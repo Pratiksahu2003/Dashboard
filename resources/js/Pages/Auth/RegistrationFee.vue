@@ -1,13 +1,27 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api from '@/api';
 import { useAuth } from '@/composables/useAuth';
 
-const paymentData = ref(JSON.parse(localStorage.getItem('payment_details') || '{}'));
+const parsePaymentPayload = () => {
+    try {
+        return JSON.parse(localStorage.getItem('payment_details') || '{}');
+    } catch {
+        return {};
+    }
+};
+
+const paymentData = ref(parsePaymentPayload());
 const { clearSession } = useAuth();
+
+const paymentInfo = computed(() => {
+    const p = paymentData.value;
+    if (!p || typeof p !== 'object') return {};
+    return p.errors && typeof p.errors === 'object' ? p.errors : p;
+});
 
 const handleLogout = async () => {
     try {
@@ -18,13 +32,18 @@ const handleLogout = async () => {
 };
 
 const proceedToPayment = () => {
-    if (paymentData.value.errors?.payment_link) {
-        window.location.href = paymentData.value.errors.payment_link;
+    const link = paymentInfo.value?.payment_link;
+    if (link) {
+        window.location.href = link;
     }
 };
 
 onMounted(() => {
-    if (!paymentData.value.errors?.requires_registration_payment) router.visit(route('login'));
+    paymentData.value = parsePaymentPayload();
+    const info = paymentData.value?.errors && typeof paymentData.value.errors === 'object'
+        ? paymentData.value.errors
+        : paymentData.value;
+    if (!info?.requires_registration_payment) router.visit(route('login'));
 });
 </script>
 
@@ -34,7 +53,7 @@ onMounted(() => {
 
         <template #title>Activation Required</template>
         <template #subtitle>
-            {{ paymentData.errors?.description || 'To access your professional tools, please complete the one-time registration fee payment.' }}
+            {{ paymentInfo.description || 'To access your professional tools, please complete the one-time registration fee payment.' }}
         </template>
 
         <div class="space-y-10">
@@ -44,9 +63,9 @@ onMounted(() => {
                 <div class="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border-2 border-white dark:border-slate-800 p-10 rounded-[40px] text-center relative z-10 shadow-xl">
                     <span class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-4 block">Limited Membership Offer</span>
                     <div class="flex items-center justify-center gap-4 mb-2">
-                        <span class="text-6xl font-black text-gray-900 dark:text-white tracking-tighter">₹{{ paymentData.errors?.discounted_price }}</span>
+                        <span class="text-6xl font-black text-gray-900 dark:text-white tracking-tighter">₹{{ paymentInfo.discounted_price }}</span>
                         <div class="flex flex-col items-start">
-                            <span class="text-lg text-gray-400 line-through font-bold">₹{{ paymentData.errors?.actual_price }}</span>
+                            <span class="text-lg text-gray-400 line-through font-bold">₹{{ paymentInfo.actual_price }}</span>
                             <span class="text-[10px] font-black text-green-500 uppercase tracking-widest">Active Discount</span>
                         </div>
                     </div>

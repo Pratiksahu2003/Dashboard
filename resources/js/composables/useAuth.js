@@ -5,8 +5,33 @@ const AUTH_USER_KEY = 'user';
 const AUTH_SESSION_TS_KEY = 'auth_session_ts';
 const PAYMENT_DETAILS_KEY = 'payment_details';
 const AUTH_IDENTIFIER_KEY = 'auth_identifier';
+const REGISTRATION_CHARGES_KEY = 'registration_charges_context';
 
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** @param {Record<string, unknown>|null|undefined} user */
+export const isEmailVerified = user => {
+    if (!user || typeof user !== 'object') return false;
+    return !!user.email_verified_at;
+};
+
+/**
+ * Backend uses boolean on login, strings like "pending" on register/verify.
+ * @param {Record<string, unknown>|null|undefined} user
+ */
+export const isRegistrationFeeSatisfied = user => {
+    if (!user || typeof user !== 'object') return true;
+    if (user.payment_required === false) return true;
+    const s = user.registration_fee_status;
+    if (s === true) return true;
+    if (s === false) return false;
+    if (typeof s === 'string') {
+        const lower = s.toLowerCase();
+        if (lower === 'pending' || lower === 'unpaid') return false;
+        if (lower === 'paid' || lower === 'completed') return true;
+    }
+    return true;
+};
 
 const isSessionExpired = () => {
     const ts = localStorage.getItem(AUTH_SESSION_TS_KEY);
@@ -57,7 +82,22 @@ export const useAuth = () => {
         localStorage.removeItem(AUTH_SESSION_TS_KEY);
         localStorage.removeItem(PAYMENT_DETAILS_KEY);
         localStorage.removeItem(AUTH_IDENTIFIER_KEY);
+        localStorage.removeItem(REGISTRATION_CHARGES_KEY);
         sessionStorage.clear();
+    };
+
+    const setRegistrationChargesContext = charges => {
+        if (charges && typeof charges === 'object') {
+            localStorage.setItem(REGISTRATION_CHARGES_KEY, JSON.stringify(charges));
+        }
+    };
+
+    const getRegistrationChargesContext = () => {
+        try {
+            return JSON.parse(localStorage.getItem(REGISTRATION_CHARGES_KEY) || 'null');
+        } catch {
+            return null;
+        }
     };
 
     const requireAuth = () => {
@@ -76,5 +116,7 @@ export const useAuth = () => {
         setSession,
         clearSession,
         requireAuth,
+        setRegistrationChargesContext,
+        getRegistrationChargesContext,
     };
 };

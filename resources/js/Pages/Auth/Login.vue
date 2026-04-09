@@ -30,7 +30,7 @@ const otpStatus = ref(null);
 const otpSent = ref(false);
 const loginAttempts = ref(0);
 const lockoutUntil = ref(0);
-const { setSession, clearSession } = useAuth();
+const { setSession } = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -60,7 +60,11 @@ watch(() => form.identifier, () => {
 });
 
 onMounted(() => {
-    clearSession();
+    const postVerify = sessionStorage.getItem('post_verify_notice');
+    if (postVerify) {
+        showSuccess(sanitizeString(postVerify));
+        sessionStorage.removeItem('post_verify_notice');
+    }
     if (props.status) showSuccess(props.status);
     const reason = localStorage.getItem('auth_redirect_reason');
     if (reason) {
@@ -92,6 +96,25 @@ const handlePasswordLogin = async () => {
             device_name: form.device_name,
         });
 
+        if (response && response.success === false) {
+            const requiresPayment = !!(response.errors?.requires_registration_payment);
+            if (requiresPayment) {
+                localStorage.setItem(
+                    'payment_details',
+                    JSON.stringify({
+                        success: false,
+                        message: response.message,
+                        errors: response.errors,
+                        code: response.code,
+                    }),
+                );
+                router.visit(route('auth.payment.required'));
+                return;
+            }
+            showError(response.message || 'Unable to sign in.');
+            return;
+        }
+
         if (response.success && response.data?.requires_otp) {
             const otpIdentifier = sanitizeString(response?.data?.identifier || identifier);
             localStorage.setItem('auth_identifier', otpIdentifier);
@@ -103,7 +126,16 @@ const handlePasswordLogin = async () => {
 
         if (response.success && response.data?.token) {
             loginAttempts.value = 0;
-            setSession({ token: response.data.token, user: response.data.user });
+            const u = response.data.user;
+            const merged = u
+                ? {
+                      ...u,
+                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
+                      registration_fee_status:
+                          response.data.registration_fee_status ?? u.registration_fee_status,
+                  }
+                : u;
+            setSession({ token: response.data.token, user: merged });
             router.visit(route('dashboard'));
         }
     } catch (err) {
@@ -179,9 +211,37 @@ const handleVerifyOtp = async () => {
             device_name: form.device_name,
         });
 
+        if (response && response.success === false) {
+            const requiresPayment = !!(response.errors?.requires_registration_payment);
+            if (requiresPayment) {
+                localStorage.setItem(
+                    'payment_details',
+                    JSON.stringify({
+                        success: false,
+                        message: response.message,
+                        errors: response.errors,
+                        code: response.code,
+                    }),
+                );
+                router.visit(route('auth.payment.required'));
+                return;
+            }
+            showError(response.message || 'Unable to complete sign in.');
+            return;
+        }
+
         if (response.success && response.data?.token) {
             loginAttempts.value = 0;
-            setSession({ token: response.data.token, user: response.data.user });
+            const u = response.data.user;
+            const merged = u
+                ? {
+                      ...u,
+                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
+                      registration_fee_status:
+                          response.data.registration_fee_status ?? u.registration_fee_status,
+                  }
+                : u;
+            setSession({ token: response.data.token, user: merged });
             localStorage.removeItem('auth_identifier');
             router.visit(route('dashboard'));
         }

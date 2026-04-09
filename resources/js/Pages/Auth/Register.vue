@@ -14,14 +14,14 @@ const loading = ref(false);
 const fieldErrors = ref({});
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
-const { setSession } = useAuth();
+const { setSession, setRegistrationChargesContext } = useAuth();
 const { error: showError } = useAlerts();
 
 const roles = [
     { value: 'teacher', label: 'Teacher', desc: 'Manage classes and student kits.' },
     { value: 'institute', label: 'Institute', desc: 'Centralized management & procurement.' },
     { value: 'student', label: 'Student', desc: 'Access learning resources and kits.' },
-    { value: 'university', label: 'University', desc: 'Administer departments, programs, and learning operations.' }
+    { value: 'ngo', label: 'University / NGO', desc: 'Administer departments, programs, or NGO learning operations.' }
 ];
 
 const form = reactive({
@@ -86,7 +86,15 @@ const handleRegister = async () => {
         const response = await api.post('/auth/register', payload);
         if (response.success && response.data?.token) {
             setSession({ token: response.data.token, user: response.data.user });
-            router.visit(route('dashboard'));
+            if (response.data.registration_charges && typeof response.data.registration_charges === 'object') {
+                setRegistrationChargesContext(response.data.registration_charges);
+            }
+            const next = response.data.next_step;
+            if (next === 'email_verification' || !response.data.user?.email_verified_at) {
+                router.visit(route('auth.verify.email'));
+            } else {
+                router.visit(route('dashboard'));
+            }
         }
     } catch (err) {
         fieldErrors.value = err.errors || {};
