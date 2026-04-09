@@ -15,7 +15,10 @@ const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 /** @param {Record<string, unknown>|null|undefined} user */
 export const isEmailVerified = user => {
     if (!user || typeof user !== 'object') return false;
-    return !!user.email_verified_at;
+    const v = user.email_verified_at;
+    if (v == null || v === '' || v === 'null') return false;
+    if (typeof v === 'boolean') return v;
+    return true;
 };
 
 /**

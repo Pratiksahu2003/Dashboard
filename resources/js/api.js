@@ -29,6 +29,17 @@ const redirectToLoginIfNeeded = () => {
     }
 };
 
+/** Do not clear stored token on 403 while user is on verify / OTP / payment screens (prevents dashboard ↔ verify loops). */
+const shouldPreserveAuthOn403 = () => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname || '';
+    return (
+        path.startsWith('/verify-email') ||
+        path.startsWith('/otp-verify') ||
+        path.startsWith('/payment-required')
+    );
+};
+
 const sanitizeString = (str) => {
     if (typeof str !== 'string') return '';
     return str.replace(/[<>"'`]/g, '');
@@ -105,15 +116,17 @@ api.interceptors.response.use(
         }
 
         if (response?.status === 403) {
-            const storage = getStorage();
-            storage?.removeItem(AUTH_TOKEN_KEY);
-            storage?.removeItem('user');
-            storage?.removeItem(AUTH_SESSION_TS_KEY);
-            const msg = sanitizeString(
-                response?.data?.message || 'Access denied. Please sign in again.',
-            );
-            storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
-            redirectToLoginIfNeeded();
+            if (!shouldPreserveAuthOn403()) {
+                const storage = getStorage();
+                storage?.removeItem(AUTH_TOKEN_KEY);
+                storage?.removeItem('user');
+                storage?.removeItem(AUTH_SESSION_TS_KEY);
+                const msg = sanitizeString(
+                    response?.data?.message || 'Access denied. Please sign in again.',
+                );
+                storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
+                redirectToLoginIfNeeded();
+            }
         }
 
         if (response?.status === 429) {

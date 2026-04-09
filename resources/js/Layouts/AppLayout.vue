@@ -27,21 +27,41 @@ const chatChannelUnsubs = new Map();
 const activePlans = ref([]);
 const activePlansLoading = ref(false);
 let chatUnreadRefreshTimer = null;
+let emailGateRedirectScheduled = false;
 
-onMounted(() => {
+const enforceEmailVerifiedOrLeave = () => {
     if (!isAuthenticated()) {
         clearSession();
-        router.visit(route('login'));
-        return;
+        router.replace(route('login'));
+        return false;
     }
     const stored = getUser();
     if (stored && !isEmailVerified(stored)) {
-        router.visit(route('auth.verify.email'));
-        return;
+        if (emailGateRedirectScheduled) return false;
+        emailGateRedirectScheduled = true;
+        router.replace(route('auth.verify.email'), {
+            preserveState: false,
+            preserveScroll: false,
+        });
+        setTimeout(() => {
+            emailGateRedirectScheduled = false;
+        }, 2000);
+        return false;
     }
     user.value = stored;
+    return true;
+};
+
+const onInertiaFinish = () => {
+    if (!enforceEmailVerifiedOrLeave()) return;
+    user.value = getUser();
+};
+
+onMounted(() => {
+    if (!enforceEmailVerifiedOrLeave()) return;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
+    document.addEventListener('inertia:finish', onInertiaFinish);
     loadNotificationSummary();
     connectEcho(() => getToken());
     loadChatUnreadSummary();
@@ -50,6 +70,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    document.removeEventListener('inertia:finish', onInertiaFinish);
     for (const unsub of chatChannelUnsubs.values()) unsub();
     chatChannelUnsubs.clear();
     clearTimeout(chatUnreadRefreshTimer);

@@ -6,6 +6,7 @@ import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
 import {
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
+    isEmailVerified,
     isRegistrationFeeSatisfied,
     useAuth,
 } from '@/composables/useAuth';
@@ -76,16 +77,19 @@ onMounted(async () => {
     const token = getToken();
     const u = getUser();
 
+    // Bearer token (e.g. right after registration): use /auth/verification/* — stay on this page until verified.
     if (token && u) {
         sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
         loginOtpMode.value = false;
-        if (u.email_verified_at) {
+        if (isEmailVerified(u)) {
             sessionStorage.setItem('post_verify_notice', 'Your email is already verified. Please sign in.');
-            router.visit(route('login'));
+            router.replace(route('login'));
+            return;
         }
         return;
     }
 
+    // No Bearer: login OTP path (identifier in sessionStorage from login screen).
     if (flow?.identifier) {
         loginOtpMode.value = true;
         const id = sanitizeString(String(flow.identifier));
@@ -105,7 +109,7 @@ onMounted(async () => {
         return;
     }
 
-    router.visit(route('login'));
+    router.replace(route('login'));
 });
 
 const codeString = computed(() => otp.value.join('').replace(/\D/g, ''));
@@ -185,7 +189,7 @@ const verifyLoginOtp = async code => {
                     code: response.code,
                 }),
             );
-            router.visit(route('auth.payment.required'));
+            router.replace(route('auth.payment.required'));
             return;
         }
         showError(response.message || 'Unable to complete sign in.');
@@ -205,7 +209,7 @@ const verifyLoginOtp = async code => {
             : u;
         setSession({ token: response.data.token, user: merged });
         localStorage.removeItem('auth_identifier');
-        router.visit(route('dashboard'));
+        router.replace(route('dashboard'));
     }
 };
 
@@ -235,14 +239,14 @@ const verify = async () => {
                 'post_verify_notice',
                 'Email verified. Please sign in to continue. If your role requires a registration fee, you will complete payment after signing in.',
             );
-            router.visit(route('login'));
+            router.replace(route('login'));
         }
     } catch (err) {
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
         if (loginOtpMode.value && requiresPayment) {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
             localStorage.setItem('payment_details', JSON.stringify(err));
-            router.visit(route('auth.payment.required'));
+            router.replace(route('auth.payment.required'));
             return;
         }
         showError(err.message || 'Verification failed.');
@@ -256,7 +260,7 @@ const verify = async () => {
 const goLogin = () => {
     sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
     clearSession();
-    router.visit(route('login'));
+    router.replace(route('login'));
 };
 
 onBeforeUnmount(() => {
