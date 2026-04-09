@@ -3,9 +3,10 @@
 /**
  * Auth layout marketing slider. Bump "version" after changing images to bust browser query strings.
  * Manifest is cached (Redis when CACHE_STORE=redis) in HandleInertiaRequests.
+ * Place PNGs in public/App/ (1.png … 7.png). Bump version after changes.
  */
 return [
-    'version' => env('AUTH_SLIDES_VERSION', '1'),
+    'version' => env('AUTH_SLIDES_VERSION', '3'),
     /** Seconds — Redis/file cache for the manifest payload (not the PNG bytes). */
     'cache_ttl' => (int) env('AUTH_SLIDES_CACHE_TTL', 86400),
 

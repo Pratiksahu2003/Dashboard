@@ -12,3 +12,5 @@ export const REGISTRATION_CHARGES_KEY = 'registration_charges_context';
 /** sessionStorage: login → verify-email without Bearer (OTP-only path). */
 export const EMAIL_VERIFY_LOGIN_FLOW_KEY = 'email_verify_login_flow';
 export const AUTH_REDIRECT_REASON_KEY = 'auth_redirect_reason';
+/** localStorage: message to show on Login after email verification (survives clearSession ordering). */
+export const POST_VERIFY_LOGIN_NOTICE_KEY = 'post_verify_login_notice';

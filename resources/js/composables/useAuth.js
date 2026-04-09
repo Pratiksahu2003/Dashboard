@@ -7,6 +7,7 @@ import {
     AUTH_USER_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     PAYMENT_DETAILS_KEY,
+    POST_VERIFY_LOGIN_NOTICE_KEY,
     REGISTRATION_CHARGES_KEY,
 } from '@/constants/authStorage';
 
@@ -14,6 +15,7 @@ import {
 export {
     AUTH_DEVICE_TOKEN_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
+    POST_VERIFY_LOGIN_NOTICE_KEY,
 } from '@/constants/authStorage';
 
 /** Shown on login after successful `/auth/verification/verify` (API revokes the old token — user must sign in again). */
@@ -149,10 +151,11 @@ export const useAuth = () => {
         localStorage.removeItem(PAYMENT_DETAILS_KEY);
         localStorage.removeItem(AUTH_IDENTIFIER_KEY);
         localStorage.removeItem(REGISTRATION_CHARGES_KEY);
+        localStorage.removeItem(POST_VERIFY_LOGIN_NOTICE_KEY);
         if (typeof sessionStorage !== 'undefined') {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
+            sessionStorage.removeItem('post_verify_notice');
         }
-        sessionStorage.clear();
     };
 
     const setRegistrationChargesContext = charges => {

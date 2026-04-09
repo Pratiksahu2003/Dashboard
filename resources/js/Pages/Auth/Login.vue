@@ -5,7 +5,7 @@ import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
-import { EMAIL_VERIFY_LOGIN_FLOW_KEY, useAuth } from '@/composables/useAuth';
+import { EMAIL_VERIFY_LOGIN_FLOW_KEY, POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 
 const props = defineProps({
@@ -55,9 +55,12 @@ watch(() => form.identifier, () => {
 });
 
 onMounted(() => {
-    const postVerify = sessionStorage.getItem('post_verify_notice');
+    const postVerifyLs = localStorage.getItem(POST_VERIFY_LOGIN_NOTICE_KEY);
+    const postVerifySs = sessionStorage.getItem('post_verify_notice');
+    const postVerify = postVerifyLs || postVerifySs;
     if (postVerify) {
         showSuccess(sanitizeString(postVerify));
+        localStorage.removeItem(POST_VERIFY_LOGIN_NOTICE_KEY);
         sessionStorage.removeItem('post_verify_notice');
     }
     if (props.status) showSuccess(props.status);

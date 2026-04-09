@@ -9,6 +9,7 @@ import {
     isEmailVerified,
     isRegistrationFeeSatisfied,
     POST_EMAIL_VERIFY_RELOGIN_MESSAGE,
+    POST_VERIFY_LOGIN_NOTICE_KEY,
     useAuth,
 } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -25,6 +26,9 @@ const loginOtpMode = ref(false);
 const loginFlowIdentifier = ref('');
 /** Maps to API `remember_device` → optional `device_token` for trusted browser (see AuthApi.md). */
 const trustThisBrowser = ref(false);
+/** After successful Bearer `/auth/verification/verify` — show confirmation before leaving the page. */
+const emailVerificationSucceeded = ref(false);
+let redirectAfterVerifyTimer = null;
 
 const { getToken, getUser, clearSession, setSession, getRegistrationChargesContext } = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
@@ -85,8 +89,12 @@ onMounted(async () => {
         sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
         loginOtpMode.value = false;
         if (isEmailVerified(u)) {
-            sessionStorage.setItem('post_verify_notice', 'Your email is already verified. Please sign in.');
-            router.replace(route('login'));
+            clearSession();
+            localStorage.setItem(
+                POST_VERIFY_LOGIN_NOTICE_KEY,
+                'Your email is already verified. Please sign in.',
+            );
+            router.visit(route('login'), { replace: true });
             return;
         }
         return;
@@ -241,11 +249,13 @@ const verify = async () => {
         }
 
         if (response.success && response.data?.user) {
-            showSuccess(response.message || 'Email verified successfully.');
-            // API revokes the current token — clear all local credentials before navigating (docs: expect 401 if old token used).
+            // API revokes the current token — clear credentials, then persist login notice (order matters).
             clearSession();
-            sessionStorage.setItem('post_verify_notice', POST_EMAIL_VERIFY_RELOGIN_MESSAGE);
-            router.replace(route('login'));
+            localStorage.setItem(POST_VERIFY_LOGIN_NOTICE_KEY, POST_EMAIL_VERIFY_RELOGIN_MESSAGE);
+            emailVerificationSucceeded.value = true;
+            redirectAfterVerifyTimer = window.setTimeout(() => {
+                router.visit(route('login'), { replace: true });
+            }, 1400);
         }
     } catch (err) {
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
@@ -271,6 +281,7 @@ const goLogin = () => {
 
 onBeforeUnmount(() => {
     if (countdownTimer.value) clearInterval(countdownTimer.value);
+    if (redirectAfterVerifyTimer) clearTimeout(redirectAfterVerifyTimer);
 });
 </script>
 
@@ -297,7 +308,18 @@ onBeforeUnmount(() => {
             <span v-if="charges?.description">({{ charges.description }})</span>.
         </div>
 
-        <div class="space-y-8">
+        <div
+            v-if="emailVerificationSucceeded"
+            class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+            role="status"
+        >
+            <p class="font-black text-emerald-900 dark:text-emerald-50">Email verified</p>
+            <p class="mt-1 text-xs leading-relaxed opacity-95">
+                Your session was ended for security. Taking you to sign in — use the same email and password you registered with.
+            </p>
+        </div>
+
+        <div class="space-y-8" :class="{ 'pointer-events-none opacity-60': emailVerificationSucceeded }">
             <div class="flex justify-between gap-2 sm:gap-3">
                 <input
                     v-for="(_, index) in 6"
@@ -325,7 +347,12 @@ onBeforeUnmount(() => {
                 </span>
             </label>
 
-            <SuButton :loading="loading" :disabled="codeString.length !== 6" class="w-full" @click="verify">
+            <SuButton
+                :loading="loading"
+                :disabled="emailVerificationSucceeded || codeString.length !== 6"
+                class="w-full"
+                @click="verify"
+            >
                 {{ loginOtpMode ? 'Verify & continue' : 'Verify email' }}
             </SuButton>
 

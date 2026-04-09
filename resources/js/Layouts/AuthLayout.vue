@@ -27,19 +27,32 @@ const appSlides = computed(() => {
     return Array.isArray(s) && s.length > 0 ? s : FALLBACK_SLIDES;
 });
 
-/** Cache-bust query aligns with Redis-cached manifest version so browsers re-fetch after deploy. */
+/** Prefix with Vite base when the app is served from a subpath. Cache-bust aligns with authSlidesVersion. */
 const publicAssetUrl = path => {
     if (!path || typeof path !== 'string') return '';
     if (/^https?:\/\//i.test(path)) return path;
-    const sep = path.includes('?') ? '&' : '?';
-    return `${path}${sep}v=${encodeURIComponent(slideVersion.value)}`;
+    const base = String(import.meta.env.BASE_URL || '/').replace(/\/?$/, '');
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const full = `${base}${normalized}`;
+    const sep = full.includes('?') ? '&' : '?';
+    return `${full}${sep}v=${encodeURIComponent(slideVersion.value)}`;
+};
+
+const onSlideImageError = e => {
+    const el = e?.target;
+    if (!el || el.dataset.slideFallback) return;
+    el.dataset.slideFallback = '1';
+    el.src = publicAssetUrl('/App/1.png');
 };
 
 const currentSlide = ref(0);
 const showDemoModal = ref(false);
 const demoPlaying = ref(false);
+/** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
+const mobileDemoEmbedReady = ref(false);
 const { getToken, getUser, canAccessDashboard, getRegistrationChargesContext } = useAuth();
 let intervalId = null;
+let mobileEmbedTimer = null;
 
 const activeSlide = computed(() => {
     const slides = appSlides.value;
@@ -54,11 +67,12 @@ const prevSlide = () => {
     currentSlide.value = (currentSlide.value - 1 + appSlides.length) % appSlides.length;
 };
 
-const goToSlide = (index) => {
+const goToSlide = index => {
     currentSlide.value = index;
 };
 
 const startAutoPlay = () => {
+    if (intervalId) clearInterval(intervalId);
     intervalId = setInterval(nextSlide, 4200);
 };
 
@@ -76,16 +90,29 @@ const playDemoVideo = () => {
     demoPlaying.value = true;
 };
 
+/** Avoid redirect ping-pong when already on the target path (reduces Inertia remount loops). */
+const replaceIfDifferentRoute = name => {
+    if (typeof window === 'undefined') return;
+    const targetUrl = route(name);
+    const targetPath = new URL(targetUrl, window.location.origin).pathname.replace(/\/$/, '') || '/';
+    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+    if (currentPath === targetPath) return;
+    router.replace(targetUrl);
+};
+
 onMounted(() => {
     const token = getToken();
     if (!token) {
         startAutoPlay();
+        mobileEmbedTimer = window.setTimeout(() => {
+            mobileDemoEmbedReady.value = true;
+        }, 400);
         return;
     }
     const u = getUser();
     // Fully signed in: verified email + fee satisfied (AuthApi.md) → app home only.
     if (u && canAccessDashboard()) {
-        router.replace(route('dashboard'));
+        replaceIfDifferentRoute('dashboard');
         return;
     }
     // Token present but onboarding incomplete: send to the right auth screen (not dashboard).
@@ -95,21 +122,37 @@ onMounted(() => {
         path.includes('payment-required') ||
         path.includes('otp-verify') ||
         /\/reset-password\//.test(path);
+
+    // On verify-email: email already verified in storage → leave (fee pending → payment; else login).
+    if (path.includes('verify-email') && u && isEmailVerified(u)) {
+        if (!isRegistrationFeeSatisfied(u)) {
+            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+            replaceIfDifferentRoute('auth.payment.required');
+            return;
+        }
+        replaceIfDifferentRoute('login');
+        return;
+    }
+
     if (!allowPendingVerification) {
         if (u && isEmailVerified(u) && !isRegistrationFeeSatisfied(u)) {
             ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
-            router.replace(route('auth.payment.required'));
+            replaceIfDifferentRoute('auth.payment.required');
             return;
         }
         if (u && !isEmailVerified(u)) {
-            router.replace(route('auth.verify.email'));
+            replaceIfDifferentRoute('auth.verify.email');
             return;
         }
     }
     startAutoPlay();
+    mobileEmbedTimer = window.setTimeout(() => {
+        mobileDemoEmbedReady.value = true;
+    }, 400);
 });
 onBeforeUnmount(() => {
     if (intervalId) clearInterval(intervalId);
+    if (mobileEmbedTimer) clearTimeout(mobileEmbedTimer);
 });
 </script>
 
@@ -176,10 +219,12 @@ onBeforeUnmount(() => {
                 </div>
                 <div class="relative w-full bg-black" style="padding-top: 56.25%;">
                     <iframe
+                        v-if="mobileDemoEmbedReady"
                         class="absolute inset-0 w-full h-full"
                         src="https://www.youtube.com/embed/0CT5hjq9tEE"
                         title="SuGanta Demo Video"
                         frameborder="0"
+                        loading="lazy"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         referrerpolicy="strict-origin-when-cross-origin"
                         allowfullscreen
@@ -198,7 +243,7 @@ onBeforeUnmount(() => {
             <div class="h-full w-full rounded-[34px] overflow-hidden relative border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-[0_20px_80px_rgba(15,23,42,0.10)]">
                 <div class="absolute inset-0 white-grid opacity-70"></div>
                 <div class="absolute -top-28 -right-28 w-[420px] h-[420px] rounded-full bg-blue-100/70 blur-3xl"></div>
-                <div class="absolute -bottom-24 -left-24 w-[380px] h-[380px] rounded-full bg-indigo-100/65 blur-3xl"></div>
+                <div class="absolute -bottom-24 -left-24 w-[380px] h-[420px] rounded-full bg-indigo-100/65 blur-3xl"></div>
                 <div class="absolute inset-0 white-vignette"></div>
 
                 <div class="absolute top-6 right-6 z-20">
@@ -247,8 +292,8 @@ onBeforeUnmount(() => {
 
                     <div class="mt-5 lg:mt-6 relative flex-1 min-h-0">
                         <div class="absolute -inset-3 rounded-[30px] bg-gradient-to-r from-blue-200/45 to-indigo-200/45 blur-xl"></div>
-                        <div class="relative h-full rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur p-3 lg:p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] flex flex-col">
-                            <div class="rounded-[20px] bg-slate-50 border border-slate-200 overflow-hidden flex-1 min-h-0 flex items-center justify-center relative">
+                        <div class="relative h-full min-h-[300px] lg:min-h-[360px] rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur p-3 lg:p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] flex flex-col">
+                            <div class="rounded-[20px] bg-slate-100 border border-slate-200 overflow-hidden flex-1 min-h-[260px] lg:min-h-[300px] flex items-center justify-center relative aspect-[4/3] max-h-[min(52vh,560px)]">
                                 <!-- Stacked images: browser caches all slides; only visibility toggles (no reload per slide). -->
                                 <img
                                     v-for="(slide, i) in appSlides"
@@ -260,8 +305,9 @@ onBeforeUnmount(() => {
                                     decoding="async"
                                     width="1200"
                                     height="900"
-                                    class="absolute inset-0 w-full h-full max-h-full object-contain object-center transition-opacity duration-300"
+                                    class="absolute inset-0 w-full h-full object-contain object-center transition-opacity duration-300"
                                     :class="i === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0 z-0 pointer-events-none'"
+                                    @error="onSlideImageError"
                                 />
                             </div>
                             <div class="mt-3 flex items-start justify-between gap-3">
@@ -368,6 +414,7 @@ onBeforeUnmount(() => {
                     src="https://www.youtube.com/embed/0CT5hjq9tEE?autoplay=1"
                     title="SuGanta Demo Video"
                     frameborder="0"
+                    loading="lazy"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerpolicy="strict-origin-when-cross-origin"
                     allowfullscreen
