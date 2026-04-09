@@ -4,7 +4,9 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
+import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { useAuth } from '@/composables/useAuth';
+import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
 
 const identifier = ref(sanitizeString(localStorage.getItem('auth_identifier') || ''));
@@ -20,6 +22,7 @@ const verifyLockoutUntil = ref(0);
 /** Maps to API `remember_device` → optional `device_token` (see AuthApi.md). */
 const trustThisBrowser = ref(false);
 const { setSession } = useAuth();
+const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
 
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -75,7 +78,7 @@ const verifyOtp = async () => {
             const requiresPayment = !!(response.errors?.requires_registration_payment);
             if (requiresPayment) {
                 localStorage.setItem(
-                    'payment_details',
+                    PAYMENT_DETAILS_KEY,
                     JSON.stringify({
                         success: false,
                         message: response.message,
@@ -114,6 +117,7 @@ const verifyOtp = async () => {
                 user: merged,
                 deviceToken: response.data.device_token,
             });
+            authStore.setRequiresOtp(false);
             localStorage.removeItem('auth_identifier');
             router.visit(route('dashboard'));
         }
@@ -125,7 +129,7 @@ const verifyOtp = async () => {
         }
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
         if (requiresPayment) {
-            localStorage.setItem('payment_details', JSON.stringify(err));
+            localStorage.setItem(PAYMENT_DETAILS_KEY, JSON.stringify(err));
             router.visit(route('auth.payment.required'));
         } else {
             showError(err.message || 'Verification failed.');

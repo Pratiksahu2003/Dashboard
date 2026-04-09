@@ -37,7 +37,7 @@ Route::get('otp-verify', function () {
 })->name('auth.otp.verify');
 
 Route::get('payment-required', function () {
-    return Inertia::render('Auth/RegistrationFee');
+    return Inertia::render('Auth/Payment');
 })->name('auth.payment.required');
 
 Route::get('verify-email', function () {

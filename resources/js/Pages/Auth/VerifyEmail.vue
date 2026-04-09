@@ -7,6 +7,7 @@ import api, { sanitizeString } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import {
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
+    ensureRegistrationPaymentDetails,
     isEmailVerified,
     isRegistrationFeeSatisfied,
     POST_EMAIL_VERIFY_RELOGIN_MESSAGE,
@@ -14,6 +15,7 @@ import {
     useAuth,
 } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
+import { useAuthStore } from '@/stores/auth';
 
 const otp = ref(['', '', '', '', '', '']);
 const inputs = ref([]);
@@ -31,8 +33,16 @@ const trustThisBrowser = ref(false);
 const emailVerificationSucceeded = ref(false);
 let redirectAfterVerifyTimer = null;
 
-const { getToken, getUser, clearSession, setSession, getRegistrationChargesContext } = useAuth();
+const {
+    getToken,
+    getUser,
+    clearSession,
+    setSession,
+    getRegistrationChargesContext,
+    setRegistrationChargesContext,
+} = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
+const authStore = useAuthStore();
 
 const user = computed(() => getUser());
 const email = computed(() => sanitizeString(String(user.value?.email || '')));
@@ -225,6 +235,7 @@ const verifyLoginOtp = async code => {
             user: merged,
             deviceToken: response.data.device_token,
         });
+        authStore.setRequiresOtp(false);
         localStorage.removeItem('auth_identifier');
         router.replace(route('dashboard'));
     }
@@ -266,8 +277,44 @@ const verify = async () => {
         }
 
         if (response.success && response.data?.user) {
-            // API revokes the current token — clear credentials, then persist login notice (order matters).
+            const verifiedUser = response.data.user;
+            const paymentRequired = verifiedUser?.payment_required === true;
+            const savedCharges = getRegistrationChargesContext();
+
             clearSession();
+
+            if (paymentRequired) {
+                if (savedCharges && typeof savedCharges === 'object') {
+                    setRegistrationChargesContext(savedCharges);
+                }
+                ensureRegistrationPaymentDetails(verifiedUser, () => savedCharges);
+                try {
+                    const raw = localStorage.getItem(PAYMENT_DETAILS_KEY);
+                    const parsed = raw ? JSON.parse(raw) : {};
+                    const hasGate = !!(parsed?.errors && parsed.errors.requires_registration_payment);
+                    if (!hasGate) {
+                        localStorage.setItem(
+                            PAYMENT_DETAILS_KEY,
+                            JSON.stringify({
+                                success: false,
+                                message: 'Registration fee payment is required to activate your account.',
+                                errors: {
+                                    requires_registration_payment: true,
+                                    role: verifiedUser.role,
+                                    description:
+                                        'Complete the one-time registration fee to continue after signing in.',
+                                },
+                                code: 200,
+                            }),
+                        );
+                    }
+                } catch {
+                    /* ignore */
+                }
+                router.visit(route('auth.payment.required'), { replace: true });
+                return;
+            }
+
             localStorage.setItem(POST_VERIFY_LOGIN_NOTICE_KEY, POST_EMAIL_VERIFY_RELOGIN_MESSAGE);
             emailVerificationSucceeded.value = true;
             redirectAfterVerifyTimer = window.setTimeout(() => {

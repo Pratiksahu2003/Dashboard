@@ -5,7 +5,9 @@ import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
+import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { EMAIL_VERIFY_LOGIN_FLOW_KEY, POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
+import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
 
 const props = defineProps({
@@ -28,6 +30,7 @@ const otpStatus = ref(null);
 const loginAttempts = ref(0);
 const lockoutUntil = ref(0);
 const { setSession } = useAuth();
+const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -86,6 +89,7 @@ const handlePasswordLogin = async () => {
     }
 
     loading.value = true;
+    authStore.setRequiresOtp(false);
 
     try {
         const response = await api.post('/auth/login', {
@@ -98,7 +102,7 @@ const handlePasswordLogin = async () => {
             const requiresPayment = !!(response.errors?.requires_registration_payment);
             if (requiresPayment) {
                 localStorage.setItem(
-                    'payment_details',
+                    PAYMENT_DETAILS_KEY,
                     JSON.stringify({
                         success: false,
                         message: response.message,
@@ -116,6 +120,7 @@ const handlePasswordLogin = async () => {
         if (response.success && response.data?.requires_otp) {
             const otpIdentifier = sanitizeString(response?.data?.identifier || identifier);
             localStorage.setItem('auth_identifier', otpIdentifier);
+            authStore.setRequiresOtp(true);
             otpStatus.value = response?.message || 'OTP sent successfully.';
             showSuccess(response?.message || 'OTP sent successfully.');
             router.visit(route('auth.otp.verify'));
@@ -138,6 +143,7 @@ const handlePasswordLogin = async () => {
                 user: merged,
                 deviceToken: response.data.device_token,
             });
+            authStore.setRequiresOtp(false);
             router.visit(route('dashboard'));
         }
     } catch (err) {
@@ -160,7 +166,7 @@ const handlePasswordLogin = async () => {
         trackFailedAttempt();
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
         if (requiresPayment) {
-            localStorage.setItem('payment_details', JSON.stringify(err));
+            localStorage.setItem(PAYMENT_DETAILS_KEY, JSON.stringify(err));
             router.visit(route('auth.payment.required'));
         } else {
             fieldErrors.value = err.errors || {};

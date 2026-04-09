@@ -1,4 +1,6 @@
+import { getActivePinia } from 'pinia';
 import { router } from '@inertiajs/vue3';
+import { useAuthStore } from '@/stores/auth';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
@@ -88,6 +90,16 @@ export const ensureRegistrationPaymentDetails = (user, getCharges) => {
     );
 };
 
+const syncPiniaFromStorage = () => {
+    try {
+        if (getActivePinia()) {
+            useAuthStore().syncFromStorage();
+        }
+    } catch {
+        /* Pinia not ready (e.g. tests) */
+    }
+};
+
 const isSessionExpired = () => {
     const ts = localStorage.getItem(AUTH_SESSION_TS_KEY);
     if (!ts) return true;
@@ -141,6 +153,7 @@ export const useAuth = () => {
         if (deviceToken && typeof deviceToken === 'string' && deviceToken.length > 0) {
             localStorage.setItem(AUTH_DEVICE_TOKEN_KEY, deviceToken);
         }
+        syncPiniaFromStorage();
     };
 
     const clearSession = () => {
@@ -155,6 +168,14 @@ export const useAuth = () => {
         if (typeof sessionStorage !== 'undefined') {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
             sessionStorage.removeItem('post_verify_notice');
+        }
+        syncPiniaFromStorage();
+        try {
+            if (getActivePinia()) {
+                useAuthStore().clearTransient();
+            }
+        } catch {
+            /* ignore */
         }
     };
 
