@@ -4,6 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
+import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import {
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     isEmailVerified,
@@ -193,7 +194,7 @@ const verifyLoginOtp = async code => {
         if (requiresPayment) {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
             localStorage.setItem(
-                'payment_details',
+                PAYMENT_DETAILS_KEY,
                 JSON.stringify({
                     success: false,
                     message: response.message,
@@ -242,6 +243,22 @@ const verify = async () => {
         const response = await api.post('/auth/verification/verify', { email_otp: code });
 
         if (response && response.success === false) {
+            const requiresPayment = !!(response.errors?.requires_registration_payment);
+            if (requiresPayment) {
+                // Same envelope as login when fee is unpaid (AuthApi.md); session is typically ended — pay then sign in.
+                clearSession();
+                localStorage.setItem(
+                    PAYMENT_DETAILS_KEY,
+                    JSON.stringify({
+                        success: false,
+                        message: response.message,
+                        errors: response.errors,
+                        code: response.code,
+                    }),
+                );
+                router.visit(route('auth.payment.required'), { replace: true });
+                return;
+            }
             showError(response.message || 'Invalid or expired code.');
             otp.value = ['', '', '', '', '', ''];
             inputs.value[0]?.focus();
@@ -259,10 +276,11 @@ const verify = async () => {
         }
     } catch (err) {
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
-        if (loginOtpMode.value && requiresPayment) {
+        if (requiresPayment) {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
-            localStorage.setItem('payment_details', JSON.stringify(err));
-            router.replace(route('auth.payment.required'));
+            clearSession();
+            localStorage.setItem(PAYMENT_DETAILS_KEY, JSON.stringify(err));
+            router.visit(route('auth.payment.required'), { replace: true });
             return;
         }
         showError(err.message || 'Verification failed.');

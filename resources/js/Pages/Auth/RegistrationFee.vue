@@ -4,11 +4,12 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api from '@/api';
+import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { useAuth } from '@/composables/useAuth';
 
 const parsePaymentPayload = () => {
     try {
-        return JSON.parse(localStorage.getItem('payment_details') || '{}');
+        return JSON.parse(localStorage.getItem(PAYMENT_DETAILS_KEY) || '{}');
     } catch {
         return {};
     }
@@ -38,6 +39,11 @@ const proceedToPayment = () => {
     }
 };
 
+const apiMessage = computed(() => {
+    const m = paymentData.value?.message;
+    return typeof m === 'string' && m.trim() ? m.trim() : '';
+});
+
 onMounted(() => {
     paymentData.value = parsePaymentPayload();
     const info = paymentData.value?.errors && typeof paymentData.value.errors === 'object'
@@ -55,6 +61,13 @@ onMounted(() => {
         <template #subtitle>
             {{ paymentInfo.description || 'To access your professional tools, please complete the one-time registration fee payment.' }}
         </template>
+
+        <p
+            v-if="apiMessage"
+            class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-950"
+        >
+            {{ apiMessage }}
+        </p>
 
         <div class="space-y-10">
             <!-- Professional Pricing Card -->

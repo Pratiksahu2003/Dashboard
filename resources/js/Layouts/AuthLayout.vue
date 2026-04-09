@@ -61,15 +61,23 @@ const activeSlide = computed(() => {
     return slides[currentSlide.value] ?? slides[0];
 });
 
+const slideCount = () => appSlides.value.length;
+
 const nextSlide = () => {
-    currentSlide.value = (currentSlide.value + 1) % appSlides.length;
+    const n = slideCount();
+    if (n < 1) return;
+    currentSlide.value = (currentSlide.value + 1) % n;
 };
 
 const prevSlide = () => {
-    currentSlide.value = (currentSlide.value - 1 + appSlides.length) % appSlides.length;
+    const n = slideCount();
+    if (n < 1) return;
+    currentSlide.value = (currentSlide.value - 1 + n) % n;
 };
 
 const goToSlide = index => {
+    const n = slideCount();
+    if (n < 1 || index < 0 || index >= n) return;
     currentSlide.value = index;
 };
 
@@ -343,11 +351,16 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
-                <div v-motion :initial="{ opacity: 0, y: 10 }" :enter="{ opacity: 1, y: 0, transition: { delay: 0.28 } }" class="absolute bottom-4 left-8 right-8 flex items-center justify-between z-20">
+                <div
+                    v-motion
+                    :initial="{ opacity: 0, y: 10 }"
+                    :enter="{ opacity: 1, y: 0, transition: { delay: 0.28 } }"
+                    class="absolute bottom-4 left-8 right-8 z-[30] flex items-center justify-between pointer-events-auto"
+                >
                     <div class="flex items-center gap-2">
                         <button
                             v-for="(s, i) in appSlides"
-                            :key="s.title"
+                            :key="s.image || s.title"
                             type="button"
                             @click="goToSlide(i)"
                             :class="[
