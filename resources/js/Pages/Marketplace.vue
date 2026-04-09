@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
+import { QuillEditor } from '@vueup/vue-quill';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -55,6 +56,14 @@ const form = ref({
     status: 'active',
 });
 const uploadFile = ref(null);
+const existingImagesInEdit = ref([]);
+
+const quillToolbar = [
+    ['bold', 'italic', 'underline'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['link'],
+    ['clean'],
+];
 
 const hasListingsPrev = computed(() => (listingsMeta.value?.current_page || 1) > 1);
 const hasListingsNext = computed(() => (listingsMeta.value?.current_page || 1) < (listingsMeta.value?.last_page || 1));
@@ -65,6 +74,8 @@ const parseImages = text => String(text || '')
     .split('\n')
     .map(v => v.trim())
     .filter(Boolean);
+const selectedImageUrls = computed(() => parseImages(form.value.imagesText));
+const uniqueSelectedImageUrls = computed(() => Array.from(new Set(selectedImageUrls.value)));
 
 const formatMoney = (amount, currency = 'INR') => {
     const numericAmount = Number(amount ?? 0);
@@ -78,6 +89,24 @@ const formatMoney = (amount, currency = 'INR') => {
     } catch {
         return `${currency} ${numericAmount.toFixed(2)}`;
     }
+};
+
+const renderRichHtml = value => {
+    const raw = String(value || '').trim();
+    if (!raw) return '<p>-</p>';
+    if (typeof window === 'undefined' || typeof DOMParser === 'undefined') return `<p>${raw}</p>`;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(raw, 'text/html');
+    doc.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach(node => node.remove());
+    doc.querySelectorAll('*').forEach(el => {
+        [...el.attributes].forEach(attr => {
+            const name = attr.name.toLowerCase();
+            const val = String(attr.value || '').toLowerCase();
+            if (name.startsWith('on')) el.removeAttribute(attr.name);
+            if ((name === 'href' || name === 'src') && val.startsWith('javascript:')) el.removeAttribute(attr.name);
+        });
+    });
+    return doc.body.innerHTML || '<p>-</p>';
 };
 
 const loadPublicListings = async () => {
@@ -290,6 +319,7 @@ const resetForm = () => {
         status: 'active',
     };
     uploadFile.value = null;
+    existingImagesInEdit.value = [];
     editingId.value = null;
     myFormMode.value = 'create';
 };
@@ -311,6 +341,7 @@ const openEdit = listing => {
         status: listing?.status || 'active',
     };
     uploadFile.value = null;
+    existingImagesInEdit.value = Array.isArray(listing?.images) ? listing.images : [];
     editingId.value = listing?.id || null;
     myFormMode.value = 'edit';
     myFormOpen.value = true;
@@ -642,7 +673,13 @@ onMounted(async () => {
                         </label>
                         <label class="block md:col-span-2">
                             <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Description</span>
-                            <textarea v-model="form.description" rows="4" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700"></textarea>
+                            <QuillEditor
+                                v-model:content="form.description"
+                                content-type="html"
+                                theme="snow"
+                                :toolbar="quillToolbar"
+                                class="quill-editor"
+                            />
                         </label>
                         <label class="block">
                             <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Price</span>
@@ -674,6 +711,50 @@ onMounted(async () => {
                         <label class="block md:col-span-2">
                             <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Image URLs (4 to 6, one per line)</span>
                             <textarea v-model="form.imagesText" rows="5" class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm font-semibold text-slate-700"></textarea>
+                            <p class="mt-1 text-[11px] font-semibold text-slate-500">
+                                Selected URLs: {{ uniqueSelectedImageUrls.length }} (required: 4 to 6)
+                            </p>
+                        </label>
+                        <div class="md:col-span-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Current Selected Images</p>
+                                <div v-if="uniqueSelectedImageUrls.length === 0" class="mt-2 text-xs font-semibold text-slate-500">
+                                    No selected image URLs.
+                                </div>
+                                <div v-else class="mt-2 grid grid-cols-2 gap-2">
+                                    <a
+                                        v-for="(url, idx) in uniqueSelectedImageUrls"
+                                        :key="`selected-image-${idx}-${url}`"
+                                        :href="url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                                    >
+                                        <img :src="url" alt="Selected image" class="h-24 w-full object-cover" />
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Already Uploaded Images</p>
+                                <div v-if="myFormMode !== 'edit'" class="mt-2 text-xs font-semibold text-slate-500">
+                                    Existing images are shown when editing a listing.
+                                </div>
+                                <div v-else-if="existingImagesInEdit.length === 0" class="mt-2 text-xs font-semibold text-slate-500">
+                                    No existing images on this listing.
+                                </div>
+                                <div v-else class="mt-2 grid grid-cols-2 gap-2">
+                                    <a
+                                        v-for="(url, idx) in existingImagesInEdit"
+                                        :key="`existing-image-${idx}-${url}`"
+                                        :href="url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="overflow-hidden rounded-lg border border-slate-200 bg-white"
+                                    >
+                                        <img :src="url" alt="Existing image" class="h-24 w-full object-cover" />
+                                    </a>
+                                </div>
+                            </div>
                         </label>
                         <label class="block md:col-span-2">
                             <span class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Soft Copy File Upload (required for type=soft create)</span>
@@ -748,7 +829,7 @@ onMounted(async () => {
             <div v-else-if="selectedListing" class="mt-4 space-y-3">
                 <img v-if="selectedListing.thumbnail" :src="selectedListing.thumbnail" alt="thumb" class="h-48 w-full rounded-xl object-cover border border-slate-200" />
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-sm font-semibold text-slate-700">{{ selectedListing.description || '-' }}</p>
+                    <div class="text-sm font-semibold text-slate-700 [&>*]:m-0" v-html="renderRichHtml(selectedListing.description)" />
                     <p class="mt-2 text-xs font-bold text-slate-500">
                         {{ selectedListing.category || '-' }} | {{ selectedListing.type || '-' }} | Views {{ selectedListing.views_count || 0 }}
                     </p>
@@ -795,3 +876,20 @@ onMounted(async () => {
         </aside>
     </div>
 </template>
+
+<style scoped>
+.quill-editor :deep(.ql-toolbar) {
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    border: 1px solid rgb(203 213 225);
+}
+
+.quill-editor :deep(.ql-container) {
+    min-height: 140px;
+    border-bottom-left-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+    border: 1px solid rgb(203 213 225);
+    border-top: 0;
+    font-size: 0.875rem;
+}
+</style>
