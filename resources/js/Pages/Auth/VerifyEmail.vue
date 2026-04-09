@@ -7,10 +7,10 @@ import api, { sanitizeString } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import {
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
-    ensureRegistrationPaymentDetails,
     isEmailVerified,
     isRegistrationFeeSatisfied,
     POST_EMAIL_VERIFY_RELOGIN_MESSAGE,
+    POST_EMAIL_VERIFY_RELOGIN_MESSAGE_WITH_PAYMENT,
     POST_VERIFY_LOGIN_NOTICE_KEY,
     useAuth,
 } from '@/composables/useAuth';
@@ -278,69 +278,19 @@ const verify = async () => {
 
         if (response.success && response.data?.user) {
             const verifiedUser = response.data.user;
-            const paymentRequired = verifiedUser?.payment_required === true;
             const savedCharges = getRegistrationChargesContext();
 
             clearSession();
 
-            if (paymentRequired) {
-                if (savedCharges && typeof savedCharges === 'object') {
-                    setRegistrationChargesContext(savedCharges);
-                }
-                ensureRegistrationPaymentDetails(verifiedUser, () => savedCharges);
-
-                const defaultDescription =
-                    'Your email is verified. Complete the one-time registration fee, then sign in to access your dashboard.';
-                let mergedErrors = {
-                    requires_registration_payment: true,
-                    role: verifiedUser.role,
-                    description: defaultDescription,
-                };
-                try {
-                    const raw = localStorage.getItem(PAYMENT_DETAILS_KEY);
-                    const parsed = raw ? JSON.parse(raw) : {};
-                    if (parsed.errors && typeof parsed.errors === 'object') {
-                        mergedErrors = {
-                            ...parsed.errors,
-                            requires_registration_payment: true,
-                            role: verifiedUser.role ?? parsed.errors.role,
-                        };
-                    }
-                } catch {
-                    /* ignore */
-                }
-                if (
-                    !mergedErrors.description ||
-                    typeof mergedErrors.description !== 'string' ||
-                    !mergedErrors.description.trim()
-                ) {
-                    mergedErrors.description =
-                        (savedCharges &&
-                            typeof savedCharges === 'object' &&
-                            typeof savedCharges.description === 'string' &&
-                            savedCharges.description.trim()) ||
-                        defaultDescription;
-                }
-
-                localStorage.setItem(
-                    PAYMENT_DETAILS_KEY,
-                    JSON.stringify({
-                        success: true,
-                        message:
-                            typeof response.message === 'string' && response.message.trim()
-                                ? response.message.trim()
-                                : 'Email verified successfully.',
-                        code: response.code ?? 200,
-                        source: 'email_verification',
-                        verified_user: verifiedUser,
-                        errors: mergedErrors,
-                    }),
-                );
-                router.visit(route('auth.payment.required'), { replace: true });
-                return;
+            if (savedCharges && typeof savedCharges === 'object') {
+                setRegistrationChargesContext(savedCharges);
             }
 
-            localStorage.setItem(POST_VERIFY_LOGIN_NOTICE_KEY, POST_EMAIL_VERIFY_RELOGIN_MESSAGE);
+            const loginNotice =
+                verifiedUser?.payment_required === true
+                    ? POST_EMAIL_VERIFY_RELOGIN_MESSAGE_WITH_PAYMENT
+                    : POST_EMAIL_VERIFY_RELOGIN_MESSAGE;
+            localStorage.setItem(POST_VERIFY_LOGIN_NOTICE_KEY, loginNotice);
             emailVerificationSucceeded.value = true;
             redirectAfterVerifyTimer = window.setTimeout(() => {
                 router.visit(route('login'), { replace: true });

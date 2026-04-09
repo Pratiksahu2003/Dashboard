@@ -24,6 +24,10 @@ export {
 export const POST_EMAIL_VERIFY_RELOGIN_MESSAGE =
     'Email verified successfully. For your security, your previous session was ended. Please sign in again with your email and password.';
 
+/** Same as above when API returns `payment_required: true` — user completes fee via login flow, not from verify screen. */
+export const POST_EMAIL_VERIFY_RELOGIN_MESSAGE_WITH_PAYMENT =
+    'Email verified successfully. For your security, your previous session was ended. Please sign in again with your email and password to access the dashboard. If a registration fee applies to your account, you will be guided to complete it after signing in.';
+
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** @param {Record<string, unknown>|null|undefined} user */
