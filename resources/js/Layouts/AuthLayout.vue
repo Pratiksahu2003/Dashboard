@@ -51,7 +51,7 @@ const showDemoModal = ref(false);
 const demoPlaying = ref(false);
 /** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
 const mobileDemoEmbedReady = ref(false);
-const { getToken, getUser, canAccessDashboard, getRegistrationChargesContext } = useAuth();
+const { getToken, enforceBestRoute } = useAuth();
 let intervalId = null;
 let mobileEmbedTimer = null;
 
@@ -99,17 +99,15 @@ const playDemoVideo = () => {
     demoPlaying.value = true;
 };
 
-/** Avoid redirect ping-pong when already on the target path (reduces Inertia remount loops). */
-const replaceIfDifferentRoute = name => {
-    if (typeof window === 'undefined') return;
-    const targetUrl = route(name);
-    const targetPath = new URL(targetUrl, window.location.origin).pathname.replace(/\/$/, '') || '/';
-    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
-    if (currentPath === targetPath) return;
-    router.replace(targetUrl);
+const onInertiaFinish = () => {
+    enforceBestRoute();
 };
 
 onMounted(() => {
+    if (!enforceBestRoute()) return;
+
+    document.addEventListener('inertia:finish', onInertiaFinish);
+
     const token = getToken();
     if (!token) {
         startAutoPlay();
@@ -118,32 +116,14 @@ onMounted(() => {
         }, 400);
         return;
     }
-    const u = getUser();
-    // Fully signed in: verified email + fee satisfied (AuthApi.md) → app home only.
-    if (u && canAccessDashboard()) {
-        replaceIfDifferentRoute('dashboard');
-        return;
-    }
-    // Token present but onboarding incomplete: send to the right auth screen (not dashboard).
-    const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
-    const allowPendingVerification =
-        path.includes('payment-required') ||
-        path.includes('otp-verify') ||
-        /\/reset-password\//.test(path);
 
-    if (!allowPendingVerification) {
-        if (u && !isRegistrationFeeSatisfied(u)) {
-            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
-            replaceIfDifferentRoute('auth.payment.required');
-            return;
-        }
-    }
     startAutoPlay();
     mobileEmbedTimer = window.setTimeout(() => {
         mobileDemoEmbedReady.value = true;
     }, 400);
 });
 onBeforeUnmount(() => {
+    document.removeEventListener('inertia:finish', onInertiaFinish);
     if (intervalId) clearInterval(intervalId);
     if (mobileEmbedTimer) clearTimeout(mobileEmbedTimer);
 });

@@ -1,11 +1,12 @@
 <script setup>
-import { ref, reactive } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, reactive, onMounted } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api from '@/api';
 import { useAlerts } from '@/composables/useAlerts';
+import { useAuth } from '@/composables/useAuth';
 
 const form = reactive({ email: '' });
 const loading = ref(false);

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
@@ -21,7 +21,7 @@ const roles = [
     { value: 'teacher', label: 'Teacher', desc: 'Manage classes and student kits.' },
     { value: 'institute', label: 'Institute', desc: 'Centralized management & procurement.' },
     { value: 'student', label: 'Student', desc: 'Access learning resources and kits.' },
-    { value: 'ngo', label: 'University / NGO', desc: 'Administer departments, programs, or NGO learning operations.' }
+    { value: 'university', label: 'University', desc: 'Administer departments, programs, or university learning operations.' }
 ];
 
 const form = reactive({

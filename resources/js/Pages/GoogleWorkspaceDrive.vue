@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GoogleWorkspaceTabs from '@/Components/GoogleWorkspaceTabs.vue';
+import GoogleConnectModal from '@/Components/GoogleConnectModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import { useGoogleWorkspaceApi, formatFileSize } from '@/composables/useGoogleWorkspaceApi';
@@ -19,6 +20,7 @@ const isRenaming = ref(false);
 const isDeleting = ref(false);
 const renameId = ref('');
 const renameValue = ref('');
+const isGoogleConnectModalOpen = ref(false);
 const items = computed(() => (Array.isArray(data.value?.files) ? data.value.files : []));
 const folderCount = computed(() => items.value.filter(file => file?.mimeType === 'application/vnd.google-apps.folder').length);
 
@@ -29,7 +31,12 @@ const load = async () => {
             ? await searchDriveFiles({ drive: { query: query.value.trim(), page_size: Number(pageSize.value) || 25 } })
             : await getDriveFiles({ drive: { page_size: Number(pageSize.value) || 25 } });
     } catch (error) {
-        showError('Unable to load Drive files. Please try again.', 'Google Workspace');
+        const message = error?.response?.data?.message || error?.message || '';
+        if (message.includes('not connected') || message.includes('refresh token')) {
+            isGoogleConnectModalOpen.value = true;
+        } else {
+            showError('Unable to load Drive files. Please try again.', 'Google Workspace');
+        }
     } finally {
         isLoading.value = false;
     }
@@ -144,6 +151,12 @@ onMounted(() => {
                 </div>
             </section>
         </div>
+        <GoogleConnectModal
+            :show="isGoogleConnectModalOpen"
+            title="Connect Google Workspace"
+            message="Your Google account is not connected. To access and manage your Google Drive files, please connect your account."
+            @close="isGoogleConnectModalOpen = false"
+        />
     </AppLayout>
 </template>
 

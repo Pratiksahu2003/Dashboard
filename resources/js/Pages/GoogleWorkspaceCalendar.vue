@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GoogleWorkspaceTabs from '@/Components/GoogleWorkspaceTabs.vue';
+import GoogleConnectModal from '@/Components/GoogleConnectModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import { useGoogleWorkspaceApi, formatDateTime } from '@/composables/useGoogleWorkspaceApi';
@@ -29,6 +30,7 @@ const dragDeltaX = ref(0);
 const isDraggingMonth = ref(false);
 const activeEventTypeFilters = ref([]);
 const endDateTimeManuallyEdited = ref(false);
+const isGoogleConnectModalOpen = ref(false);
 
 const form = ref({
     id: null,
@@ -256,7 +258,12 @@ const load = async () => {
             calendar: { max_results: Number(maxResults.value) || 25 },
         });
     } catch (error) {
-        showError('Unable to load calendar events. Please try again.', 'Google Workspace');
+        const message = error?.response?.data?.message || error?.message || '';
+        if (message.includes('not connected') || message.includes('refresh token')) {
+            isGoogleConnectModalOpen.value = true;
+        } else {
+            showError('Unable to load calendar events. Please try again.', 'Google Workspace');
+        }
     } finally {
         isLoading.value = false;
     }
@@ -625,6 +632,12 @@ watch(
                 </div>
             </section>
         </div>
+        <GoogleConnectModal
+            :show="isGoogleConnectModalOpen"
+            title="Connect Google Workspace"
+            message="Your Google account is not connected. To access and manage your calendar events, please connect your account."
+            @close="isGoogleConnectModalOpen = false"
+        />
     </AppLayout>
 </template>
 

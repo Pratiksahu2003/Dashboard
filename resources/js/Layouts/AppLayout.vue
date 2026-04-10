@@ -13,7 +13,7 @@ import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
 
 const user = ref(null);
 const sidebarOpen = ref(false);
-const { getUser, getToken, isAuthenticated, clearSession, getRegistrationChargesContext } = useAuth();
+const { getUser, getToken, clearSession, enforceBestRoute } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 
 const notifications = ref([]);
@@ -31,39 +31,15 @@ const chatChannelUnsubs = new Map();
 const activePlans = ref([]);
 const activePlansLoading = ref(false);
 let chatUnreadRefreshTimer = null;
-let emailGateRedirectScheduled = false;
-
-const enforceEmailVerifiedOrLeave = () => {
-    if (!isAuthenticated()) {
-        clearSession();
-        router.replace(route('login'));
-        return false;
-    }
-    const stored = getUser();
-    if (stored && !isRegistrationFeeSatisfied(stored)) {
-        if (emailGateRedirectScheduled) return false;
-        emailGateRedirectScheduled = true;
-        ensureRegistrationPaymentDetails(stored, getRegistrationChargesContext);
-        router.replace(route('auth.payment.required'), {
-            preserveState: false,
-            preserveScroll: false,
-        });
-        setTimeout(() => {
-            emailGateRedirectScheduled = false;
-        }, 2000);
-        return false;
-    }
-    user.value = stored;
-    return true;
-};
 
 const onInertiaFinish = () => {
-    if (!enforceEmailVerifiedOrLeave()) return;
+    if (!enforceBestRoute()) return;
     user.value = getUser();
 };
 
 onMounted(() => {
-    if (!enforceEmailVerifiedOrLeave()) return;
+    if (!enforceBestRoute()) return;
+    user.value = getUser();
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     document.addEventListener('inertia:finish', onInertiaFinish);

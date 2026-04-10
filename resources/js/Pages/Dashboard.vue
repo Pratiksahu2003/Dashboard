@@ -5,6 +5,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import { useGoogleWorkspaceApi } from '@/composables/useGoogleWorkspaceApi';
+import GoogleConnectModal from '@/Components/GoogleConnectModal.vue';
 import api from '@/api';
 
 const { requireAuth } = useAuth();
@@ -19,6 +20,7 @@ const dashboardAvatarError = ref(false);
 const calendarData = ref(null);
 const calendarLoading = ref(false);
 const dashboardCalendarMonth = ref(new Date());
+const isGoogleConnectModalOpen = ref(false);
 
 const dashboardCalendarItems = computed(() => (Array.isArray(calendarData.value?.items) ? calendarData.value.items : []));
 const dashboardCalendarMonthLabel = computed(() => dashboardCalendarMonth.value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }));
@@ -217,7 +219,12 @@ const loadDashboardCalendar = async () => {
             calendar: { max_results: 60 },
         });
     } catch (error) {
-        showError('Unable to load dashboard calendar events.', 'Dashboard Calendar');
+        const message = error?.response?.data?.message || error?.message || '';
+        if (message.includes('not connected') || message.includes('refresh token')) {
+            isGoogleConnectModalOpen.value = true;
+        } else {
+            showError('Unable to load dashboard calendar events.', 'Dashboard Calendar');
+        }
     } finally {
         calendarLoading.value = false;
     }
@@ -248,7 +255,6 @@ const fetchDashboard = async () => {
 };
 
 onMounted(() => {
-    if (!requireAuth()) return;
     fetchDashboard();
     loadDashboardCalendar();
 });
@@ -579,6 +585,12 @@ onMounted(() => {
                 </section>
             </div>
         </div>
+        <GoogleConnectModal
+            :show="isGoogleConnectModalOpen"
+            title="Connect Google Calendar"
+            message="Your Google account is not connected. To view and manage your calendar events directly from the dashboard, please connect your account."
+            @close="isGoogleConnectModalOpen = false"
+        />
     </AppLayout>
 </template>
 

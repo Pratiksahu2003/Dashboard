@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import GoogleWorkspaceTabs from '@/Components/GoogleWorkspaceTabs.vue';
+import GoogleConnectModal from '@/Components/GoogleConnectModal.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import { useGoogleWorkspaceApi, formatDateTime } from '@/composables/useGoogleWorkspaceApi';
@@ -14,6 +15,7 @@ const { getYoutubeChannels } = useGoogleWorkspaceApi();
 const data = ref(null);
 const isLoading = ref(false);
 const maxResults = ref(25);
+const isGoogleConnectModalOpen = ref(false);
 const items = computed(() => (Array.isArray(data.value?.items) ? data.value.items : []));
 const totalViews = computed(() => items.value.reduce((sum, item) => sum + Number(item?.statistics?.viewCount || 0), 0));
 
@@ -22,7 +24,12 @@ const load = async () => {
     try {
         data.value = await getYoutubeChannels({ youtube: { max_results: Number(maxResults.value) || 25 } });
     } catch (error) {
-        showError('Unable to load YouTube channels. Please try again.', 'Google Workspace');
+        const message = error?.response?.data?.message || error?.message || '';
+        if (message.includes('not connected') || message.includes('refresh token')) {
+            isGoogleConnectModalOpen.value = true;
+        } else {
+            showError('Unable to load YouTube channels. Please try again.', 'Google Workspace');
+        }
     } finally {
         isLoading.value = false;
     }
@@ -111,6 +118,12 @@ onMounted(() => {
                 </div>
             </section>
         </div>
+        <GoogleConnectModal
+            :show="isGoogleConnectModalOpen"
+            title="Connect Google Workspace"
+            message="Your Google account is not connected. To access and view your YouTube channel details, please connect your account."
+            @close="isGoogleConnectModalOpen = false"
+        />
     </AppLayout>
 </template>
 

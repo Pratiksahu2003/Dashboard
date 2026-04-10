@@ -197,30 +197,71 @@ export const useAuth = () => {
     };
 
     const requireAuth = () => {
-        if (!getToken()) {
-            clearSession();
-            router.replace(route('login'));
-            return false;
-        }
-        const u = getUser();
-        if (!u) {
-            clearSession();
-            router.replace(route('login'));
-            return false;
-        }
-        if (!isEmailVerified(u)) {
-            router.replace(route('auth.verify.email'));
-            return false;
-        }
-        if (!isRegistrationFeeSatisfied(u)) {
-            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
-            router.replace(route('auth.payment.required'));
-            return false;
-        }
-        return true;
+        return enforceBestRoute();
     };
 
     const getDeviceToken = () => localStorage.getItem(AUTH_DEVICE_TOKEN_KEY);
+
+    /**
+     * Centralized logic to determine where a user should be based on auth state.
+     * Returns a route name or null if no redirect needed.
+     */
+    const getBestAuthRoute = () => {
+        const token = getToken();
+        if (!token) return 'login';
+
+        const u = getUser();
+        if (!u) return 'login';
+
+        if (!isEmailVerified(u)) return 'auth.otp.verify';
+
+        if (!isRegistrationFeeSatisfied(u)) {
+            return 'auth.payment.required';
+        }
+
+        return 'dashboard';
+    };
+
+    /**
+     * Redirects to the best auth route if the user is not where they should be.
+     * Used as a global guard in Layouts.
+     */
+    const enforceBestRoute = () => {
+        const best = getBestAuthRoute();
+        const current = route().current();
+
+        // If already on the best route (or a child of it), do nothing
+        if (current === best) return true;
+
+        // Special case: dashboard sub-routes should stay on dashboard-like state
+        if (best === 'dashboard' && current && !['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current)) {
+            return true;
+        }
+
+        // Special case: if on an auth gate, don't redirect to another gate unless necessary
+        if (['auth.otp.verify', 'auth.payment.required'].includes(current) && best !== 'dashboard' && best !== 'login') {
+            return true;
+        }
+
+        // If on an auth page but should be on dashboard
+        if (['login', 'register', 'password.request', 'password.reset'].includes(current) && best === 'dashboard') {
+            router.replace(route('dashboard'));
+            return false;
+        }
+
+        // If on a protected page but should be on an auth page/gate
+        if (best !== 'dashboard' && (!current || !['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current))) {
+            if (best === 'login') clearSession();
+            if (best === 'auth.payment.required') {
+                const u = getUser();
+                if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+            }
+            router.replace(route(best));
+            return false;
+        }
+
+        return true;
+    };
 
     return {
         getToken,
@@ -233,5 +274,7 @@ export const useAuth = () => {
         requireAuth,
         setRegistrationChargesContext,
         getRegistrationChargesContext,
+        getBestAuthRoute,
+        enforceBestRoute,
     };
 };
