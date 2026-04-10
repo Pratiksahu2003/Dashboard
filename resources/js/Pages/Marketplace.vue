@@ -138,6 +138,12 @@ const listingGalleryImages = listing => {
     return cover ? [cover] : [];
 };
 
+const listingIsPurchased = listing => {
+    if (!listing) return false;
+    const v = listing.is_purchased ?? listing.isPurchased;
+    return v === true || v === 1 || v === '1';
+};
+
 const renderRichHtml = value => {
     const raw = String(value || '').trim();
     if (!raw) return '<p>-</p>';
@@ -242,7 +248,8 @@ const openDetails = async listing => {
     selectedListing.value = null;
     downloadToken.value = '';
     try {
-        selectedListing.value = await marketplaceApi.getListing(id);
+        const full = await marketplaceApi.getListing(id);
+        selectedListing.value = { ...listing, ...full };
     } catch (error) {
         showError(error?.message || 'Unable to load listing details.', 'Marketplace');
     } finally {
@@ -307,14 +314,18 @@ const contactSeller = async listing => {
 const secureDownload = async listing => {
     const id = listing?.id;
     if (!id) return;
-    const token = String(downloadToken.value || '').trim();
-    if (!token) {
-        showInfo('Enter download token from payment success callback.', 'Marketplace');
-        return;
+    const purchased = listingIsPurchased(listing);
+    let token = '';
+    if (!purchased) {
+        token = String(downloadToken.value || '').trim();
+        if (!token) {
+            showInfo('Enter download token from payment success callback.', 'Marketplace');
+            return;
+        }
     }
     actionLoadingId.value = `download-${id}`;
     try {
-        const payload = await marketplaceApi.secureDownload(id, token);
+        const payload = await marketplaceApi.secureDownload(id, purchased ? undefined : token);
         const url = payload?.download_url || payload?.data?.download_url || '';
         if (url) {
             window.open(url, '_blank', 'noopener,noreferrer');
@@ -775,13 +786,22 @@ onMounted(async () => {
                             <div class="mt-3 grid grid-cols-2 gap-2">
                                 <button type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100" @click="openDetails(item)">Details</button>
                                 <button
-                                    v-if="item.type === 'soft'"
+                                    v-if="item.type === 'soft' && !listingIsPurchased(item)"
                                     type="button"
                                     class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100 disabled:opacity-60"
                                     :disabled="actionLoadingId === `buy-${item.id}`"
                                     @click="purchaseSoftCopy(item)"
                                 >
                                     {{ actionLoadingId === `buy-${item.id}` ? 'Starting...' : 'Buy Soft Copy' }}
+                                </button>
+                                <button
+                                    v-else-if="item.type === 'soft' && listingIsPurchased(item)"
+                                    type="button"
+                                    class="rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-60"
+                                    :disabled="actionLoadingId === `download-${item.id}`"
+                                    @click="secureDownload(item)"
+                                >
+                                    {{ actionLoadingId === `download-${item.id}` ? 'Downloading...' : 'Download' }}
                                 </button>
                                 <button
                                     v-else
@@ -1205,13 +1225,22 @@ onMounted(async () => {
                 </div>
                 <div class="grid grid-cols-1 gap-2">
                     <button
-                        v-if="selectedListing.type === 'soft'"
+                        v-if="selectedListing.type === 'soft' && !listingIsPurchased(selectedListing)"
                         type="button"
                         class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100 disabled:opacity-60"
                         :disabled="actionLoadingId === `buy-${selectedListing.id}`"
                         @click="purchaseSoftCopy(selectedListing)"
                     >
                         {{ actionLoadingId === `buy-${selectedListing.id}` ? 'Starting...' : 'Buy Soft Copy' }}
+                    </button>
+                    <button
+                        v-else-if="selectedListing.type === 'soft' && listingIsPurchased(selectedListing)"
+                        type="button"
+                        class="rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-xs font-black text-white hover:bg-slate-800 disabled:opacity-60"
+                        :disabled="actionLoadingId === `download-${selectedListing.id}`"
+                        @click="secureDownload(selectedListing)"
+                    >
+                        {{ actionLoadingId === `download-${selectedListing.id}` ? 'Downloading...' : 'Download' }}
                     </button>
                     <button
                         v-else
@@ -1222,7 +1251,7 @@ onMounted(async () => {
                     >
                         {{ actionLoadingId === `contact-${selectedListing.id}` ? 'Connecting...' : 'Contact Seller' }}
                     </button>
-                    <div v-if="selectedListing.type === 'soft'" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div v-if="selectedListing.type === 'soft' && !listingIsPurchased(selectedListing)" class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Secure Download Token</p>
                         <input
                             v-model="downloadToken"

@@ -133,9 +133,14 @@ export const useMarketplaceApi = () => {
         };
     };
 
+    /** When the user already owns the listing (`is_purchased`), omit `token` so the API can authorize via Bearer only. */
     const secureDownload = async (listingId, token) => {
+        const params = {};
+        if (token !== undefined && token !== null && String(token).trim() !== '') {
+            params.token = String(token).trim();
+        }
         const payload = await api.get(`${MARKETPLACE_BASE}/listings/${encodeURIComponent(listingId)}/download`, {
-            params: { token },
+            params,
         });
         return readRoot(payload);
     };
