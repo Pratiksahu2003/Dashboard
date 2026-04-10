@@ -9,7 +9,7 @@ import api from '@/api';
 const { requireAuth } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 const invoiceBaseUrl = String(import.meta.env.VITE_INVOICE_BASE_URL || 'https://www.suganta.com').replace(/\/+$/, '');
-const paymentsApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v1`).replace(/\/+$/, '');
+const paymentsApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v1`).replace(/\/+$/, '');
 
 const isLoading = ref(false);
 const invoiceLoadingOrderId = ref('');

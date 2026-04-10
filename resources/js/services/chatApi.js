@@ -1,7 +1,7 @@
 import api from '@/api';
 
 /** Matches `ALLOWED_API_ORIGIN` in `@/api.js` — Chat v3 lives under `/api/v3/chat`. */
-export const CHAT_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v3/chat`;
+export const CHAT_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v3/chat`;
 
 /** @param {unknown} body */
 function unwrap(body) {

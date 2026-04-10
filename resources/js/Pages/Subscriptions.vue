@@ -9,7 +9,7 @@ import { SUBSCRIPTION_TYPES, useSubscriptionsApi } from '@/composables/useSubscr
 const { requireAuth } = useAuth();
 const { error: showError, info: showInfo, success: showSuccess, confirmDanger } = useAlerts();
 const subscriptionsApi = useSubscriptionsApi();
-const subscriptionsApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v1`).replace(/\/+$/, '');
+const subscriptionsApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v1`).replace(/\/+$/, '');
 const subscriptionFlowSteps = [
     'Select subscription type and plan',
     'Create payment and redirect to Cashfree',

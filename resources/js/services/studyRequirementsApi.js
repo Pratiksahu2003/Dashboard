@@ -1,6 +1,6 @@
 import api from '@/api';
 
-export const STUDY_REQUIREMENTS_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v1/study-requirements`;
+export const STUDY_REQUIREMENTS_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v1/study-requirements`;
 
 function unwrap(body) {
     if (!body || typeof body !== 'object') {

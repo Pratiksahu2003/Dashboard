@@ -11,7 +11,7 @@ const { requireAuth } = useAuth();
 const { error: showError, info: showInfo, success: showSuccess } = useAlerts();
 const notesApi = useNotesApi();
 
-const notesApiBaseUrl = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v2/notes`;
+const notesApiBaseUrl = `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v2/notes`;
 const flowSteps = [
     'Select note and verify lock state',
     'Create payment order and open Cashfree',

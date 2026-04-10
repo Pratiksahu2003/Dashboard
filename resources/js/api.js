@@ -4,7 +4,7 @@ import {
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
 
-const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '');
+const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
 const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)

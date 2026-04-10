@@ -1,6 +1,6 @@
 import api from '@/api';
 
-const NOTES_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v2/notes`;
+const NOTES_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v2/notes`;
 
 const readData = payload => payload?.data ?? {};
 

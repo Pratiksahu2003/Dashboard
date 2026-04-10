@@ -1,6 +1,6 @@
 import api from '@/api';
 
-const GOOGLE_API_BASE_URL = (import.meta.env.VITE_GOOGLE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v4/google`).trim();
+const GOOGLE_API_BASE_URL = (import.meta.env.VITE_GOOGLE_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '')}/api/v4/google`).trim();
 
 const readPayload = response => response?.data?.data || response?.data || {};
 
