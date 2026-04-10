@@ -23,7 +23,6 @@ const redirectToLoginIfNeeded = () => {
         path.startsWith('/login') ||
         path.startsWith('/register') ||
         path.startsWith('/password') ||
-        path.startsWith('/verify-email') ||
         path.startsWith('/otp-verify') ||
         path.startsWith('/payment-required');
     if (!isAuthPage) {
@@ -36,7 +35,6 @@ const shouldPreserveAuthOn403 = () => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname || '';
     return (
-        path.startsWith('/verify-email') ||
         path.startsWith('/otp-verify') ||
         path.startsWith('/payment-required')
     );
@@ -142,9 +140,9 @@ api.interceptors.response.use(
             return Promise.reject({
                 success: false,
                 code: 429,
-                message: 'Too many requests. Please wait a moment and try again.',
-                errors: null,
-                data: null,
+                message: sanitizeString(response?.data?.message || 'Too many requests. Please wait a moment and try again.'),
+                errors: response?.data?.errors || null,
+                data: response?.data?.data || null,
             });
         }
 

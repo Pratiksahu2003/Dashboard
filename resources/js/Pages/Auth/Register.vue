@@ -14,8 +14,8 @@ const loading = ref(false);
 const fieldErrors = ref({});
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
-const { setSession, setRegistrationChargesContext } = useAuth();
-const { error: showError } = useAlerts();
+const { setSession, setRegistrationChargesContext, clearSession } = useAuth();
+const { error: showError, success: showSuccess } = useAlerts();
 
 const roles = [
     { value: 'teacher', label: 'Teacher', desc: 'Manage classes and student kits.' },
@@ -84,17 +84,16 @@ const handleRegister = async () => {
             referral_code: sanitizeString(form.referral_code.trim()),
         };
         const response = await api.post('/auth/register', payload);
-        if (response.success && response.data?.token) {
-            setSession({ token: response.data.token, user: response.data.user });
-            if (response.data.registration_charges && typeof response.data.registration_charges === 'object') {
-                setRegistrationChargesContext(response.data.registration_charges);
-            }
-            const next = response.data.next_step;
-            if (next === 'email_verification' || !response.data.user?.email_verified_at) {
-                router.visit(route('auth.verify.email'), { replace: true });
-            } else {
-                router.visit(route('dashboard'), { replace: true });
-            }
+        if (response.success) {
+            // Clear any existing session to ensure they log in fresh
+            clearSession();
+            
+            // Show success message and redirect to login
+             showSuccess('Registration Successful! Please login to access your dashboard.');
+             
+             setTimeout(() => {
+                router.visit(route('login'), { replace: true });
+            }, 2000);
         }
     } catch (err) {
         fieldErrors.value = err.errors || {};
@@ -150,7 +149,7 @@ const handleRegister = async () => {
                             :type="showPassword ? 'text' : 'password'"
                             placeholder="••••••••"
                             required
-                            class="block w-full px-4 py-3 bg-white/80 border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)] border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-slate-300 pr-12"
+                            class="block w-full px-4 py-3 bg-white border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)] border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-slate-300 pr-12"
                         />
                         <button
                             type="button"
@@ -171,7 +170,7 @@ const handleRegister = async () => {
                             :type="showPasswordConfirmation ? 'text' : 'password'"
                             placeholder="••••••••"
                             required
-                            class="block w-full px-4 py-3 bg-white/80 border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)] border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-slate-300 pr-12"
+                            class="block w-full px-4 py-3 bg-white border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)] border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-slate-300 pr-12"
                         />
                         <button
                             type="button"

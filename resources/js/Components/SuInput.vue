@@ -40,7 +40,7 @@ defineExpose({ focus: () => input.value.focus() });
                 :required="required"
                 :autocomplete="autocomplete"
                 :class="[
-                    'block w-full px-4 py-3 bg-white/80 border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)]',
+                    'block w-full px-4 py-3 bg-white border rounded-2xl outline-none transition-all duration-200 shadow-[0_1px_0_rgba(15,23,42,0.04)]',
                     error 
                         ? 'border-red-300 focus:border-red-500 focus:ring-4 focus:ring-red-500/10' 
                         : 'border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 hover:border-slate-300'

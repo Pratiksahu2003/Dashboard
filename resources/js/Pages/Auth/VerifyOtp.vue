@@ -6,6 +6,7 @@ import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { useAuth } from '@/composables/useAuth';
+import { useOtpCountdown } from '@/composables/useOtpCountdown';
 import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
 
@@ -24,6 +25,7 @@ const trustThisBrowser = ref(false);
 const { setSession } = useAuth();
 const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
+const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
 
 const MAX_VERIFY_ATTEMPTS = 5;
 const VERIFY_LOCKOUT_MS = 120_000;
@@ -142,7 +144,7 @@ const verifyOtp = async () => {
 };
 
 const resendOtp = async () => {
-    if (countdown.value > 0) return;
+    if (countdown.value > 0 || isCountingDown.value) return;
     resending.value = true;
 
     try {
@@ -153,6 +155,11 @@ const resendOtp = async () => {
             showSuccess('OTP resent successfully.');
         }
     } catch (err) {
+        if (err?.code === 429 && err?.message) {
+            if (parseAndStartCountdown(err.message)) {
+                return;
+            }
+        }
         showError(err.message || 'Resend failed.');
     } finally {
         resending.value = false;
@@ -204,11 +211,11 @@ onBeforeUnmount(() => {
                     @input="handleInput(index, $event)"
                     @keydown="handleKeyDown(index, $event)"
                     @paste="handlePaste($event)"
-                    class="w-full h-14 sm:h-16 text-center text-2xl font-black bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-gray-100 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none dark:text-white shadow-sm"
+                    class="w-full h-14 sm:h-16 text-center text-2xl font-black bg-white border border-gray-100 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none shadow-sm"
                 />
             </div>
 
-            <label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-left dark:border-slate-700 dark:bg-slate-900/40">
+            <label class="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left">
                 <input v-model="trustThisBrowser" type="checkbox" class="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
                 <span class="text-xs font-semibold leading-snug text-slate-600 dark:text-slate-300">
                     Trust this browser (optional). Helps reduce extra verification on future sign-ins when supported by your account.
@@ -219,7 +226,10 @@ onBeforeUnmount(() => {
                 Verify Secure Identity
             </SuButton>
             <div class="text-center space-y-4">
-                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                <p v-if="isCountingDown" class="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-xl mt-2">
+                    {{ countdownMessage }}
+                </p>
+                <p v-else class="text-xs font-bold text-gray-400 uppercase tracking-widest">
                     Missing the code? 
                     <button @click="resendOtp" :disabled="resending || countdown > 0" class="text-orange-500 hover:text-orange-600 disabled:opacity-50 transition-colors ml-1">
                         {{ countdown > 0 ? `Retry in ${countdown}s` : 'Request Again' }}

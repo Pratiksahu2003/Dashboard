@@ -30,7 +30,7 @@ Route::middleware('guest')->group(function () {
 /*
  * Not under `guest`: these screens must load when the user already has a Sanctum/API session
  * or Laravel web auth. `guest` redirects authenticated users to /dashboard, which caused a
- * loop with AppLayout redirecting unverified users back to /verify-email.
+ * loop with AppLayout redirecting unverified users back to authentication screens.
  */
 Route::get('otp-verify', function () {
     return Inertia::render('Auth/VerifyOtp');
@@ -39,7 +39,3 @@ Route::get('otp-verify', function () {
 Route::get('payment-required', function () {
     return Inertia::render('Auth/Payment');
 })->name('auth.payment.required');
-
-Route::get('verify-email', function () {
-    return Inertia::render('Auth/VerifyEmail');
-})->name('auth.verify.email');

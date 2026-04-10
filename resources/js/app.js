@@ -18,7 +18,6 @@ const pageDescriptionMap = [
     { match: /^\/forgot-password/i, description: 'Reset your SuGanta account password securely and continue your workflow.' },
     { match: /^\/reset-password/i, description: 'Set a new secure password for your SuGanta account.' },
     { match: /^\/verify-otp/i, description: 'Verify your OTP to complete secure authentication on SuGanta.' },
-    { match: /^\/verify-email/i, description: 'Verify your email address to activate your SuGanta account.' },
     { match: /^\/payment-required/i, description: 'Complete registration fee payment to unlock your SuGanta dashboard access.' },
     { match: /^\/dashboard/i, description: 'View your overview dashboard with leads, payments, notifications, and recent activity.' },
     { match: /^\/notes/i, description: 'Browse notes, purchase securely, and download content with subscription-aware access control.' },

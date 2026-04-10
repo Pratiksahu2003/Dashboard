@@ -24,13 +24,8 @@ export const useAuthStore = defineStore('auth', {
 
     getters: {
         isAuthenticated: state => !!state.token,
-        /** Per AuthApi: email_verified_at present. */
+        /** Email verification is disabled. */
         emailVerified(state) {
-            const u = state.user;
-            if (!u || typeof u !== 'object') return false;
-            const v = u.email_verified_at;
-            if (v == null || v === '' || v === 'null') return false;
-            if (typeof v === 'boolean') return v;
             return true;
         },
         /** Per verify/register payloads: payment_required === true (non-student roles). */

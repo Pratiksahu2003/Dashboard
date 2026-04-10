@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     ensureRegistrationPaymentDetails,
-    isEmailVerified,
     isRegistrationFeeSatisfied,
     useAuth,
 } from '@/composables/useAuth';
@@ -128,30 +127,14 @@ onMounted(() => {
     // Token present but onboarding incomplete: send to the right auth screen (not dashboard).
     const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
     const allowPendingVerification =
-        path.includes('verify-email') ||
         path.includes('payment-required') ||
         path.includes('otp-verify') ||
         /\/reset-password\//.test(path);
 
-    // On verify-email: email already verified in storage → leave (fee pending → payment; else login).
-    if (path.includes('verify-email') && u && isEmailVerified(u)) {
-        if (!isRegistrationFeeSatisfied(u)) {
-            ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
-            replaceIfDifferentRoute('auth.payment.required');
-            return;
-        }
-        replaceIfDifferentRoute('login');
-        return;
-    }
-
     if (!allowPendingVerification) {
-        if (u && isEmailVerified(u) && !isRegistrationFeeSatisfied(u)) {
+        if (u && !isRegistrationFeeSatisfied(u)) {
             ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
             replaceIfDifferentRoute('auth.payment.required');
-            return;
-        }
-        if (u && !isEmailVerified(u)) {
-            replaceIfDifferentRoute('auth.verify.email');
             return;
         }
     }
@@ -302,7 +285,7 @@ onBeforeUnmount(() => {
 
                     <div class="mt-5 lg:mt-6 relative flex-1 min-h-0">
                         <div class="absolute -inset-3 rounded-[30px] bg-gradient-to-r from-blue-200/45 to-indigo-200/45 blur-xl"></div>
-                        <div class="relative h-full min-h-[300px] lg:min-h-[360px] rounded-[28px] border border-slate-200 bg-white/90 backdrop-blur p-3 lg:p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] flex flex-col">
+                        <div class="relative h-full min-h-[300px] lg:min-h-[360px] rounded-[28px] border border-slate-200 bg-white p-3 lg:p-4 shadow-[0_20px_60px_rgba(15,23,42,0.14)] flex flex-col">
                             <div class="rounded-[20px] bg-slate-100 border border-slate-200 overflow-hidden flex-1 min-h-[260px] lg:min-h-[300px] flex items-center justify-center relative aspect-[4/3] max-h-[min(52vh,560px)]">
                                 <!-- Stacked images: browser caches all slides; only visibility toggles (no reload per slide). -->
                                 <img

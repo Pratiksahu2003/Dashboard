@@ -3,7 +3,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import {
     ensureRegistrationPaymentDetails,
-    isEmailVerified,
     isRegistrationFeeSatisfied,
     useAuth,
 } from '@/composables/useAuth';
@@ -41,18 +40,6 @@ const enforceEmailVerifiedOrLeave = () => {
         return false;
     }
     const stored = getUser();
-    if (stored && !isEmailVerified(stored)) {
-        if (emailGateRedirectScheduled) return false;
-        emailGateRedirectScheduled = true;
-        router.replace(route('auth.verify.email'), {
-            preserveState: false,
-            preserveScroll: false,
-        });
-        setTimeout(() => {
-            emailGateRedirectScheduled = false;
-        }, 2000);
-        return false;
-    }
     if (stored && !isRegistrationFeeSatisfied(stored)) {
         if (emailGateRedirectScheduled) return false;
         emailGateRedirectScheduled = true;

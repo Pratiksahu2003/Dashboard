@@ -7,6 +7,7 @@ import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { EMAIL_VERIFY_LOGIN_FLOW_KEY, POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
+import { useOtpCountdown } from '@/composables/useOtpCountdown';
 import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
 
@@ -32,6 +33,7 @@ const lockoutUntil = ref(0);
 const { setSession } = useAuth();
 const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
+const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 60_000;
@@ -147,22 +149,6 @@ const handlePasswordLogin = async () => {
             router.visit(route('dashboard'));
         }
     } catch (err) {
-        const msg = String(err?.message || '');
-        const isEmailNotVerified =
-            err?.code === 403 && /email/i.test(msg) && /verif/i.test(msg);
-        if (isEmailNotVerified) {
-            const id = sanitizeString(form.identifier.trim());
-            if (id) {
-                localStorage.removeItem('auth_redirect_reason');
-                sessionStorage.setItem(
-                    EMAIL_VERIFY_LOGIN_FLOW_KEY,
-                    JSON.stringify({ identifier: id, otpAlreadySent: false }),
-                );
-                router.visit(route('auth.verify.email'));
-                return;
-            }
-        }
-
         trackFailedAttempt();
         const requiresPayment = !!(err?.errors?.requires_registration_payment);
         if (requiresPayment) {
@@ -199,15 +185,17 @@ const handleSendOtp = async () => {
         if (response.success) {
             localStorage.setItem('auth_identifier', identifier);
             const sentTo = sanitizeString(response?.data?.identifier || identifier);
-            sessionStorage.setItem(
-                EMAIL_VERIFY_LOGIN_FLOW_KEY,
-                JSON.stringify({ identifier, otpAlreadySent: true }),
-            );
             otpStatus.value = `Opening verification… code sent to ${sentTo}.`;
             showSuccess(response?.message || 'Code sent. Continue on the next screen.');
-            router.visit(route('auth.verify.email'));
+            router.visit(route('auth.otp.verify'));
         }
     } catch (err) {
+        if (err?.code === 429 && err?.message) {
+            if (parseAndStartCountdown(err.message)) {
+                // Return early so we don't track it as a normal failed attempt or show a toast
+                return;
+            }
+        }
         trackFailedAttempt();
         showError(err.message || 'OTP request failed. Please check your data.');
     } finally {
@@ -306,11 +294,14 @@ const handleSendOtp = async () => {
                 We will send a code to your email or phone, then take you to the <strong>Verify your email</strong> screen to enter it and finish signing in.
             </p>
 
-            <SuButton type="button" :loading="otpLoading" class="w-full" @click="handleSendOtp">
+            <SuButton type="button" :loading="otpLoading" class="w-full" @click="handleSendOtp" :disabled="isCountingDown">
                 Send OTP &amp; continue
             </SuButton>
 
-            <div v-if="otpStatus" class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700">
+            <div v-if="isCountingDown" class="p-3 rounded-xl border border-red-200 bg-red-50 text-xs font-bold text-red-700">
+                {{ countdownMessage }}
+            </div>
+            <div v-else-if="otpStatus" class="p-3 rounded-xl border border-emerald-200 bg-emerald-50 text-xs font-bold text-emerald-700">
                 {{ otpStatus }}
             </div>
         </div>
