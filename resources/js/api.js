@@ -6,6 +6,8 @@ import {
 
 const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
 const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
+// Derive the origin from ALLOWED_API_ORIGIN so the check always matches the configured domain.
+const ALLOWED_ORIGIN_PARSED = new URL(ALLOWED_API_ORIGIN).origin;
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
     : 20000;
@@ -69,7 +71,7 @@ api.interceptors.request.use(config => {
     config.headers['X-Request-Timestamp'] = Date.now().toString();
 
     const resolved = new URL(config.url || '', config.baseURL || ALLOWED_API_ORIGIN);
-    if (resolved.origin !== ALLOWED_API_ORIGIN) {
+    if (resolved.origin !== ALLOWED_ORIGIN_PARSED) {
         return Promise.reject(new Error('Blocked: request to untrusted origin'));
     }
 
