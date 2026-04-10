@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Middleware;
 
@@ -41,7 +42,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => null, // Stateless: Frontend handles user state via tokens
+                'user' => Auth::user()?->only(['id', 'name', 'first_name', 'last_name', 'email', 'role', 'phone', 'profile_pic', 'email_verified_at', 'registration_fee_status', 'payment_required', 'verification_status']),
             ],
             'authSlides' => $authSlides,
             'authSlidesVersion' => $slideVersion,

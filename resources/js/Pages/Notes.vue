@@ -5,8 +5,9 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import { useNotesApi } from '@/composables/useNotesApi';
+import api from '@/api';
 
-const { requireAuth, getToken } = useAuth();
+const { requireAuth } = useAuth();
 const { error: showError, info: showInfo, success: showSuccess } = useAlerts();
 const notesApi = useNotesApi();
 
@@ -428,22 +429,9 @@ const downloadNote = async note => {
         return;
     }
 
-    const token = getToken();
-    if (!token) {
-        showInfo('Please login again to continue.', 'Notes');
-        return;
-    }
-
     try {
-        const response = await fetch(`${notesApiBaseUrl}/${encodeURIComponent(note.id)}/download`, {
-            method: 'GET',
-            headers: {
-                Authorization: `Bearer ${token}`,
-                Accept: '*/*',
-            },
-        });
-        if (!response.ok) throw new Error('Download failed or access denied.');
-        const blob = await response.blob();
+        const response = await api.get(`${notesApiBaseUrl}/${encodeURIComponent(note.id)}/download`, { responseType: 'blob' });
+        const blob = response instanceof Blob ? response : new Blob([response]);
         const url = window.URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;

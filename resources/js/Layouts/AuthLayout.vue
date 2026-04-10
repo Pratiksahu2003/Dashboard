@@ -47,7 +47,7 @@ const showDemoModal = ref(false);
 const demoPlaying = ref(false);
 /** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
 const mobileDemoEmbedReady = ref(false);
-const { getToken, getUser, clearSession, enforceBestRoute } = useAuth();
+const { getUser, clearSession, enforceBestRoute } = useAuth();
 let intervalId = null;
 let mobileEmbedTimer = null;
 
@@ -110,14 +110,9 @@ const handleUnauthorized = () => {
 };
 
 const initAuthRedirect = () => {
-    const token = getToken();
-    const u = getUser();
-    if (token && u) {
+    const u = usePage().props.auth?.user;
+    if (u) {
         enforceBestRoute();
-        return;
-    }
-    if (token && !u) {
-        handleUnauthorized();
         return;
     }
     enforceBestRoute();

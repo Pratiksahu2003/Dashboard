@@ -1,21 +1,13 @@
 import { defineStore } from 'pinia';
-import {
-    AUTH_TOKEN_KEY,
-    AUTH_USER_KEY,
-} from '@/constants/authStorage';
+import { usePage } from '@inertiajs/vue3';
 
 /**
- * Mirrors API session state for reactive UI (source of truth remains localStorage via useAuth).
- * Call syncFromStorage() after setSession/clearSession, or rely on useAuth() which syncs Pinia.
- *
- * This app uses Laravel Inertia for routing (not vue-router). "Guards" live in AppLayout + requireAuth().
+ * Auth store — transient UI state only.
+ * Authentication identity is derived from Inertia shared props (auth.user).
+ * No token or user object is stored here; the server is the source of truth.
  */
 export const useAuthStore = defineStore('auth', {
     state: () => ({
-        /** Last known token (synced from storage). */
-        token: null,
-        /** Last known user object (synced from storage). */
-        user: null,
         /** Set when POST /auth/login returns requires_otp (transient UI hint). */
         requiresOtp: false,
         /** Payload when API returns success=false + errors.requires_registration_payment (optional copy). */
@@ -23,28 +15,12 @@ export const useAuthStore = defineStore('auth', {
     }),
 
     getters: {
-        isAuthenticated: state => !!state.token,
-        /** Email verification is disabled. */
-        emailVerified(state) {
-            return true;
-        },
-        /** Per verify/register payloads: payment_required === true (non-student roles). */
-        paymentRequiredFlag(state) {
-            const u = state.user;
-            return !!(u && typeof u === 'object' && u.payment_required === true);
-        },
+        isAuthenticated: () => usePage().props?.auth?.user != null,
     },
 
     actions: {
-        syncFromStorage() {
-            if (typeof localStorage === 'undefined') return;
-            this.token = localStorage.getItem(AUTH_TOKEN_KEY);
-            try {
-                this.user = JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null');
-            } catch {
-                this.user = null;
-            }
-        },
+        /** No-op — kept for call-site compatibility during migration. */
+        syncFromStorage() {},
 
         setRequiresOtp(value) {
             this.requiresOtp = !!value;
@@ -60,8 +36,6 @@ export const useAuthStore = defineStore('auth', {
         },
 
         reset() {
-            this.token = null;
-            this.user = null;
             this.clearTransient();
         },
     },

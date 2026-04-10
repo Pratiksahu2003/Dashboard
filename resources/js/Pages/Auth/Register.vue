@@ -5,7 +5,7 @@ import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import SuRoleCard from '@/Components/SuRoleCard.vue';
-import api, { sanitizeString } from '@/api';
+import api, { sanitizeString, ensureCsrf } from '@/api';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 
@@ -14,7 +14,7 @@ const loading = ref(false);
 const fieldErrors = ref({});
 const showPassword = ref(false);
 const showPasswordConfirmation = ref(false);
-const { setSession, setRegistrationChargesContext, clearSession } = useAuth();
+const { setRegistrationChargesContext, clearSession } = useAuth();
 const { error: showError, success: showSuccess } = useAlerts();
 
 const roles = [
@@ -73,6 +73,14 @@ const handleRegister = async () => {
     }
 
     loading.value = true;
+
+    try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        loading.value = false;
+        return;
+    }
 
     try {
         const payload = {

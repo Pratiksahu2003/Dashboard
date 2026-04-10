@@ -16,32 +16,18 @@ class BroadcastingAuthProxyController extends Controller
         $socketId = (string) $request->input('socket_id');
         $channelName = (string) $request->input('channel_name');
 
-        $auth = $request->header('Authorization', '');
-        if (!is_string($auth) || trim($auth) === '') {
-            Log::warning('broadcasting.auth.proxy: missing Authorization header', [
-                'socket_id' => $socketId,
-                'channel_name' => $channelName,
-                'ip' => $request->ip(),
-                'origin' => $request->header('Origin'),
-                'referer' => $request->header('Referer'),
-            ]);
-            return response([
-                'message' => 'Unauthenticated.',
-            ], 401)->header('Cache-Control', 'no-store, max-age=0');
-        }
-
         if (trim($socketId) === '' || trim($channelName) === '') {
             return response([
                 'message' => 'Invalid request.',
             ], 422)->header('Cache-Control', 'no-store, max-age=0');
         }
 
-        $upstream = Http::withHeaders([
-            'Authorization' => $auth,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ])->post($apiOrigin . '/broadcasting/auth', [
+        $upstream = Http::withCookies($request->cookies->all(), parse_url($apiOrigin, PHP_URL_HOST))
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->post($apiOrigin . '/broadcasting/auth', [
             'socket_id' => $socketId,
             'channel_name' => $channelName,
         ]);
@@ -53,15 +39,14 @@ class BroadcastingAuthProxyController extends Controller
                 'socket_id' => $socketId,
                 'channel_name' => $channelName,
                 'origin' => $request->header('Origin'),
-                'token_prefix' => substr(trim((string) $auth), 0, 24),
                 'upstream_body' => mb_substr((string) $upstream->body(), 0, 5000),
             ]);
 
             // If the upstream broadcasting auth is misconfigured (common with cross-origin Sanctum),
             // we can sign the private channel auth locally (Pusher protocol) after verifying access
-            // via the chat REST API (which already supports Bearer tokens).
+            // via the chat REST API (which already supports session cookies).
             if (in_array($upstream->status(), [401, 403], true)) {
-                $local = $this->tryLocalSign($apiOrigin, $auth, $socketId, $channelName);
+                $local = $this->tryLocalSign($request, $apiOrigin, $socketId, $channelName);
                 if ($local) {
                     return $local->header('Cache-Control', 'no-store, max-age=0');
                 }
@@ -74,7 +59,7 @@ class BroadcastingAuthProxyController extends Controller
         ]);
     }
 
-    private function tryLocalSign(string $apiOrigin, string $auth, string $socketId, string $channelName): Response|JsonResponse|null
+    private function tryLocalSign(Request $request, string $apiOrigin, string $socketId, string $channelName): Response|JsonResponse|null
     {
         if (!str_starts_with($channelName, 'private-chat.conversation.')) {
             return null;
@@ -83,12 +68,12 @@ class BroadcastingAuthProxyController extends Controller
         $conversationId = (int) substr($channelName, strlen('private-chat.conversation.'));
         if ($conversationId <= 0) return null;
 
-        $can = Http::withHeaders([
-            'Authorization' => $auth,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-            'X-Requested-With' => 'XMLHttpRequest',
-        ])->get($apiOrigin . '/api/v3/chat/conversations/' . $conversationId);
+        $can = Http::withCookies($request->cookies->all(), parse_url($apiOrigin, PHP_URL_HOST))
+            ->withHeaders([
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->get($apiOrigin . '/api/v3/chat/conversations/' . $conversationId);
 
         $ok = $can->status() === 200 && (bool) data_get($can->json(), 'success', false) === true;
         Log::info('broadcasting.auth.proxy: local-sign check', [

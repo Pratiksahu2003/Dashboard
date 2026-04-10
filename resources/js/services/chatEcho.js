@@ -15,9 +15,10 @@ export function getEcho() {
 }
 
 /**
- * @param {() => string | null} getAccessToken Fresh Sanctum token (e.g. from localStorage).
+ * @param {(() => string | null) | null} [getAccessToken] Ignored — kept for backward compatibility.
+ *   Auth is now handled via session cookie (`withCredentials: true`).
  */
-export function connectEcho(getAccessToken) {
+export function connectEcho(getAccessToken) { // eslint-disable-line no-unused-vars
     if (!isReverbConfigured()) return null;
     if (echoInstance) return echoInstance;
 
@@ -47,7 +48,6 @@ export function connectEcho(getAccessToken) {
         pongTimeout: 30_000,
         authorizer: channel => ({
             authorize: (socketId, callback) => {
-                const token = getAccessToken?.();
                 axios
                     .post(
                         // Use same-origin proxy to avoid CORS problems in dev/local.
@@ -57,8 +57,8 @@ export function connectEcho(getAccessToken) {
                             channel_name: channel.name,
                         },
                         {
+                            withCredentials: true,
                             headers: {
-                                Authorization: token ? `Bearer ${token}` : '',
                                 Accept: 'application/json',
                                 'Content-Type': 'application/json',
                                 'X-Requested-With': 'XMLHttpRequest',

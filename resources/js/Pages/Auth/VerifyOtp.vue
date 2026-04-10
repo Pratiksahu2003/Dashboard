@@ -5,7 +5,6 @@ import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
-import { useAuth } from '@/composables/useAuth';
 import { useOtpCountdown } from '@/composables/useOtpCountdown';
 import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -22,7 +21,6 @@ const verifyAttempts = ref(0);
 const verifyLockoutUntil = ref(0);
 /** Maps to API `remember_device` → optional `device_token` (see AuthApi.md). */
 const trustThisBrowser = ref(false);
-const { setSession } = useAuth();
 const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
 const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
@@ -102,23 +100,9 @@ const verifyOtp = async () => {
             if (inputs.value[0]) inputs.value[0].focus();
             return;
         }
-        if (response.success && response.data?.token) {
+        if (response.success) {
             verifyAttempts.value = 0;
             showSuccess('Verification successful.');
-            const u = response.data.user;
-            const merged = u
-                ? {
-                      ...u,
-                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
-                      registration_fee_status:
-                          response.data.registration_fee_status ?? u.registration_fee_status,
-                  }
-                : u;
-            setSession({
-                token: response.data.token,
-                user: merged,
-                deviceToken: response.data.device_token,
-            });
             authStore.setRequiresOtp(false);
             localStorage.removeItem('auth_identifier');
             router.visit(route('dashboard'));

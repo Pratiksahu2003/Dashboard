@@ -4,9 +4,6 @@ import { useAuthStore } from '@/stores/auth';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
-    AUTH_SESSION_TS_KEY,
-    AUTH_TOKEN_KEY,
-    AUTH_USER_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     PAYMENT_DETAILS_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
@@ -20,7 +17,6 @@ export {
     POST_VERIFY_LOGIN_NOTICE_KEY,
 } from '@/constants/authStorage';
 
-const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 let redirectLock = false;
 
 const normalizePath = (value) => {
@@ -130,86 +126,30 @@ export const ensureRegistrationPaymentDetails = (user, getCharges) => {
     );
 };
 
-const syncPiniaFromStorage = () => {
-    try {
-        if (getActivePinia()) {
-            useAuthStore().syncFromStorage();
-        }
-    } catch {
-        /* Pinia not ready (e.g. tests) */
-    }
-};
-
-const isSessionExpired = () => {
-    const token = localStorage.getItem(AUTH_TOKEN_KEY);
-    if (!token) return true;
-
-    const ts = localStorage.getItem(AUTH_SESSION_TS_KEY);
-    if (!ts) {
-        // If we have a token but no timestamp, initialize the timestamp instead of expiring.
-        localStorage.setItem(AUTH_SESSION_TS_KEY, Date.now().toString());
-        return false;
-    }
-    
-    const age = Date.now() - Number(ts);
-    return age > MAX_SESSION_AGE_MS;
-};
-
 export const useAuth = () => {
-    const getToken = () => {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
-        if (!token) return null;
-        if (isSessionExpired()) {
-            clearSession();
-            return null;
-        }
-        return token;
-    };
+    /** Returns the current authenticated user from Inertia shared props. */
+    const getUser = () => usePage().props.auth.user;
 
-    const getUser = () => {
-        try {
-            if (!getToken()) return null;
-            return JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null');
-        } catch {
-            localStorage.removeItem(AUTH_USER_KEY);
-            return null;
-        }
-    };
+    /** True when a session-authenticated user exists in Inertia shared props. */
+    const isAuthenticated = () => !!usePage().props.auth.user;
 
-    /** True when a Sanctum/API token exists (may still need email verification or payment). */
-    const isAuthenticated = () => !!getToken();
+    /** No longer needed — returns null unconditionally. */
+    const getToken = () => null;
 
     /**
-     * Token + user + verified email + registration fee satisfied (per AuthApi.md login rules).
+     * User + verified email + registration fee satisfied (per AuthApi.md login rules).
      */
     const canAccessDashboard = () => {
-        const u = getUser();
-        return !!getToken() && !!u && isEmailVerified(u) && isRegistrationFeeSatisfied(u);
-    };
-
-    const setSession = ({ token, user, deviceToken } = {}) => {
-        if (token && typeof token === 'string' && token.length > 10) {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
-            localStorage.setItem(AUTH_SESSION_TS_KEY, Date.now().toString());
-        }
-        if (user && typeof user === 'object') {
-            const safe = { ...user };
-            delete safe.password;
-            delete safe.password_hash;
-            delete safe.remember_token;
-            localStorage.setItem(AUTH_USER_KEY, JSON.stringify(safe));
-        }
-        if (deviceToken && typeof deviceToken === 'string' && deviceToken.length > 0) {
-            localStorage.setItem(AUTH_DEVICE_TOKEN_KEY, deviceToken);
-        }
-        syncPiniaFromStorage();
+        const u = usePage().props.auth.user;
+        return !!u && isEmailVerified(u) && isRegistrationFeeSatisfied(u);
     };
 
     const clearSession = () => {
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(AUTH_USER_KEY);
-        localStorage.removeItem(AUTH_SESSION_TS_KEY);
-        localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
+        // Purge legacy credential keys from existing browser sessions
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('auth_session_ts');
+        // Clear non-credential UI state keys
         localStorage.removeItem(PAYMENT_DETAILS_KEY);
         localStorage.removeItem(AUTH_IDENTIFIER_KEY);
         localStorage.removeItem(REGISTRATION_CHARGES_KEY);
@@ -218,7 +158,6 @@ export const useAuth = () => {
             sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
             sessionStorage.removeItem('post_verify_notice');
         }
-        syncPiniaFromStorage();
         try {
             if (getActivePinia()) {
                 useAuthStore().clearTransient();
@@ -253,20 +192,12 @@ export const useAuth = () => {
      * Returns a route name or null if no redirect needed.
      */
     const getBestAuthRoute = () => {
-        const token = getToken();
-        const localUser = getUser();
+        const user = usePage().props.auth.user;
 
-        // If we have a token, we check for user info and onboarding state.
-        if (token) {
-            if (!localUser) return 'login';
-
-            if (!isEmailVerified(localUser)) return 'auth.otp.verify';
-            if (!isRegistrationFeeSatisfied(localUser)) return 'auth.payment.required';
-            return 'dashboard';
-        }
-
-        // If no token, we are NOT logged in.
-        return 'login';
+        if (!user) return 'login';
+        if (!isEmailVerified(user)) return 'auth.otp.verify';
+        if (!isRegistrationFeeSatisfied(user)) return 'auth.payment.required';
+        return 'dashboard';
     };
 
     /**
@@ -286,7 +217,7 @@ export const useAuth = () => {
         const page = usePage();
         const component = page?.component || '';
 
-        // If getBestAuthRoute returns null, it means we are in a transition state (e.g. fetching profile)
+        // If getBestAuthRoute returns null, it means we are in a transition state
         if (best === null) return true;
 
         // If already on the best route (or a child of it), do nothing
@@ -318,7 +249,7 @@ export const useAuth = () => {
         if (['auth.otp.verify', 'auth.payment.required'].includes(best)) {
             if (current !== best) {
                 if (best === 'auth.payment.required') {
-                    const u = getUser();
+                    const u = usePage().props.auth.user;
                     if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
                 }
                 safeVisitNamedRoute(best);
@@ -330,37 +261,17 @@ export const useAuth = () => {
         return true;
     };
 
-    /** Refreshes the Bearer token using the refresh-token endpoint. */
-    const refreshToken = async () => {
-        try {
-            const response = await api.post('/auth/refresh-token');
-            if (response.success && response.data?.token) {
-                setSession({ 
-                    token: response.data.token,
-                    user: response.data.user || getUser(),
-                    deviceToken: response.data.device_token
-                });
-                return true;
-            }
-            return false;
-        } catch {
-            return false;
-        }
-    };
-
     return {
         getToken,
         getUser,
         getDeviceToken,
         isAuthenticated,
         canAccessDashboard,
-        setSession,
         clearSession,
         requireAuth,
         setRegistrationChargesContext,
         getRegistrationChargesContext,
         getBestAuthRoute,
         enforceBestRoute,
-        refreshToken,
     };
 };

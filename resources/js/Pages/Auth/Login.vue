@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
-import api, { sanitizeString } from '@/api';
+import api, { sanitizeString, ensureCsrf } from '@/api';
 import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { EMAIL_VERIFY_LOGIN_FLOW_KEY, POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
 import { useOtpCountdown } from '@/composables/useOtpCountdown';
@@ -30,7 +30,7 @@ const fieldErrors = ref({});
 const otpStatus = ref(null);
 const loginAttempts = ref(0);
 const lockoutUntil = ref(0);
-const { setSession, canAccessDashboard } = useAuth();
+const { canAccessDashboard } = useAuth();
 const authStore = useAuthStore();
 const { error: showError, success: showSuccess } = useAlerts();
 const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
@@ -94,6 +94,14 @@ const handlePasswordLogin = async () => {
     authStore.setRequiresOtp(false);
 
     try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        loading.value = false;
+        return;
+    }
+
+    try {
         const response = await api.post('/auth/login', {
             email: identifier,
             password: form.password,
@@ -129,22 +137,8 @@ const handlePasswordLogin = async () => {
             return;
         }
 
-        if (response.success && response.data?.token) {
+        if (response.success && !response.data?.requires_otp) {
             loginAttempts.value = 0;
-            const u = response.data.user;
-            const merged = u
-                ? {
-                      ...u,
-                      email_verified_at: response.data.email_verified_at ?? u.email_verified_at,
-                      registration_fee_status:
-                          response.data.registration_fee_status ?? u.registration_fee_status,
-                  }
-                : u;
-            setSession({
-                token: response.data.token,
-                user: merged,
-                deviceToken: response.data.device_token,
-            });
             authStore.setRequiresOtp(false);
             router.visit(route('dashboard'));
         }

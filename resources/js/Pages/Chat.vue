@@ -17,7 +17,7 @@ const props = defineProps({
     initialConversationId: { type: Number, default: null },
 });
 
-const { requireAuth, getUser, getToken } = useAuth();
+const { requireAuth, getUser } = useAuth();
 const { error: showError, success: showSuccess, confirmDanger } = useAlerts();
 
 const folder = ref('inbox');
@@ -203,7 +203,7 @@ const bindRealtime = conversationId => {
 
     if (!conversationId) return;
 
-    const echo = connectEcho(() => getToken());
+    const echo = connectEcho(null);
     if (!echo) {
         startPoll();
         return;
@@ -746,7 +746,7 @@ onMounted(() => {
     } catch {
         reactionRecent.value = [];
     }
-    connectEcho(() => getToken());
+    connectEcho(null);
     updateViewport();
     window.addEventListener('resize', updateViewport);
     loadConversations(1, false);

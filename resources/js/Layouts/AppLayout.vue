@@ -7,9 +7,9 @@ import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
 import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
 
-const user = ref(null);
+const user = ref(usePage().props.auth?.user ?? null);
 const sidebarOpen = ref(false);
-const { getUser, getToken, clearSession, enforceBestRoute } = useAuth();
+const { getUser, clearSession, enforceBestRoute } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 const page = usePage();
 
@@ -31,7 +31,7 @@ let chatUnreadRefreshTimer = null;
 
 const onInertiaFinish = () => {
     if (!enforceBestRoute()) return;
-    user.value = getUser();
+    user.value = usePage().props.auth?.user ?? null;
 };
 
 const handleUnauthorized = () => {
@@ -46,13 +46,13 @@ const handleUnauthorized = () => {
 
 const initLayout = () => {
     if (!enforceBestRoute()) return;
-    user.value = getUser();
+    user.value = usePage().props.auth?.user ?? null;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     document.addEventListener('inertia:finish', onInertiaFinish);
     document.addEventListener('app:unauthorized', handleUnauthorized);
     loadNotificationSummary();
-    connectEcho(() => getToken());
+    connectEcho(null);
     loadChatUnreadSummary();
     loadActivePlans();
     document.addEventListener('click', onDocumentClick);
@@ -110,14 +110,12 @@ const currentRoute = computed(() => {
 
 const logout = async () => {
     await teardownWebPush().catch(() => {});
-    
-    // Stateless: Clear local state immediately to provide instant feedback
-    clearSession();
-    
-    // Optional: Inform the API about the logout (stateless tokens are usually just discarded on client)
+
+    // POST to server first to invalidate the session cookie
     api.post('/auth/logout')
         .catch(() => {})
         .finally(() => {
+            clearSession();
             router.visit(route('login'));
         });
 };
@@ -202,7 +200,7 @@ const scheduleChatUnreadRefresh = () => {
 };
 
 const syncChatRealtimeSubscriptions = rows => {
-    const echo = connectEcho(() => getToken());
+    const echo = connectEcho(null);
     if (!echo || !Array.isArray(rows)) return;
 
     const ids = new Set(rows.map(r => Number(r?.id)).filter(n => Number.isFinite(n) && n > 0));

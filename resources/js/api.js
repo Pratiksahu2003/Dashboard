@@ -2,11 +2,10 @@ import axios from 'axios';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_REDIRECT_REASON_KEY,
-    AUTH_SESSION_TS_KEY,
-    AUTH_TOKEN_KEY,
-    AUTH_USER_KEY,
 } from '@/constants/authStorage';
+
 const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '');
+const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
     : 20000;
@@ -16,7 +15,7 @@ const getStorage = () => {
     return window.localStorage;
 };
 
-/** Do not clear stored token on 403 while user is on verify / OTP / payment screens (prevents dashboard ↔ verify loops). */
+/** Do not redirect on 403 while user is on verify / OTP / payment screens (prevents dashboard ↔ verify loops). */
 const shouldPreserveAuthOn403 = () => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname || '';
@@ -50,6 +49,7 @@ const getDeviceFingerprint = () => {
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || `${ALLOWED_API_ORIGIN}/api/v1`,
     timeout: API_TIMEOUT_MS,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -59,11 +59,6 @@ const api = axios.create({
 
 api.interceptors.request.use(config => {
     const storage = getStorage();
-    const token = storage?.getItem(AUTH_TOKEN_KEY);
-
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
 
     const deviceToken = storage?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) {
@@ -96,45 +91,25 @@ api.interceptors.response.use(
     },
     error => {
         const response = error?.response;
+        const storage = getStorage();
 
         if (response?.status === 401) {
-            const storage = getStorage();
-            const tokenBefore = storage?.getItem(AUTH_TOKEN_KEY);
-            
-            // Only clear and redirect if we actually had a token that is now invalid
-            if (tokenBefore) {
-                // Potential place for automatic token refresh if we want to do it inside interceptor
-                // For now, we follow the stateless principle: clear and redirect.
-                storage?.removeItem(AUTH_TOKEN_KEY);
-                storage?.removeItem(AUTH_USER_KEY);
-                storage?.removeItem(AUTH_SESSION_TS_KEY);
-                storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
-                storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
-                
-                if (typeof document !== 'undefined') {
-                    document.dispatchEvent(new CustomEvent('app:unauthorized'));
-                }
+            storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
+
+            if (typeof document !== 'undefined') {
+                document.dispatchEvent(new CustomEvent('app:unauthorized'));
             }
         }
 
         if (response?.status === 403) {
             if (!shouldPreserveAuthOn403()) {
-                const storage = getStorage();
-                const tokenBefore = storage?.getItem(AUTH_TOKEN_KEY);
-                
-                if (tokenBefore) {
-                    storage?.removeItem(AUTH_TOKEN_KEY);
-                    storage?.removeItem(AUTH_USER_KEY);
-                    storage?.removeItem(AUTH_SESSION_TS_KEY);
-                    storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
-                    const msg = sanitizeString(
-                        response?.data?.message || 'Access denied. Please sign in again.',
-                    );
-                    storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
-                    
-                    if (typeof document !== 'undefined') {
-                        document.dispatchEvent(new CustomEvent('app:unauthorized'));
-                    }
+                const msg = sanitizeString(
+                    response?.data?.message || 'Access denied. Please sign in again.',
+                );
+                storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
+
+                if (typeof document !== 'undefined') {
+                    document.dispatchEvent(new CustomEvent('app:unauthorized'));
                 }
             }
         }
@@ -162,6 +137,10 @@ api.interceptors.response.use(
         return Promise.reject(normalized);
     },
 );
+
+export async function ensureCsrf() {
+    await axios.get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+}
 
 export { sanitizeString };
 export default api;
