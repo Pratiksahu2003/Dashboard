@@ -175,6 +175,14 @@ const handleSendOtp = async () => {
     otpStatus.value = null;
 
     try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        otpLoading.value = false;
+        return;
+    }
+
+    try {
         const response = await api.post('/auth/login/send-otp', { identifier });
         if (response.success) {
             localStorage.setItem('auth_identifier', identifier);

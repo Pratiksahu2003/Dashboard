@@ -4,6 +4,9 @@ import {
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
 
+// Ensure all axios requests (including ensureCsrf) send credentials cross-origin.
+axios.defaults.withCredentials = true;
+
 const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
 const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
 // Derive the origin from ALLOWED_API_ORIGIN so the check always matches the configured domain.
