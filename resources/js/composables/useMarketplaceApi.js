@@ -56,6 +56,47 @@ export function extractMarketplaceCheckoutUrl(source) {
     }
     return '';
 }
+
+const DOWNLOAD_URL_KEYS = ['download_url', 'downloadUrl', 'download_path', 'downloadPath', 'file_url', 'fileUrl'];
+
+const pickDownloadUrlFromRecord = obj => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return '';
+    for (const key of DOWNLOAD_URL_KEYS) {
+        const u = normalizeHttpUrl(obj[key]);
+        if (u) return u;
+    }
+    return '';
+};
+
+/** Resolves file URL from marketplace download API (root / data / nested; includes download_path). */
+export function extractMarketplaceDownloadUrl(source) {
+    if (!source || typeof source !== 'object') return '';
+
+    const roots = [];
+    if (source.responsePayload && typeof source.responsePayload === 'object') {
+        roots.push(source.responsePayload);
+    }
+    roots.push(source);
+
+    for (const root of roots) {
+        let u = pickDownloadUrlFromRecord(root);
+        if (u) return u;
+
+        const d = root.data;
+        if (d && typeof d === 'object' && !Array.isArray(d)) {
+            u = pickDownloadUrlFromRecord(d);
+            if (u) return u;
+            for (const v of Object.values(d)) {
+                if (v && typeof v === 'object' && !Array.isArray(v)) {
+                    u = pickDownloadUrlFromRecord(v);
+                    if (u) return u;
+                }
+            }
+        }
+    }
+    return '';
+}
+
 const readRowsAndMeta = payload => {
     const root = readRoot(payload);
     const dataNode = root?.data;

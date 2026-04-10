@@ -6,7 +6,11 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
-import { useMarketplaceApi, extractMarketplaceCheckoutUrl } from '@/composables/useMarketplaceApi';
+import {
+    useMarketplaceApi,
+    extractMarketplaceCheckoutUrl,
+    extractMarketplaceDownloadUrl,
+} from '@/composables/useMarketplaceApi';
 
 const { requireAuth } = useAuth();
 const { success: showSuccess, error: showError, info: showInfo, confirmDanger } = useAlerts();
@@ -142,6 +146,43 @@ const listingIsPurchased = listing => {
     if (!listing) return false;
     const v = listing.is_purchased ?? listing.isPurchased;
     return v === true || v === 1 || v === '1';
+};
+
+/** Prefer real download with filename; falls back to new tab if storage blocks CORS. */
+const triggerMarketplaceFileDownload = async url => {
+    const href = String(url || '').trim();
+    if (!href || !/^https?:\/\//i.test(href)) return;
+
+    let filename = 'download';
+    try {
+        const path = new URL(href).pathname;
+        const seg = path.split('/').filter(Boolean).pop() || '';
+        const base = decodeURIComponent(seg.split('?')[0] || '');
+        if (base) filename = base;
+    } catch {
+        /* ignore */
+    }
+
+    try {
+        const res = await fetch(href, { mode: 'cors', credentials: 'omit' });
+        if (res.ok) {
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = filename;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(objectUrl);
+            return;
+        }
+    } catch {
+        /* signed URLs often omit CORS — open in new tab */
+    }
+
+    window.open(href, '_blank', 'noopener,noreferrer');
 };
 
 const renderRichHtml = value => {
@@ -326,9 +367,9 @@ const secureDownload = async listing => {
     actionLoadingId.value = `download-${id}`;
     try {
         const payload = await marketplaceApi.secureDownload(id, purchased ? undefined : token);
-        const url = payload?.download_url || payload?.data?.download_url || '';
+        const url = extractMarketplaceDownloadUrl(payload);
         if (url) {
-            window.open(url, '_blank', 'noopener,noreferrer');
+            await triggerMarketplaceFileDownload(url);
             return;
         }
         showInfo(payload?.message || 'Download requested successfully.', 'Marketplace');
@@ -352,11 +393,10 @@ const handleDownloadCallback = async () => {
         callbackMessage.value = 'Verifying secure download token...';
 
         const payload = await marketplaceApi.secureDownload(listingId, token);
-        const url = payload?.download_url || payload?.data?.download_url || '';
+        const url = extractMarketplaceDownloadUrl(payload);
         if (url) {
-            callbackMessage.value = 'Download link verified. Opening file...';
-            window.open(url, '_blank', 'noopener,noreferrer');
-            showSuccess('Your marketplace file is ready to download.', 'Marketplace');
+            callbackMessage.value = '';
+            await triggerMarketplaceFileDownload(url);
         } else {
             callbackMessage.value = payload?.message || 'Token verified, but no file URL returned.';
             showInfo(callbackMessage.value, 'Marketplace');
