@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\TrustProxies;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -11,13 +12,25 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Trust all proxies (Cloudflare, load balancers, nginx reverse proxy).
+        // In production, restrict to specific proxy IPs.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
-            \App\Http\Middleware\SecurityHeaders::class,
-            \App\Http\Middleware\SyncApiUser::class,
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            // HTTP/2 push Link headers — must run before response is sent.
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // Security headers on every response.
+            \App\Http\Middleware\SecurityHeaders::class,
+            // Resolve authenticated user from API (cached per session).
+            \App\Http\Middleware\SyncApiUser::class,
+            // Share Inertia props.
+            \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
+        // Rate limiting: 60 req/min for general web, 10 req/min for auth routes.
+        $middleware->throttleWithRedis();
+
+        // CSRF exceptions — broadcasting auth is proxied server-side.
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
         ]);

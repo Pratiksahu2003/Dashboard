@@ -6,31 +6,30 @@ import {
 
 axios.defaults.withCredentials = true;
 
-const ALLOWED_API_ORIGIN  = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
-const SANCTUM_URL          = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
-const ALLOWED_ORIGIN       = new URL(ALLOWED_API_ORIGIN).origin;
-const API_TIMEOUT_MS       = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
+const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
+const SANCTUM_URL         = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
+const ALLOWED_ORIGIN      = new URL(ALLOWED_API_ORIGIN).origin;
+const API_TIMEOUT_MS      = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
     : 15000;
 
 const MUTATING = new Set(['post', 'put', 'patch', 'delete']);
 
-// ─── Device fingerprint (computed once, reused) ──────────────────────────────
+// ─── Device fingerprint — computed once at module load, reused on every request
 const _fingerprint = (() => {
-    const nav    = typeof navigator !== 'undefined' ? navigator : {};
-    const screen = typeof window    !== 'undefined' ? window.screen : {};
-    const raw    = [
-        nav.userAgent || '',
-        nav.language  || '',
-        `${screen.width || 0}x${screen.height || 0}`,
-        Intl?.DateTimeFormat()?.resolvedOptions()?.timeZone || '',
-    ].join('|');
-    let h = 0;
-    for (let i = 0; i < raw.length; i++) h = ((h << 5) - h + raw.charCodeAt(i)) | 0;
-    return Math.abs(h).toString(36);
+    try {
+        const nav    = typeof navigator !== 'undefined' ? navigator : {};
+        const scr    = typeof window    !== 'undefined' ? window.screen : {};
+        const raw    = [nav.userAgent || '', nav.language || '',
+                        `${scr.width || 0}x${scr.height || 0}`,
+                        Intl?.DateTimeFormat()?.resolvedOptions()?.timeZone || ''].join('|');
+        let h = 0;
+        for (let i = 0; i < raw.length; i++) h = ((h << 5) - h + raw.charCodeAt(i)) | 0;
+        return Math.abs(h).toString(36);
+    } catch { return 'unknown'; }
 })();
 
-// ─── CSRF bootstrap (once per page load, cached promise) ─────────────────────
+// ─── CSRF bootstrap — one request per page load, cached promise ──────────────
 let _csrf = null;
 const bootstrapCsrf = () => {
     if (!_csrf) {
@@ -42,8 +41,7 @@ const bootstrapCsrf = () => {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const getStorage = () => (typeof window !== 'undefined' ? window.localStorage : null);
-
+const getStorage  = () => (typeof window !== 'undefined' ? window.localStorage : null);
 const preserveOn403 = () => {
     if (typeof window === 'undefined') return false;
     const p = window.location.pathname || '';
@@ -69,10 +67,8 @@ const api = axios.create({
 api.interceptors.request.use(async config => {
     const method = (config.method || '').toLowerCase();
 
-    // Auto-fetch CSRF cookie before any state-mutating request (cached after first call).
-    if (MUTATING.has(method)) {
-        await bootstrapCsrf();
-    }
+    // Auto-fetch CSRF cookie before any state-mutating request.
+    if (MUTATING.has(method)) await bootstrapCsrf();
 
     // Origin allowlist — block requests to untrusted domains.
     const resolved = new URL(config.url || '', config.baseURL || ALLOWED_API_ORIGIN);
@@ -80,11 +76,9 @@ api.interceptors.request.use(async config => {
         return Promise.reject(new Error('Blocked: request to untrusted origin'));
     }
 
-    // Security headers (computed once at module load).
     config.headers['X-Client-Fingerprint'] = _fingerprint;
     config.headers['X-Request-Timestamp']  = Date.now().toString();
 
-    // Device token (non-credential identifier).
     const deviceToken = getStorage()?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) config.headers['X-Device-Token'] = deviceToken;
 
@@ -99,9 +93,22 @@ api.interceptors.response.use(
         }
         return response.data;
     },
-    error => {
+    async error => {
         const res     = error?.response;
         const storage = getStorage();
+        const config  = error?.config;
+
+        // ── 419 CSRF expired: refresh token and auto-retry once ──────────────
+        if (res?.status === 419 && config && !config._csrfRetried) {
+            _csrf = null; // bust cached promise
+            config._csrfRetried = true;
+            try {
+                await bootstrapCsrf();
+                return api(config); // retry original request
+            } catch {
+                // CSRF refresh failed — fall through to error handling
+            }
+        }
 
         if (res?.status === 401) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
@@ -113,15 +120,9 @@ api.interceptors.response.use(
             document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }
 
-        if (res?.status === 419) {
-            // CSRF expired — reset so next mutating request re-fetches.
-            _csrf = null;
-        }
-
         if (res?.status === 429) {
             return Promise.reject({
-                success: false,
-                code: 429,
+                success: false, code: 429,
                 message: sanitizeString(res?.data?.message || 'Too many requests. Please wait a moment and try again.'),
                 errors: res?.data?.errors || null,
                 data:   res?.data?.data   || null,

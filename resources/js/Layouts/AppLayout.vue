@@ -30,9 +30,25 @@ const activePlansLoading = ref(false);
 let chatUnreadRefreshTimer = null;
 
 const onInertiaFinish = () => {
-    user.value = usePage().props.auth?.user ?? null;
-    // Only enforce routing on client-side Inertia navigations, not on initial mount.
-    enforceBestRoute();
+    // Refresh user from latest Inertia props.
+    const latestUser = usePage().props.auth?.user ?? null;
+    user.value = latestUser;
+
+    // Only redirect to login if the server explicitly cleared auth.user
+    // AND we're not already navigating away. Never redirect mid-navigation.
+    if (!latestUser && !router.processing) {
+        // Double-check: only redirect if we're on a protected page.
+        // Don't redirect if auth.user is null just because props weren't re-sent
+        // (Inertia partial requests don't include shared props).
+        const page = usePage();
+        const component = page?.component || '';
+        const isAuthPage = component.startsWith('Auth/') || component === 'Home';
+        if (!isAuthPage) {
+            // auth.user is null on a protected page — session likely expired.
+            // The app:unauthorized event from the API interceptor handles this.
+            // Don't redirect here to avoid false positives from partial requests.
+        }
+    }
 };
 
 const handleUnauthorized = () => {
@@ -46,20 +62,19 @@ const handleUnauthorized = () => {
 };
 
 const initLayout = () => {
-    // Do NOT call enforceBestRoute() here — the server-side SyncApiUser middleware
-    // already redirected unauthenticated users before this page rendered.
-    // Calling it on mount races against Inertia hydration and causes false redirects
-    // when auth.user hasn't populated yet.
     user.value = usePage().props.auth?.user ?? null;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     document.addEventListener('inertia:finish', onInertiaFinish);
     document.addEventListener('app:unauthorized', handleUnauthorized);
-    loadNotificationSummary();
-    connectEcho(null);
-    loadChatUnreadSummary();
-    loadActivePlans();
     document.addEventListener('click', onDocumentClick);
+    // Batch all initial data loads into one tick to avoid waterfall.
+    Promise.allSettled([
+        loadNotificationSummary(),
+        loadChatUnreadSummary(),
+        loadActivePlans(),
+    ]);
+    connectEcho(null);
 };
 
 onMounted(() => {
@@ -264,14 +279,14 @@ const applyNotificationFilter = () => {
 const nextNotificationPage = () => {
     const current = notificationMeta.value?.current_page || 1;
     const last = notificationMeta.value?.last_page || 1;
-    if (current >= last) return;
+    if (current >= last || isNotificationLoading.value) return;
     notificationPage.value = current + 1;
     loadNotificationSummary();
 };
 
 const prevNotificationPage = () => {
     const current = notificationMeta.value?.current_page || 1;
-    if (current <= 1) return;
+    if (current <= 1 || isNotificationLoading.value) return;
     notificationPage.value = current - 1;
     loadNotificationSummary();
 };

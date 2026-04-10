@@ -23,3 +23,77 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# ─── Gzip / Deflate compression ──────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css
+    AddOutputFilterByType DEFLATE text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE application/json application/xml application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml application/atom+xml
+    AddOutputFilterByType DEFLATE image/svg+xml font/ttf font/otf font/woff font/woff2
+    # Don't compress already-compressed formats
+    SetEnvIfNoCase Request_URI \.(?:gif|jpe?g|png|webp|avif|woff2|gz|zip|br)$ no-gzip dont-vary
+</IfModule>
+
+# ─── Brotli compression (preferred over gzip when available) ─────────────────
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css
+    AddOutputFilterByType BROTLI_COMPRESS application/javascript application/json
+    AddOutputFilterByType BROTLI_COMPRESS image/svg+xml font/woff2
+</IfModule>
+
+# ─── Browser caching — long-term for hashed assets, short for HTML ───────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # HTML — no cache (Inertia pages must always be fresh)
+    ExpiresByType text/html                         "access plus 0 seconds"
+
+    # Vite-hashed assets — 1 year (content-addressed, safe to cache forever)
+    ExpiresByType application/javascript            "access plus 1 year"
+    ExpiresByType text/css                          "access plus 1 year"
+    ExpiresByType font/woff2                        "access plus 1 year"
+    ExpiresByType font/woff                         "access plus 1 year"
+    ExpiresByType image/svg+xml                     "access plus 1 year"
+
+    # Images — 30 days
+    ExpiresByType image/jpeg                        "access plus 30 days"
+    ExpiresByType image/png                         "access plus 30 days"
+    ExpiresByType image/webp                        "access plus 30 days"
+    ExpiresByType image/avif                        "access plus 30 days"
+    ExpiresByType image/gif                         "access plus 30 days"
+    ExpiresByType image/x-icon                      "access plus 30 days"
+</IfModule>
+
+# ─── Cache-Control headers ────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    # Hashed Vite assets — immutable (never revalidate)
+    <FilesMatch "\.[0-9a-f]{8,}\.(js|css|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+
+    # Images — public, 30 days
+    <FilesMatch "\.(jpe?g|png|gif|webp|avif|ico|svg)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+
+    # HTML — no store (always fresh)
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+    </FilesMatch>
+
+    # Remove ETags (redundant with Cache-Control)
+    Header unset ETag
+    FileETag None
+
+    # Prevent MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# ─── Keep-Alive ───────────────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header set Connection keep-alive
+</IfModule>

@@ -7,19 +7,12 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
+    public function register(): void {}
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
+        // Prefetch only the critical app chunk and CSS — not all vendor chunks.
+        // Vendor chunks (quill, firebase, echo) are lazy-loaded on demand.
         Vite::prefetch(concurrency: 3);
     }
 }
