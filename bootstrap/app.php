@@ -12,13 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
+            \App\Http\Middleware\SecurityHeaders::class,
             \App\Http\Middleware\SyncApiUser::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // Echo / Pusher-style auth uses POST /broadcasting/auth without CSRF tokens.
-        // We proxy that request server-side to avoid cross-origin CORS issues in local/dev.
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
         ]);

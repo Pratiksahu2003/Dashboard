@@ -4,68 +4,56 @@ import {
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
 
-// Ensure all axios requests send credentials cross-origin.
 axios.defaults.withCredentials = true;
 
-const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
-const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
-const ALLOWED_ORIGIN_PARSED = new URL(ALLOWED_API_ORIGIN).origin;
-const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
+const ALLOWED_API_ORIGIN  = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
+const SANCTUM_URL          = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
+const ALLOWED_ORIGIN       = new URL(ALLOWED_API_ORIGIN).origin;
+const API_TIMEOUT_MS       = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
-    : 20000;
+    : 15000;
 
-const STATE_MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+const MUTATING = new Set(['post', 'put', 'patch', 'delete']);
 
-/**
- * CSRF bootstrap — fetches /sanctum/csrf-cookie once per page load.
- * Subsequent calls return the cached promise so only one request is ever made.
- * On failure the cache is cleared so the next request retries.
- */
-let csrfPromise = null;
-const bootstrapCsrf = () => {
-    if (!csrfPromise) {
-        csrfPromise = axios
-            .get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true })
-            .catch(err => {
-                csrfPromise = null;
-                return Promise.reject(err);
-            });
-    }
-    return csrfPromise;
-};
-
-const getStorage = () => {
-    if (typeof window === 'undefined') return null;
-    return window.localStorage;
-};
-
-const shouldPreserveAuthOn403 = () => {
-    if (typeof window === 'undefined') return false;
-    const path = window.location.pathname || '';
-    return path.startsWith('/otp-verify') || path.startsWith('/payment-required');
-};
-
-const sanitizeString = (str) => {
-    if (typeof str !== 'string') return '';
-    return str.replace(/[<>"'`]/g, '');
-};
-
-const getDeviceFingerprint = () => {
-    const nav = typeof navigator !== 'undefined' ? navigator : {};
-    const screen = typeof window !== 'undefined' ? window.screen : {};
-    const raw = [
+// ─── Device fingerprint (computed once, reused) ──────────────────────────────
+const _fingerprint = (() => {
+    const nav    = typeof navigator !== 'undefined' ? navigator : {};
+    const screen = typeof window    !== 'undefined' ? window.screen : {};
+    const raw    = [
         nav.userAgent || '',
-        nav.language || '',
+        nav.language  || '',
         `${screen.width || 0}x${screen.height || 0}`,
         Intl?.DateTimeFormat()?.resolvedOptions()?.timeZone || '',
     ].join('|');
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-        hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = ((h << 5) - h + raw.charCodeAt(i)) | 0;
+    return Math.abs(h).toString(36);
+})();
+
+// ─── CSRF bootstrap (once per page load, cached promise) ─────────────────────
+let _csrf = null;
+const bootstrapCsrf = () => {
+    if (!_csrf) {
+        _csrf = axios
+            .get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true })
+            .catch(err => { _csrf = null; return Promise.reject(err); });
     }
-    return Math.abs(hash).toString(36);
+    return _csrf;
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const getStorage = () => (typeof window !== 'undefined' ? window.localStorage : null);
+
+const preserveOn403 = () => {
+    if (typeof window === 'undefined') return false;
+    const p = window.location.pathname || '';
+    return p.startsWith('/otp-verify') || p.startsWith('/payment-required');
+};
+
+export const sanitizeString = (str) =>
+    typeof str === 'string' ? str.replace(/[<>"'`]/g, '') : '';
+
+// ─── Axios instance ───────────────────────────────────────────────────────────
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || `${ALLOWED_API_ORIGIN}/api/v1`,
     timeout: API_TIMEOUT_MS,
@@ -77,101 +65,83 @@ const api = axios.create({
     },
 });
 
+// ─── Request interceptor ─────────────────────────────────────────────────────
 api.interceptors.request.use(async config => {
-    // Automatically fetch the CSRF cookie before any state-mutating request.
-    // This is a no-op after the first successful fetch (cached promise).
-    if (STATE_MUTATING_METHODS.has((config.method || '').toLowerCase())) {
+    const method = (config.method || '').toLowerCase();
+
+    // Auto-fetch CSRF cookie before any state-mutating request (cached after first call).
+    if (MUTATING.has(method)) {
         await bootstrapCsrf();
     }
 
-    const storage = getStorage();
-    const deviceToken = storage?.getItem(AUTH_DEVICE_TOKEN_KEY);
-    if (deviceToken) {
-        config.headers['X-Device-Token'] = deviceToken;
-    }
-
-    config.headers['X-Client-Fingerprint'] = getDeviceFingerprint();
-    config.headers['X-Request-Timestamp'] = Date.now().toString();
-
+    // Origin allowlist — block requests to untrusted domains.
     const resolved = new URL(config.url || '', config.baseURL || ALLOWED_API_ORIGIN);
-    if (resolved.origin !== ALLOWED_ORIGIN_PARSED) {
+    if (resolved.origin !== ALLOWED_ORIGIN) {
         return Promise.reject(new Error('Blocked: request to untrusted origin'));
     }
 
-    return config;
-}, error => Promise.reject(error));
+    // Security headers (computed once at module load).
+    config.headers['X-Client-Fingerprint'] = _fingerprint;
+    config.headers['X-Request-Timestamp']  = Date.now().toString();
 
+    // Device token (non-credential identifier).
+    const deviceToken = getStorage()?.getItem(AUTH_DEVICE_TOKEN_KEY);
+    if (deviceToken) config.headers['X-Device-Token'] = deviceToken;
+
+    return config;
+}, err => Promise.reject(err));
+
+// ─── Response interceptor ────────────────────────────────────────────────────
 api.interceptors.response.use(
     response => {
         if (response.headers?.['content-type']?.includes('text/html')) {
-            return Promise.reject({
-                success: false,
-                code: 0,
-                message: 'Unexpected response format.',
-                errors: null,
-                data: null,
-            });
+            return Promise.reject({ success: false, code: 0, message: 'Unexpected response format.', errors: null, data: null });
         }
         return response.data;
     },
     error => {
-        const response = error?.response;
+        const res     = error?.response;
         const storage = getStorage();
 
-        if (response?.status === 401) {
+        if (res?.status === 401) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
-            if (typeof document !== 'undefined') {
-                document.dispatchEvent(new CustomEvent('app:unauthorized'));
-            }
+            document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }
 
-        if (response?.status === 403) {
-            if (!shouldPreserveAuthOn403()) {
-                const msg = sanitizeString(
-                    response?.data?.message || 'Access denied. Please sign in again.',
-                );
-                storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
-                if (typeof document !== 'undefined') {
-                    document.dispatchEvent(new CustomEvent('app:unauthorized'));
-                }
-            }
+        if (res?.status === 403 && !preserveOn403()) {
+            storage?.setItem(AUTH_REDIRECT_REASON_KEY, sanitizeString(res?.data?.message || 'Access denied. Please sign in again.'));
+            document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }
 
-        if (response?.status === 419) {
-            // CSRF token expired — clear the cache so the next request re-fetches it.
-            csrfPromise = null;
+        if (res?.status === 419) {
+            // CSRF expired — reset so next mutating request re-fetches.
+            _csrf = null;
         }
 
-        if (response?.status === 429) {
+        if (res?.status === 429) {
             return Promise.reject({
                 success: false,
                 code: 429,
-                message: sanitizeString(response?.data?.message || 'Too many requests. Please wait a moment and try again.'),
-                errors: response?.data?.errors || null,
-                data: response?.data?.data || null,
+                message: sanitizeString(res?.data?.message || 'Too many requests. Please wait a moment and try again.'),
+                errors: res?.data?.errors || null,
+                data:   res?.data?.data   || null,
             });
         }
 
-        const normalized = {
+        return Promise.reject({
             success: false,
-            code: response?.status || 500,
-            message: sanitizeString(response?.data?.message || error?.message || 'Request failed'),
-            errors: response?.data?.errors || null,
-            data: response?.data?.data || null,
-            responsePayload: response?.data && typeof response.data === 'object' ? response.data : null,
-        };
-
-        return Promise.reject(normalized);
+            code:    res?.status || 500,
+            message: sanitizeString(res?.data?.message || error?.message || 'Request failed'),
+            errors:  res?.data?.errors || null,
+            data:    res?.data?.data   || null,
+            responsePayload: res?.data && typeof res.data === 'object' ? res.data : null,
+        });
     },
 );
 
-/**
- * Manually pre-warm the CSRF cookie (e.g. on page mount before a form).
- * Safe to call multiple times — returns the cached promise.
- */
+/** Pre-warm CSRF cookie. Safe to call multiple times — returns cached promise. */
 export async function ensureCsrf() {
     await bootstrapCsrf();
 }
 
-export { sanitizeString };
 export default api;

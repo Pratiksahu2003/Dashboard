@@ -9,7 +9,7 @@ import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
 
 const user = ref(usePage().props.auth?.user ?? null);
 const sidebarOpen = ref(false);
-const { getUser, clearSession, enforceBestRoute } = useAuth();
+const { clearSession, enforceBestRoute } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 const page = usePage();
 

@@ -47,7 +47,7 @@ const showDemoModal = ref(false);
 const demoPlaying = ref(false);
 /** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
 const mobileDemoEmbedReady = ref(false);
-const { getUser, clearSession, enforceBestRoute } = useAuth();
+const { clearSession, enforceBestRoute } = useAuth();
 let intervalId = null;
 let mobileEmbedTimer = null;
 
