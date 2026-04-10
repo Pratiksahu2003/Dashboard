@@ -1,6 +1,6 @@
 import api from '@/api';
 
-export const AI_ADVISER_API_BASE = 'https://www.suganta.in/api/v2/ai-adviser';
+export const AI_ADVISER_API_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v2/ai-adviser`;
 
 function unwrap(body) {
     if (!body || typeof body !== 'object') {

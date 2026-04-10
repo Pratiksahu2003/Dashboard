@@ -228,7 +228,7 @@ const syncChatRealtimeSubscriptions = rows => {
 
 const loadChatUnreadSummary = async () => {
     try {
-        const response = await api.get('https://www.suganta.in/api/v3/chat/conversations', {
+        const response = await api.get(`${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v3/chat/conversations`, {
             params: { folder: 'inbox', page: 1 },
         });
         const rows = response?.data?.data || [];

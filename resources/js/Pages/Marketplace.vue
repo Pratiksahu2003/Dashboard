@@ -16,7 +16,7 @@ const { requireAuth } = useAuth();
 const { success: showSuccess, error: showError, info: showInfo, confirmDanger } = useAlerts();
 const marketplaceApi = useMarketplaceApi();
 
-const apiBase = 'https://www.suganta.in/api/marketplace';
+const apiBase = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/marketplace`;
 const activeMenu = ref('public');
 const publicTab = ref('discover');
 

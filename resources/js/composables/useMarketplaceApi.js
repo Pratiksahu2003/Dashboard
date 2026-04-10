@@ -1,6 +1,6 @@
 import api from '@/api';
 
-const MARKETPLACE_BASE = 'https://www.suganta.in/api/marketplace';
+const MARKETPLACE_BASE = `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/marketplace`;
 
 const readRoot = payload => payload || {};
 const readData = payload => payload?.data ?? {};

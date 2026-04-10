@@ -2,7 +2,7 @@ import axios from 'axios';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 
-const API_ORIGIN = import.meta.env.VITE_API_ORIGIN || 'https://www.suganta.in';
+const API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || import.meta.env.VITE_API_ORIGIN || 'https://www.suganta.in').replace(/\/$/, '');
 
 let echoInstance = null;
 

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { useAuth } from '@/composables/useAuth';
 
-const LEAD_API_BASE_URL = (import.meta.env.VITE_LEAD_API_BASE_URL || 'https://www.suganta.in/api/v1').trim();
+const LEAD_API_BASE_URL = (import.meta.env.VITE_LEAD_API_BASE_URL || `${(import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '')}/api/v1`).trim();
 
 const normalizePayload = response => response?.data || response || {};
 

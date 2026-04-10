@@ -6,7 +6,7 @@ import {
     AUTH_TOKEN_KEY,
     AUTH_USER_KEY,
 } from '@/constants/authStorage';
-const ALLOWED_API_ORIGIN = 'https://www.suganta.in';
+const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://www.suganta.in').replace(/\/$/, '');
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
     : 20000;
