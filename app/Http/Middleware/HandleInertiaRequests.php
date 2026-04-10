@@ -39,10 +39,22 @@ class HandleInertiaRequests extends Middleware
             return config('auth_slides.items', []);
         });
 
+        // Prefer the API-resolved user (set by SyncApiUser middleware) over local Auth::user().
+        $apiUser = $request->attributes->get('api_user');
+        $localUser = Auth::user()?->only(['id', 'name', 'first_name', 'last_name', 'email', 'role', 'phone', 'profile_pic', 'email_verified_at', 'registration_fee_status', 'payment_required', 'verification_status']);
+
+        $user = $apiUser ?? $localUser;
+
+        // Whitelist safe fields to prevent leaking sensitive data from the API response.
+        $safeFields = ['id', 'name', 'first_name', 'last_name', 'email', 'role', 'phone', 'profile_pic', 'email_verified_at', 'registration_fee_status', 'payment_required', 'verification_status'];
+        if (is_array($user)) {
+            $user = array_intersect_key($user, array_flip($safeFields));
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => Auth::user()?->only(['id', 'name', 'first_name', 'last_name', 'email', 'role', 'phone', 'profile_pic', 'email_verified_at', 'registration_fee_status', 'payment_required', 'verification_status']),
+                'user' => $user ?: null,
             ],
             'authSlides' => $authSlides,
             'authSlidesVersion' => $slideVersion,

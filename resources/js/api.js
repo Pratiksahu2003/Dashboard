@@ -4,30 +4,45 @@ import {
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
 
-// Ensure all axios requests (including ensureCsrf) send credentials cross-origin.
+// Ensure all axios requests send credentials cross-origin.
 axios.defaults.withCredentials = true;
 
 const ALLOWED_API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
 const SANCTUM_URL = (import.meta.env.VITE_SANCTUM_URL || ALLOWED_API_ORIGIN).replace(/\/$/, '');
-// Derive the origin from ALLOWED_API_ORIGIN so the check always matches the configured domain.
 const ALLOWED_ORIGIN_PARSED = new URL(ALLOWED_API_ORIGIN).origin;
 const API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS) > 0
     ? Number(import.meta.env.VITE_API_TIMEOUT_MS)
     : 20000;
+
+const STATE_MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete']);
+
+/**
+ * CSRF bootstrap — fetches /sanctum/csrf-cookie once per page load.
+ * Subsequent calls return the cached promise so only one request is ever made.
+ * On failure the cache is cleared so the next request retries.
+ */
+let csrfPromise = null;
+const bootstrapCsrf = () => {
+    if (!csrfPromise) {
+        csrfPromise = axios
+            .get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true })
+            .catch(err => {
+                csrfPromise = null;
+                return Promise.reject(err);
+            });
+    }
+    return csrfPromise;
+};
 
 const getStorage = () => {
     if (typeof window === 'undefined') return null;
     return window.localStorage;
 };
 
-/** Do not redirect on 403 while user is on verify / OTP / payment screens (prevents dashboard ↔ verify loops). */
 const shouldPreserveAuthOn403 = () => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname || '';
-    return (
-        path.startsWith('/otp-verify') ||
-        path.startsWith('/payment-required')
-    );
+    return path.startsWith('/otp-verify') || path.startsWith('/payment-required');
 };
 
 const sanitizeString = (str) => {
@@ -62,9 +77,14 @@ const api = axios.create({
     },
 });
 
-api.interceptors.request.use(config => {
-    const storage = getStorage();
+api.interceptors.request.use(async config => {
+    // Automatically fetch the CSRF cookie before any state-mutating request.
+    // This is a no-op after the first successful fetch (cached promise).
+    if (STATE_MUTATING_METHODS.has((config.method || '').toLowerCase())) {
+        await bootstrapCsrf();
+    }
 
+    const storage = getStorage();
     const deviceToken = storage?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) {
         config.headers['X-Device-Token'] = deviceToken;
@@ -100,7 +120,6 @@ api.interceptors.response.use(
 
         if (response?.status === 401) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
-
             if (typeof document !== 'undefined') {
                 document.dispatchEvent(new CustomEvent('app:unauthorized'));
             }
@@ -112,11 +131,15 @@ api.interceptors.response.use(
                     response?.data?.message || 'Access denied. Please sign in again.',
                 );
                 storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
-
                 if (typeof document !== 'undefined') {
                     document.dispatchEvent(new CustomEvent('app:unauthorized'));
                 }
             }
+        }
+
+        if (response?.status === 419) {
+            // CSRF token expired — clear the cache so the next request re-fetches it.
+            csrfPromise = null;
         }
 
         if (response?.status === 429) {
@@ -135,7 +158,6 @@ api.interceptors.response.use(
             message: sanitizeString(response?.data?.message || error?.message || 'Request failed'),
             errors: response?.data?.errors || null,
             data: response?.data?.data || null,
-            /** Full JSON body (some endpoints put checkout_url at root, not under data). */
             responsePayload: response?.data && typeof response.data === 'object' ? response.data : null,
         };
 
@@ -143,8 +165,12 @@ api.interceptors.response.use(
     },
 );
 
+/**
+ * Manually pre-warm the CSRF cookie (e.g. on page mount before a form).
+ * Safe to call multiple times — returns the cached promise.
+ */
 export async function ensureCsrf() {
-    await axios.get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+    await bootstrapCsrf();
 }
 
 export { sanitizeString };
