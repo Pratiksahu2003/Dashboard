@@ -1,11 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import {
-    ensureRegistrationPaymentDetails,
-    isRegistrationFeeSatisfied,
-    useAuth,
-} from '@/composables/useAuth';
+import { useAuth } from '@/composables/useAuth';
 
 /** Used only if Inertia shared props are missing (e.g. error boundary). Mirrors config/auth_slides.php */
 const FALLBACK_SLIDES = [
@@ -51,7 +47,7 @@ const showDemoModal = ref(false);
 const demoPlaying = ref(false);
 /** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
 const mobileDemoEmbedReady = ref(false);
-const { getToken, enforceBestRoute } = useAuth();
+const { getToken, getUser, clearSession, enforceBestRoute } = useAuth();
 let intervalId = null;
 let mobileEmbedTimer = null;
 
@@ -100,22 +96,38 @@ const playDemoVideo = () => {
 };
 
 const onInertiaFinish = () => {
+    if (!enforceBestRoute()) return;
+};
+
+const handleUnauthorized = () => {
+    if (router.processing) return;
+    clearSession();
+    const target = route('login');
+    const targetPath = new URL(target, window.location.origin).pathname.replace(/\/$/, '') || '/';
+    const currentPath = (window.location.pathname || '').replace(/\/$/, '') || '/';
+    if (targetPath === currentPath) return;
+    router.visit(target, { replace: true, preserveState: false, preserveScroll: false });
+};
+
+const initAuthRedirect = () => {
+    const token = getToken();
+    const u = getUser();
+    if (token && u) {
+        enforceBestRoute();
+        return;
+    }
+    if (token && !u) {
+        handleUnauthorized();
+        return;
+    }
     enforceBestRoute();
 };
 
 onMounted(() => {
-    if (!enforceBestRoute()) return;
+    initAuthRedirect();
 
     document.addEventListener('inertia:finish', onInertiaFinish);
-
-    const token = getToken();
-    if (!token) {
-        startAutoPlay();
-        mobileEmbedTimer = window.setTimeout(() => {
-            mobileDemoEmbedReady.value = true;
-        }, 400);
-        return;
-    }
+    document.addEventListener('app:unauthorized', handleUnauthorized);
 
     startAutoPlay();
     mobileEmbedTimer = window.setTimeout(() => {
@@ -124,6 +136,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
     document.removeEventListener('inertia:finish', onInertiaFinish);
+    document.removeEventListener('app:unauthorized', handleUnauthorized);
     if (intervalId) clearInterval(intervalId);
     if (mobileEmbedTimer) clearTimeout(mobileEmbedTimer);
 });

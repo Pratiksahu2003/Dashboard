@@ -1,11 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Link, router } from '@inertiajs/vue3';
-import {
-    ensureRegistrationPaymentDetails,
-    isRegistrationFeeSatisfied,
-    useAuth,
-} from '@/composables/useAuth';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
@@ -15,6 +11,7 @@ const user = ref(null);
 const sidebarOpen = ref(false);
 const { getUser, getToken, clearSession, enforceBestRoute } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
+const page = usePage();
 
 const notifications = ref([]);
 const unreadCount = ref(0);
@@ -37,21 +34,37 @@ const onInertiaFinish = () => {
     user.value = getUser();
 };
 
-onMounted(() => {
+const handleUnauthorized = () => {
+    if (router.processing) return;
+    clearSession();
+    const target = route('login');
+    const targetPath = new URL(target, window.location.origin).pathname.replace(/\/$/, '') || '/';
+    const currentPath = (window.location.pathname || '').replace(/\/$/, '') || '/';
+    if (targetPath === currentPath) return;
+    router.visit(target, { replace: true, preserveState: false, preserveScroll: false });
+};
+
+const initLayout = () => {
     if (!enforceBestRoute()) return;
     user.value = getUser();
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     document.addEventListener('inertia:finish', onInertiaFinish);
+    document.addEventListener('app:unauthorized', handleUnauthorized);
     loadNotificationSummary();
     connectEcho(() => getToken());
     loadChatUnreadSummary();
     loadActivePlans();
     document.addEventListener('click', onDocumentClick);
+};
+
+onMounted(() => {
+    initLayout();
 });
 
 onBeforeUnmount(() => {
     document.removeEventListener('inertia:finish', onInertiaFinish);
+    document.removeEventListener('app:unauthorized', handleUnauthorized);
     for (const unsub of chatChannelUnsubs.values()) unsub();
     chatChannelUnsubs.clear();
     clearTimeout(chatUnreadRefreshTimer);
@@ -97,10 +110,14 @@ const currentRoute = computed(() => {
 
 const logout = async () => {
     await teardownWebPush().catch(() => {});
+    
+    // Stateless: Clear local state immediately to provide instant feedback
+    clearSession();
+    
+    // Optional: Inform the API about the logout (stateless tokens are usually just discarded on client)
     api.post('/auth/logout')
         .catch(() => {})
         .finally(() => {
-            clearSession();
             router.visit(route('login'));
         });
 };

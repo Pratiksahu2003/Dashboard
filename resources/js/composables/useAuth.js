@@ -1,5 +1,5 @@
 import { getActivePinia } from 'pinia';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/auth';
 import {
     AUTH_DEVICE_TOKEN_KEY,
@@ -20,15 +20,52 @@ export {
     POST_VERIFY_LOGIN_NOTICE_KEY,
 } from '@/constants/authStorage';
 
-/** Shown on login after successful `/auth/verification/verify` (API revokes the old token — user must sign in again). */
-export const POST_EMAIL_VERIFY_RELOGIN_MESSAGE =
-    'Email verified successfully. For your security, your previous session was ended. Please sign in again with your email and password.';
-
-/** Same as above when API returns `payment_required: true` — user completes fee via login flow, not from verify screen. */
-export const POST_EMAIL_VERIFY_RELOGIN_MESSAGE_WITH_PAYMENT =
-    'Email verified successfully. For your security, your previous session was ended. Please sign in again with your email and password to access the dashboard. If a registration fee applies to your account, you will be guided to complete it after signing in.';
-
 const MAX_SESSION_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+let redirectLock = false;
+
+const normalizePath = (value) => {
+    const s = String(value || '');
+    const path = s.split('?')[0].split('#')[0];
+    if (!path) return '/';
+    return path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+};
+
+const getPathFromUrl = (url) => {
+    if (typeof window === 'undefined') return normalizePath(url);
+    try {
+        return normalizePath(new URL(url, window.location.origin).pathname);
+    } catch {
+        return normalizePath(url);
+    }
+};
+
+const safeVisitNamedRoute = (name, options = {}) => {
+    if (typeof window === 'undefined') return false;
+    if (redirectLock || router.processing) return false;
+    let url;
+    try {
+        url = route(name);
+    } catch {
+        return false;
+    }
+    const targetPath = getPathFromUrl(url);
+    const currentPath = normalizePath(window.location.pathname);
+    if (targetPath === currentPath) return false;
+    redirectLock = true;
+    router.visit(url, {
+        replace: true,
+        preserveState: false,
+        preserveScroll: false,
+        onFinish: () => {
+            redirectLock = false;
+        },
+        ...options,
+    });
+    window.setTimeout(() => {
+        redirectLock = false;
+    }, 1500);
+    return true;
+};
 
 /** @param {Record<string, unknown>|null|undefined} user */
 export const isEmailVerified = user => {
@@ -104,9 +141,18 @@ const syncPiniaFromStorage = () => {
 };
 
 const isSessionExpired = () => {
+    const token = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (!token) return true;
+
     const ts = localStorage.getItem(AUTH_SESSION_TS_KEY);
-    if (!ts) return true;
-    return Date.now() - Number(ts) > MAX_SESSION_AGE_MS;
+    if (!ts) {
+        // If we have a token but no timestamp, initialize the timestamp instead of expiring.
+        localStorage.setItem(AUTH_SESSION_TS_KEY, Date.now().toString());
+        return false;
+    }
+    
+    const age = Date.now() - Number(ts);
+    return age > MAX_SESSION_AGE_MS;
 };
 
 export const useAuth = () => {
@@ -208,18 +254,19 @@ export const useAuth = () => {
      */
     const getBestAuthRoute = () => {
         const token = getToken();
-        if (!token) return 'login';
+        const localUser = getUser();
 
-        const u = getUser();
-        if (!u) return 'login';
+        // If we have a token, we check for user info and onboarding state.
+        if (token) {
+            if (!localUser) return 'login';
 
-        if (!isEmailVerified(u)) return 'auth.otp.verify';
-
-        if (!isRegistrationFeeSatisfied(u)) {
-            return 'auth.payment.required';
+            if (!isEmailVerified(localUser)) return 'auth.otp.verify';
+            if (!isRegistrationFeeSatisfied(localUser)) return 'auth.payment.required';
+            return 'dashboard';
         }
 
-        return 'dashboard';
+        // If no token, we are NOT logged in.
+        return 'login';
     };
 
     /**
@@ -227,40 +274,78 @@ export const useAuth = () => {
      * Used as a global guard in Layouts.
      */
     const enforceBestRoute = () => {
+        if (redirectLock || router.processing) return false;
+
         const best = getBestAuthRoute();
-        const current = route().current();
+        let current = null;
+        try {
+            current = typeof route !== 'undefined' ? route().current() : null;
+        } catch {
+            current = null;
+        }
+        const page = usePage();
+        const component = page?.component || '';
+
+        // If getBestAuthRoute returns null, it means we are in a transition state (e.g. fetching profile)
+        if (best === null) return true;
 
         // If already on the best route (or a child of it), do nothing
         if (current === best) return true;
 
-        // Special case: dashboard sub-routes should stay on dashboard-like state
-        if (best === 'dashboard' && current && !['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current)) {
-            return true;
-        }
+        // If best is dashboard, we allow sub-routes
+        const isOnAuthPage = ['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current) || component.startsWith('Auth/');
 
-        // Special case: if on an auth gate, don't redirect to another gate unless necessary
-        if (['auth.otp.verify', 'auth.payment.required'].includes(current) && best !== 'dashboard' && best !== 'login') {
-            return true;
-        }
-
-        // If on an auth page but should be on dashboard
-        if (['login', 'register', 'password.request', 'password.reset'].includes(current) && best === 'dashboard') {
-            router.replace(route('dashboard'));
-            return false;
-        }
-
-        // If on a protected page but should be on an auth page/gate
-        if (best !== 'dashboard' && (!current || !['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current))) {
-            if (best === 'login') clearSession();
-            if (best === 'auth.payment.required') {
-                const u = getUser();
-                if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+        if (best === 'dashboard') {
+            if (isOnAuthPage) {
+                safeVisitNamedRoute('dashboard');
+                return false;
             }
-            router.replace(route(best));
-            return false;
+            return true;
+        }
+
+        // If best is login, we redirect protected pages to login
+        if (best === 'login') {
+            const isProtected = !isOnAuthPage && !['Home'].includes(component);
+            if (isProtected) {
+                clearSession();
+                safeVisitNamedRoute('login');
+                return false;
+            }
+            return true;
+        }
+
+        // If best is an auth gate (OTP or Payment)
+        if (['auth.otp.verify', 'auth.payment.required'].includes(best)) {
+            if (current !== best) {
+                if (best === 'auth.payment.required') {
+                    const u = getUser();
+                    if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
+                }
+                safeVisitNamedRoute(best);
+                return false;
+            }
+            return true;
         }
 
         return true;
+    };
+
+    /** Refreshes the Bearer token using the refresh-token endpoint. */
+    const refreshToken = async () => {
+        try {
+            const response = await api.post('/auth/refresh-token');
+            if (response.success && response.data?.token) {
+                setSession({ 
+                    token: response.data.token,
+                    user: response.data.user || getUser(),
+                    deviceToken: response.data.device_token
+                });
+                return true;
+            }
+            return false;
+        } catch {
+            return false;
+        }
     };
 
     return {
@@ -276,5 +361,6 @@ export const useAuth = () => {
         getRegistrationChargesContext,
         getBestAuthRoute,
         enforceBestRoute,
+        refreshToken,
     };
 };

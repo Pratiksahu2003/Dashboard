@@ -41,7 +41,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
+                'user' => null, // Stateless: Frontend handles user state via tokens
             ],
             'authSlides' => $authSlides,
             'authSlidesVersion' => $slideVersion,

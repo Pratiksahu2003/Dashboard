@@ -16,20 +16,6 @@ const getStorage = () => {
     return window.localStorage;
 };
 
-const redirectToLoginIfNeeded = () => {
-    if (typeof window === 'undefined') return;
-    const path = window.location.pathname || '';
-    const isAuthPage =
-        path.startsWith('/login') ||
-        path.startsWith('/register') ||
-        path.startsWith('/password') ||
-        path.startsWith('/otp-verify') ||
-        path.startsWith('/payment-required');
-    if (!isAuthPage) {
-        window.location.assign('/login');
-    }
-};
-
 /** Do not clear stored token on 403 while user is on verify / OTP / payment screens (prevents dashboard ↔ verify loops). */
 const shouldPreserveAuthOn403 = () => {
     if (typeof window === 'undefined') return false;
@@ -113,26 +99,43 @@ api.interceptors.response.use(
 
         if (response?.status === 401) {
             const storage = getStorage();
-            storage?.removeItem(AUTH_TOKEN_KEY);
-            storage?.removeItem(AUTH_USER_KEY);
-            storage?.removeItem(AUTH_SESSION_TS_KEY);
-            storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
-            storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
-            redirectToLoginIfNeeded();
+            const tokenBefore = storage?.getItem(AUTH_TOKEN_KEY);
+            
+            // Only clear and redirect if we actually had a token that is now invalid
+            if (tokenBefore) {
+                // Potential place for automatic token refresh if we want to do it inside interceptor
+                // For now, we follow the stateless principle: clear and redirect.
+                storage?.removeItem(AUTH_TOKEN_KEY);
+                storage?.removeItem(AUTH_USER_KEY);
+                storage?.removeItem(AUTH_SESSION_TS_KEY);
+                storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
+                storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
+                
+                if (typeof document !== 'undefined') {
+                    document.dispatchEvent(new CustomEvent('app:unauthorized'));
+                }
+            }
         }
 
         if (response?.status === 403) {
             if (!shouldPreserveAuthOn403()) {
                 const storage = getStorage();
-                storage?.removeItem(AUTH_TOKEN_KEY);
-                storage?.removeItem(AUTH_USER_KEY);
-                storage?.removeItem(AUTH_SESSION_TS_KEY);
-                storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
-                const msg = sanitizeString(
-                    response?.data?.message || 'Access denied. Please sign in again.',
-                );
-                storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
-                redirectToLoginIfNeeded();
+                const tokenBefore = storage?.getItem(AUTH_TOKEN_KEY);
+                
+                if (tokenBefore) {
+                    storage?.removeItem(AUTH_TOKEN_KEY);
+                    storage?.removeItem(AUTH_USER_KEY);
+                    storage?.removeItem(AUTH_SESSION_TS_KEY);
+                    storage?.removeItem(AUTH_DEVICE_TOKEN_KEY);
+                    const msg = sanitizeString(
+                        response?.data?.message || 'Access denied. Please sign in again.',
+                    );
+                    storage?.setItem(AUTH_REDIRECT_REASON_KEY, msg);
+                    
+                    if (typeof document !== 'undefined') {
+                        document.dispatchEvent(new CustomEvent('app:unauthorized'));
+                    }
+                }
             }
         }
 
