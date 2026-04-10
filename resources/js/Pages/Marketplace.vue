@@ -244,8 +244,7 @@ const purchaseSoftCopy = async listing => {
     try {
         const payload = await marketplaceApi.purchaseSoftCopy(id);
         if (payload.checkoutUrl) {
-            window.open(payload.checkoutUrl, '_blank', 'noopener,noreferrer');
-            showInfo('Checkout opened. Complete payment and return for download token flow.', 'Marketplace');
+            window.location.assign(payload.checkoutUrl);
             return;
         }
         showInfo(payload?.message || 'Purchase initiated.', 'Marketplace');

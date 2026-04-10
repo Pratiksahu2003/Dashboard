@@ -63,8 +63,13 @@ export const useMarketplaceApi = () => {
     const purchaseSoftCopy = async listingId => {
         const payload = await api.post(`${MARKETPLACE_BASE}/listings/${encodeURIComponent(listingId)}/purchase`);
         const root = readRoot(payload);
+        const data = root?.data && typeof root.data === 'object' ? root.data : null;
+        const checkoutUrl =
+            (typeof root?.checkout_url === 'string' && root.checkout_url) ||
+            (typeof data?.checkout_url === 'string' && data.checkout_url) ||
+            '';
         return {
-            checkoutUrl: root?.checkout_url || '',
+            checkoutUrl,
             message: root?.message || '',
             status: root?.status || '',
             data: root?.data || null,
