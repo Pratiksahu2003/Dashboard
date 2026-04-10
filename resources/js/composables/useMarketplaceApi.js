@@ -4,6 +4,58 @@ const MARKETPLACE_BASE = 'https://www.suganta.in/api/marketplace';
 
 const readRoot = payload => payload || {};
 const readData = payload => payload?.data ?? {};
+
+const HTTP_URL_KEYS = ['checkout_url', 'checkoutUrl', 'payment_url', 'paymentUrl', 'redirect_url', 'redirectUrl', 'url'];
+
+const normalizeHttpUrl = value => {
+    if (value == null) return '';
+    const s = String(value).trim();
+    return /^https?:\/\//i.test(s) ? s : '';
+};
+
+const pickUrlFromRecord = obj => {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return '';
+    for (const key of HTTP_URL_KEYS) {
+        const u = normalizeHttpUrl(obj[key]);
+        if (u) return u;
+    }
+    return '';
+};
+
+/**
+ * Handles multiple API shapes (root / data / nested / camelCase) and axios error envelopes.
+ */
+export function extractMarketplaceCheckoutUrl(source) {
+    if (!source || typeof source !== 'object') return '';
+
+    const roots = [];
+    if (source.responsePayload && typeof source.responsePayload === 'object') {
+        roots.push(source.responsePayload);
+    }
+    roots.push(source);
+
+    for (const root of roots) {
+        let u = pickUrlFromRecord(root);
+        if (u) return u;
+
+        const d = root.data;
+        if (typeof d === 'string') {
+            u = normalizeHttpUrl(d);
+            if (u) return u;
+        }
+        if (d && typeof d === 'object' && !Array.isArray(d)) {
+            u = pickUrlFromRecord(d);
+            if (u) return u;
+            for (const v of Object.values(d)) {
+                if (v && typeof v === 'object' && !Array.isArray(v)) {
+                    u = pickUrlFromRecord(v);
+                    if (u) return u;
+                }
+            }
+        }
+    }
+    return '';
+}
 const readRowsAndMeta = payload => {
     const root = readRoot(payload);
     const dataNode = root?.data;
@@ -63,13 +115,8 @@ export const useMarketplaceApi = () => {
     const purchaseSoftCopy = async listingId => {
         const payload = await api.post(`${MARKETPLACE_BASE}/listings/${encodeURIComponent(listingId)}/purchase`);
         const root = readRoot(payload);
-        const data = root?.data && typeof root.data === 'object' ? root.data : null;
-        const checkoutUrl =
-            (typeof root?.checkout_url === 'string' && root.checkout_url) ||
-            (typeof data?.checkout_url === 'string' && data.checkout_url) ||
-            '';
         return {
-            checkoutUrl,
+            checkoutUrl: extractMarketplaceCheckoutUrl(payload),
             message: root?.message || '',
             status: root?.status || '',
             data: root?.data || null,

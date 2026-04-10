@@ -155,6 +155,8 @@ api.interceptors.response.use(
             message: sanitizeString(response?.data?.message || error?.message || 'Request failed'),
             errors: response?.data?.errors || null,
             data: response?.data?.data || null,
+            /** Full JSON body (some endpoints put checkout_url at root, not under data). */
+            responsePayload: response?.data && typeof response.data === 'object' ? response.data : null,
         };
 
         return Promise.reject(normalized);

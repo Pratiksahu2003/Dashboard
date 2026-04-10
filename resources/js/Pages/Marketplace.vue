@@ -6,7 +6,7 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
-import { useMarketplaceApi } from '@/composables/useMarketplaceApi';
+import { useMarketplaceApi, extractMarketplaceCheckoutUrl } from '@/composables/useMarketplaceApi';
 
 const { requireAuth } = useAuth();
 const { success: showSuccess, error: showError, info: showInfo, confirmDanger } = useAlerts();
@@ -116,6 +116,26 @@ const formatMoney = (amount, currency = 'INR') => {
     } catch {
         return `${currency} ${numericAmount.toFixed(2)}`;
     }
+};
+
+/** List API returns real photos in `images[]`; `thumbnail` may be a placeholder (e.g. no.png). */
+const listingCoverImage = listing => {
+    if (!listing) return '';
+    const imgs = Array.isArray(listing.images) ? listing.images : [];
+    const first = imgs.find(u => typeof u === 'string' && u.trim());
+    if (first) return first.trim();
+    const thumb = String(listing.thumbnail || '').trim();
+    if (thumb) return thumb;
+    return String(listing.file_path || '').trim();
+};
+
+const listingGalleryImages = listing => {
+    if (!listing) return [];
+    const imgs = Array.isArray(listing.images) ? listing.images : [];
+    const urls = imgs.filter(u => typeof u === 'string' && u.trim()).map(u => u.trim());
+    if (urls.length) return urls;
+    const cover = listingCoverImage(listing);
+    return cover ? [cover] : [];
 };
 
 const renderRichHtml = value => {
@@ -237,18 +257,30 @@ const closeDetails = () => {
     downloadToken.value = '';
 };
 
+const redirectToMarketplaceCheckout = raw => {
+    let safe = '';
+    if (typeof raw === 'string') safe = raw.trim();
+    else if (raw && typeof raw === 'object') safe = extractMarketplaceCheckoutUrl(raw);
+    if (!safe || !/^https?:\/\//i.test(safe)) return false;
+    window.location.href = safe;
+    return true;
+};
+
 const purchaseSoftCopy = async listing => {
     const id = listing?.id;
     if (!id) return;
     actionLoadingId.value = `buy-${id}`;
     try {
         const payload = await marketplaceApi.purchaseSoftCopy(id);
-        if (payload.checkoutUrl) {
-            window.location.assign(payload.checkoutUrl);
+        if (redirectToMarketplaceCheckout(payload.checkoutUrl)) {
             return;
         }
         showInfo(payload?.message || 'Purchase initiated.', 'Marketplace');
     } catch (error) {
+        const fromErr = extractMarketplaceCheckoutUrl(error);
+        if (redirectToMarketplaceCheckout(fromErr)) {
+            return;
+        }
         showError(error?.message || 'Unable to initiate purchase.', 'Marketplace');
     } finally {
         actionLoadingId.value = '';
@@ -722,11 +754,18 @@ onMounted(async () => {
                     <div v-else class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
                         <article v-for="item in listings" :key="item.id" class="rounded-xl border border-slate-200 p-4">
                             <img
-                                v-if="item.thumbnail"
-                                :src="item.thumbnail"
-                                alt="thumb"
-                                class="h-32 w-full rounded-lg object-cover border border-slate-200"
+                                v-if="listingCoverImage(item)"
+                                :src="listingCoverImage(item)"
+                                :alt="item.title || 'Listing'"
+                                class="h-32 w-full rounded-lg object-cover border border-slate-200 bg-slate-100"
+                                loading="lazy"
                             />
+                            <div
+                                v-else
+                                class="flex h-32 w-full items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-400"
+                            >
+                                No image
+                            </div>
                             <h3 class="mt-3 text-base font-black text-slate-900">{{ item.title || 'Listing' }}</h3>
                             <p class="mt-1 text-sm font-semibold text-slate-600 line-clamp-2">{{ item.description || '-' }}</p>
                             <p class="mt-2 text-lg font-black text-slate-900">{{ formatMoney(item.price, 'INR') }}</p>
@@ -1073,10 +1112,19 @@ onMounted(async () => {
                     <div v-else class="space-y-3">
                         <article v-for="item in myListings" :key="`mine-${item.id}`" class="rounded-xl border border-slate-200 p-4">
                             <div class="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <h3 class="text-base font-black text-slate-900">{{ item.title || 'My Listing' }}</h3>
-                                    <p class="mt-1 text-sm font-semibold text-slate-600">{{ formatMoney(item.price, 'INR') }} | {{ item.type || '-' }}</p>
-                                    <p class="mt-1 text-[11px] font-bold text-slate-500">Status: {{ item.status || '-' }}</p>
+                                <div class="flex min-w-0 flex-1 items-start gap-3">
+                                    <img
+                                        v-if="listingCoverImage(item)"
+                                        :src="listingCoverImage(item)"
+                                        :alt="item.title || 'My listing'"
+                                        class="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover bg-slate-100"
+                                        loading="lazy"
+                                    />
+                                    <div class="min-w-0">
+                                        <h3 class="text-base font-black text-slate-900">{{ item.title || 'My Listing' }}</h3>
+                                        <p class="mt-1 text-sm font-semibold text-slate-600">{{ formatMoney(item.price, 'INR') }} | {{ item.type || '-' }}</p>
+                                        <p class="mt-1 text-[11px] font-bold text-slate-500">Status: {{ item.status || '-' }}</p>
+                                    </div>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <button type="button" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-100" @click="openEdit(item)">
@@ -1119,7 +1167,35 @@ onMounted(async () => {
             </div>
             <div v-if="detailLoading" class="mt-4 h-24 rounded-xl bg-slate-100 animate-pulse"></div>
             <div v-else-if="selectedListing" class="mt-4 space-y-3">
-                <img v-if="selectedListing.thumbnail" :src="selectedListing.thumbnail" alt="thumb" class="h-48 w-full rounded-xl object-cover border border-slate-200" />
+                <div v-if="listingGalleryImages(selectedListing).length" class="space-y-2">
+                    <div
+                        class="grid gap-2"
+                        :class="listingGalleryImages(selectedListing).length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'"
+                    >
+                        <a
+                            v-for="(url, idx) in listingGalleryImages(selectedListing)"
+                            :key="`detail-gallery-${selectedListing.id}-${idx}`"
+                            :href="url"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="group block overflow-hidden rounded-xl border border-slate-200 bg-slate-100 outline-none ring-slate-900/0 focus-visible:ring-2"
+                        >
+                            <img
+                                :src="url"
+                                :alt="`${selectedListing.title || 'Listing'} — ${idx + 1}`"
+                                class="aspect-[4/3] w-full object-cover transition group-hover:opacity-95"
+                                loading="lazy"
+                            />
+                        </a>
+                    </div>
+                    <p class="text-[10px] font-bold text-slate-400">Tap an image to open full size.</p>
+                </div>
+                <div
+                    v-else
+                    class="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-xs font-bold text-slate-400"
+                >
+                    No images for this listing
+                </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div class="text-sm font-semibold text-slate-700 [&>*]:m-0" v-html="renderRichHtml(selectedListing.description)" />
                     <p class="mt-2 text-xs font-bold text-slate-500">
