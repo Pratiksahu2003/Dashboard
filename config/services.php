@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    /*
+    | Used by BroadcastingAuthProxyController. Read via config() so values stay
+    | correct when production runs `php artisan config:cache` (raw env() in app code can be empty).
+    */
+    'suganta' => [
+        'api_origin' => rtrim(env('VITE_API_ORIGIN', 'https://www.suganta.in'), '/'),
+        'reverb_app_key' => env('REVERB_APP_KEY') ?: env('VITE_REVERB_APP_KEY'),
+        'reverb_app_secret' => env('REVERB_APP_SECRET'),
+    ],
+
 ];

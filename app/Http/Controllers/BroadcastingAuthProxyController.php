@@ -12,7 +12,7 @@ class BroadcastingAuthProxyController extends Controller
 {
     public function __invoke(Request $request): Response|JsonResponse
     {
-        $apiOrigin = rtrim(env('VITE_API_ORIGIN', 'https://www.suganta.in'), '/');
+        $apiOrigin = config('services.suganta.api_origin');
         $socketId = (string) $request->input('socket_id');
         $channelName = (string) $request->input('channel_name');
 
@@ -99,8 +99,8 @@ class BroadcastingAuthProxyController extends Controller
 
         if (!$ok) return null;
 
-        $key = env('REVERB_APP_KEY') ?: env('VITE_REVERB_APP_KEY');
-        $secret = env('REVERB_APP_SECRET');
+        $key = config('services.suganta.reverb_app_key');
+        $secret = config('services.suganta.reverb_app_secret');
         if (!is_string($key) || trim($key) === '' || !is_string($secret) || trim($secret) === '') {
             Log::warning('broadcasting.auth.proxy: local-sign missing key/secret');
             return null;
