@@ -96,7 +96,18 @@ const playDemoVideo = () => {
 };
 
 const onInertiaFinish = () => {
-    if (!enforceBestRoute()) return;
+    // If user is authenticated and lands on an auth page via client-side navigation,
+    // redirect them to dashboard. Server handles this for full page loads.
+    const u = usePage().props.auth?.user;
+    if (u && !router.processing) {
+        try {
+            const current = typeof route !== 'undefined' ? route().current() : null;
+            const authRoutes = ['login', 'register', 'password.request', 'password.reset'];
+            if (authRoutes.includes(current)) {
+                router.visit(route('dashboard'), { replace: true });
+            }
+        } catch { /* ignore */ }
+    }
 };
 
 const handleUnauthorized = () => {

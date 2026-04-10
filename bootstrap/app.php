@@ -27,7 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
-        // Rate limiting: 60 req/min for general web, 10 req/min for auth routes.
+        // Rate limiting backed by Redis — accurate sliding window counters.
         $middleware->throttleWithRedis();
 
         // CSRF exceptions — broadcasting auth is proxied server-side.

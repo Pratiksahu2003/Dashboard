@@ -38,8 +38,15 @@ class SyncApiUser
 
     public function handle(Request $request, Closure $next): Response
     {
-        // Only resolve user on full-page GET requests.
-        if ($request->method() !== 'GET' || $request->header('X-Inertia-Partial-Data')) {
+        // Only resolve user on full browser page loads (non-Inertia GET requests).
+        // Inertia XHR navigations (X-Inertia header) already have auth.user from
+        // the initial page load shared props — no need to re-resolve.
+        // Partial requests (X-Inertia-Partial-Data) also skip for the same reason.
+        if (
+            $request->method() !== 'GET' ||
+            $request->header('X-Inertia') ||
+            $request->header('X-Inertia-Partial-Data')
+        ) {
             return $next($request);
         }
 

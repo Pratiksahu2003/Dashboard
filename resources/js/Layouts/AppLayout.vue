@@ -30,25 +30,9 @@ const activePlansLoading = ref(false);
 let chatUnreadRefreshTimer = null;
 
 const onInertiaFinish = () => {
-    // Refresh user from latest Inertia props.
-    const latestUser = usePage().props.auth?.user ?? null;
-    user.value = latestUser;
-
-    // Only redirect to login if the server explicitly cleared auth.user
-    // AND we're not already navigating away. Never redirect mid-navigation.
-    if (!latestUser && !router.processing) {
-        // Double-check: only redirect if we're on a protected page.
-        // Don't redirect if auth.user is null just because props weren't re-sent
-        // (Inertia partial requests don't include shared props).
-        const page = usePage();
-        const component = page?.component || '';
-        const isAuthPage = component.startsWith('Auth/') || component === 'Home';
-        if (!isAuthPage) {
-            // auth.user is null on a protected page — session likely expired.
-            // The app:unauthorized event from the API interceptor handles this.
-            // Don't redirect here to avoid false positives from partial requests.
-        }
-    }
+    // Just keep user ref in sync with latest Inertia props.
+    // No redirect logic here — server handles auth guards via SyncApiUser middleware.
+    user.value = usePage().props.auth?.user ?? null;
 };
 
 const handleUnauthorized = () => {
