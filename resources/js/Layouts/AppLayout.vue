@@ -122,22 +122,28 @@ const logout = async () => {
         });
 };
 
-const navItems = computed(() => ([
-    { id: 'dashboard', label: 'Dashboard', icon: 'M3 12h18M3 6h18M3 18h18', href: 'dashboard' },
-    { id: 'ai-adviser', label: 'AI Adviser', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 16.8 7.1 19.2 8 13.7 4 9.8l5.5-.8L12 3zm7 14h2m-1-1v2M3 17h2m-1-1v2', href: 'ai-adviser' },
-    { id: 'leads', label: 'Leads', icon: 'M17 20h5V4H2v16h5m10 0V10H7v10m10 0H7', href: 'leads' },
-    { id: 'portfolio', label: 'Portfolio', icon: 'M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h8m-8 4h8m-8 4h5', href: 'portfolio' },
-    { id: 'study-requirements', label: 'Study Requirements', icon: 'M4 6h16M4 12h10M4 18h7m11-2l2 2 4-4', href: 'study-requirements' },
-    { id: 'notes', label: 'Notes', icon: 'M5 5h14v14H5zM8 8h8M8 12h8M8 16h6', href: 'notes' },
-    { id: 'marketplace', label: 'Marketplace', icon: 'M3 7h18M5 7l1 12h12l1-12M9 11v4M15 11v4', href: 'marketplace' },
-    { id: 'subscriptions', label: 'Subscriptions', icon: 'M4 7h16M4 12h16M4 17h10M17 17l2 2 4-4', href: 'subscriptions' },
-    { id: 'payments', label: 'Payments', icon: 'M12 8c-3.314 0-6 1.343-6 3s2.686 3 6 3 6-1.343 6-3-2.686-3-6-3zm0 0V6m0 8v2m-6-5v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5', href: 'payments' },
-    { id: 'google-workspace', label: 'Google Workspace', icon: 'M21.35 11.1H12v2.92h5.35c-.57 3.03-3.25 4.67-5.35 4.67a6 6 0 010-12c1.7 0 3.04.73 3.9 1.53l2.13-2.06A8.88 8.88 0 0012 3a9 9 0 100 18c5.2 0 8.63-3.65 8.63-8.8 0-.59-.06-1.03-.14-1.1z', href: 'google-workspace' },
-    { id: 'chat', label: 'Chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', href: 'chat' },
-    { id: 'profile', label: 'Profile', icon: 'M5.121 17.804A8.962 8.962 0 0112 15c2.347 0 4.483.902 6.08 2.38M15 11a3 3 0 11-6 0 3 3 0 016 0z', href: 'profile' },
-    { id: 'support-tickets', label: 'Support Tickets', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', href: 'support-tickets' },
-    { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', href: 'notifications' },
-]));
+const navItems = computed(() => {
+    const items = [
+        { id: 'dashboard', label: 'Dashboard', icon: 'M3 12h18M3 6h18M3 18h18', href: 'dashboard' },
+        { id: 'ai-adviser', label: 'AI Adviser', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 16.8 7.1 19.2 8 13.7 4 9.8l5.5-.8L12 3zm7 14h2m-1-1v2M3 17h2m-1-1v2', href: 'ai-adviser' },
+        { id: 'leads', label: 'Leads', icon: 'M17 20h5V4H2v16h5m10 0V10H7v10m10 0H7', href: 'leads' },
+        { id: 'portfolio', label: 'Portfolio', icon: 'M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h8m-8 4h8m-8 4h5', href: 'portfolio' },
+        { id: 'study-requirements', label: 'Study Requirements', icon: 'M4 6h16M4 12h10M4 18h7m11-2l2 2 4-4', href: 'study-requirements' },
+        { id: 'notes', label: 'Notes', icon: 'M5 5h14v14H5zM8 8h8M8 12h8M8 16h6', href: 'notes' },
+        { id: 'marketplace', label: 'Marketplace', icon: 'M3 7h18M5 7l1 12h12l1-12M9 11v4M15 11v4', href: 'marketplace' },
+        { id: 'subscriptions', label: 'Subscriptions', icon: 'M4 7h16M4 12h16M4 17h10M17 17l2 2 4-4', href: 'subscriptions' },
+        { id: 'payments', label: 'Payments', icon: 'M12 8c-3.314 0-6 1.343-6 3s2.686 3 6 3 6-1.343 6-3-2.686-3-6-3zm0 0V6m0 8v2m-6-5v5c0 1.657 2.686 3 6 3s6-1.343 6-3v-5', href: 'payments' },
+        { id: 'google-workspace', label: 'Google Workspace', icon: 'M21.35 11.1H12v2.92h5.35c-.57 3.03-3.25 4.67-5.35 4.67a6 6 0 010-12c1.7 0 3.04.73 3.9 1.53l2.13-2.06A8.88 8.88 0 0012 3a9 9 0 100 18c5.2 0 8.63-3.65 8.63-8.8 0-.59-.06-1.03-.14-1.1z', href: 'google-workspace' },
+        { id: 'chat', label: 'Chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', href: 'chat' },
+        { id: 'profile', label: 'Profile', icon: 'M5.121 17.804A8.962 8.962 0 0112 15c2.347 0 4.483.902 6.08 2.38M15 11a3 3 0 11-6 0 3 3 0 016 0z', href: 'profile' },
+        { id: 'support-tickets', label: 'Support Tickets', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', href: 'support-tickets' },
+        { id: 'notifications', label: 'Notifications', icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9', href: 'notifications' },
+    ];
+    if (normalizedRole.value === 'student') {
+        return items.filter(item => item.id !== 'leads');
+    }
+    return items;
+});
 
 const isItemActive = item => {
     if (!item.href) return false;
