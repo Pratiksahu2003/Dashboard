@@ -110,12 +110,8 @@ const handleUnauthorized = () => {
 };
 
 const initAuthRedirect = () => {
-    const u = usePage().props.auth?.user;
-    if (u) {
-        enforceBestRoute();
-        return;
-    }
-    enforceBestRoute();
+    // Server-side (routes/auth.php) already redirects authenticated users to dashboard.
+    // Nothing to do on mount — enforceBestRoute runs on inertia:finish for navigations.
 };
 
 onMounted(() => {

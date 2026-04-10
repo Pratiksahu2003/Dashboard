@@ -30,8 +30,9 @@ const activePlansLoading = ref(false);
 let chatUnreadRefreshTimer = null;
 
 const onInertiaFinish = () => {
-    if (!enforceBestRoute()) return;
     user.value = usePage().props.auth?.user ?? null;
+    // Only enforce routing on client-side Inertia navigations, not on initial mount.
+    enforceBestRoute();
 };
 
 const handleUnauthorized = () => {
@@ -45,7 +46,10 @@ const handleUnauthorized = () => {
 };
 
 const initLayout = () => {
-    if (!enforceBestRoute()) return;
+    // Do NOT call enforceBestRoute() here — the server-side SyncApiUser middleware
+    // already redirected unauthenticated users before this page rendered.
+    // Calling it on mount races against Inertia hydration and causes false redirects
+    // when auth.user hasn't populated yet.
     user.value = usePage().props.auth?.user ?? null;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
