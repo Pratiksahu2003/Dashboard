@@ -32,6 +32,8 @@ class LogoutController extends Controller
             }
         }
 
-        return redirect()->route('login');
+        return redirect()
+            ->route('login')
+            ->with('status', 'You have been logged out successfully.');
     }
 }
