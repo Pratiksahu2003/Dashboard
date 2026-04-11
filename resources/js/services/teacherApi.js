@@ -1,14 +1,15 @@
 import api from '@/api';
 
 /**
- * Checks the response body for success: false and throws if so.
- * Since the api interceptor already unwraps response.data, we receive the body directly.
+ * Normalises a rejection from the api interceptor into a proper Error.
+ * The interceptor rejects with plain objects { success, code, message, ... }
+ * rather than Error instances, so we normalise here.
  */
-function checkSuccess(body) {
-    if (body && body.success === false) {
-        throw new Error(body.message);
-    }
-    return body;
+function normaliseError(e) {
+    if (e instanceof Error) return e;
+    const err = new Error(e?.message || 'Request failed');
+    err.status = e?.code || null;
+    return err;
 }
 
 /**
@@ -16,9 +17,12 @@ function checkSuccess(body) {
  * Returns the options/subjects/cities object directly.
  */
 export async function getOptions() {
-    const body = await api.get('/teachers/options');
-    checkSuccess(body);
-    return body;
+    try {
+        const body = await api.get('/teachers/options');
+        return body?.data ?? {};
+    } catch (e) {
+        throw normaliseError(e);
+    }
 }
 
 /**
@@ -26,12 +30,15 @@ export async function getOptions() {
  * Returns { teachers, pagination }.
  */
 export async function listTeachers(params = {}) {
-    const body = await api.get('/teachers', { params });
-    checkSuccess(body);
-    return {
-        teachers: body.data,
-        pagination: body.pagination,
-    };
+    try {
+        const body = await api.get('/teachers', { params });
+        return {
+            teachers: body?.data?.teachers ?? [],
+            pagination: body?.data?.pagination ?? { current_page: 1, per_page: 12, total: 0, last_page: 1 },
+        };
+    } catch (e) {
+        throw normaliseError(e);
+    }
 }
 
 /**
@@ -41,15 +48,8 @@ export async function listTeachers(params = {}) {
 export async function getTeacher(id) {
     try {
         const body = await api.get(`/teachers/${id}`);
-        checkSuccess(body);
-        return body;
+        return body?.data ?? body;
     } catch (e) {
-        // If it's an axios error with a response, attach the status
-        if (e.response?.status) {
-            const err = new Error(e.message);
-            err.status = e.response.status;
-            throw err;
-        }
-        throw e;
+        throw normaliseError(e);
     }
 }

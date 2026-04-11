@@ -47,8 +47,8 @@ async function fetchTeachers(overrides = {}) {
       if (params[k] === null || params[k] === undefined || params[k] === '') delete params[k];
     });
     const result = await listTeachers(params);
-    teachers.value = result.teachers;
-    pagination.value = result.pagination;
+    teachers.value = result.teachers ?? [];
+    pagination.value = result.pagination ?? { current_page: 1, per_page: 12, total: 0, last_page: 1 };
   } catch (e) {
     error.value = e.message || 'Failed to load teachers.';
     // Do NOT clear teachers.value — preserve existing list on error
