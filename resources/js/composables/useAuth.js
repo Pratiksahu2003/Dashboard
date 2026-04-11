@@ -126,6 +126,29 @@ export const ensureRegistrationPaymentDetails = (user, getCharges) => {
     );
 };
 
+/** Clears stored auth/UI keys and Pinia auth hints — safe to call outside Vue setup (e.g. global 401 handler). */
+export const clearClientAuthState = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
+    localStorage.removeItem('user');
+    localStorage.removeItem('auth_session_ts');
+    localStorage.removeItem(PAYMENT_DETAILS_KEY);
+    localStorage.removeItem(AUTH_IDENTIFIER_KEY);
+    localStorage.removeItem(REGISTRATION_CHARGES_KEY);
+    localStorage.removeItem(POST_VERIFY_LOGIN_NOTICE_KEY);
+    if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
+        sessionStorage.removeItem('post_verify_notice');
+    }
+    try {
+        if (getActivePinia()) {
+            useAuthStore().clearTransient();
+        }
+    } catch {
+        /* ignore */
+    }
+};
+
 export const useAuth = () => {
     /** Returns the current authenticated user from Inertia shared props. */
     const getUser = () => usePage().props.auth.user;
@@ -145,27 +168,7 @@ export const useAuth = () => {
     };
 
     const clearSession = () => {
-        // Purge legacy credential keys from existing browser sessions
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
-        localStorage.removeItem('user');
-        localStorage.removeItem('auth_session_ts');
-        // Clear non-credential UI state keys
-        localStorage.removeItem(PAYMENT_DETAILS_KEY);
-        localStorage.removeItem(AUTH_IDENTIFIER_KEY);
-        localStorage.removeItem(REGISTRATION_CHARGES_KEY);
-        localStorage.removeItem(POST_VERIFY_LOGIN_NOTICE_KEY);
-        if (typeof sessionStorage !== 'undefined') {
-            sessionStorage.removeItem(EMAIL_VERIFY_LOGIN_FLOW_KEY);
-            sessionStorage.removeItem('post_verify_notice');
-        }
-        try {
-            if (getActivePinia()) {
-                useAuthStore().clearTransient();
-            }
-        } catch {
-            /* ignore */
-        }
+        clearClientAuthState();
     };
 
     const setRegistrationChargesContext = charges => {

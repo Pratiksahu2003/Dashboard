@@ -217,6 +217,10 @@ const downloadBlob = async (url, fallbackName) => {
             method: 'GET',
             credentials: 'include',
         });
+        if (response.status === 401) {
+            document.dispatchEvent(new CustomEvent('app:unauthorized'));
+            throw new Error('Unauthorized');
+        }
         if (!response.ok) throw new Error('Download failed');
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);

@@ -6,9 +6,11 @@ import { useAlerts } from '@/composables/useAlerts';
 import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
 import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
+import Modal from '@/Components/Modal.vue';
 
 const user = ref(usePage().props.auth?.user ?? null);
 const sidebarOpen = ref(false);
+const logoutConfirmOpen = ref(false);
 const { clearSession } = useAuth();
 const { error: showError, info: showInfo } = useAlerts();
 const page = usePage();
@@ -35,22 +37,11 @@ const onInertiaFinish = () => {
     user.value = usePage().props.auth?.user ?? null;
 };
 
-const handleUnauthorized = () => {
-    if (router.processing) return;
-    clearSession();
-    const target = route('login');
-    const targetPath = new URL(target, window.location.origin).pathname.replace(/\/$/, '') || '/';
-    const currentPath = (window.location.pathname || '').replace(/\/$/, '') || '/';
-    if (targetPath === currentPath) return;
-    router.visit(target, { replace: true, preserveState: false, preserveScroll: false });
-};
-
 const initLayout = () => {
     user.value = usePage().props.auth?.user ?? null;
     initWebPush().catch(() => {});
     window.addEventListener('app:push-message', onForegroundPush);
     document.addEventListener('inertia:finish', onInertiaFinish);
-    document.addEventListener('app:unauthorized', handleUnauthorized);
     document.addEventListener('click', onDocumentClick);
     // Batch all initial data loads into one tick to avoid waterfall.
     Promise.allSettled([
@@ -67,7 +58,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     document.removeEventListener('inertia:finish', onInertiaFinish);
-    document.removeEventListener('app:unauthorized', handleUnauthorized);
     for (const unsub of chatChannelUnsubs.values()) unsub();
     chatChannelUnsubs.clear();
     clearTimeout(chatUnreadRefreshTimer);
@@ -111,16 +101,32 @@ const currentRoute = computed(() => {
     }
 });
 
+const openLogoutConfirm = () => {
+    sidebarOpen.value = false;
+    logoutConfirmOpen.value = true;
+};
+
+const closeLogoutConfirm = () => {
+    logoutConfirmOpen.value = false;
+};
+
 const logout = async () => {
+    logoutConfirmOpen.value = false;
     await teardownWebPush().catch(() => {});
 
-    // POST to server first to invalidate the session cookie
-    api.post('/auth/logout')
-        .catch(() => {})
-        .finally(() => {
-            clearSession();
-            router.visit(route('login'));
-        });
+    const maxWaitMs = 12000;
+    try {
+        await Promise.race([
+            api.post('/auth/logout'),
+            new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('logout-timeout')), maxWaitMs);
+            }),
+        ]);
+    } catch {
+        /* Offline, expired session, or timeout — still sign out locally */
+    }
+    clearSession();
+    router.visit(route('login'), { replace: true, preserveState: false, preserveScroll: false });
 };
 
 const navItems = computed(() => {
@@ -370,7 +376,7 @@ const loadActivePlans = async () => {
                 </Link>
                 <button
                     type="button"
-                    @click="logout"
+                    @click="openLogoutConfirm"
                     class="mt-3 w-full px-3 py-2.5 rounded-xl text-sm font-black text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition"
                 >
                     Log out
@@ -570,12 +576,37 @@ const loadActivePlans = async () => {
                 </nav>
                 <button
                     type="button"
-                    @click="logout"
+                    @click="openLogoutConfirm"
                     class="mt-4 w-full px-3 py-2.5 rounded-xl text-sm font-black text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition"
                 >
                     Log out
                 </button>
             </aside>
         </div>
+
+        <Modal :show="logoutConfirmOpen" max-width="md" @close="closeLogoutConfirm">
+            <div class="px-5 py-5">
+                <h2 class="text-lg font-black text-slate-900">Log out</h2>
+                <p class="mt-2 text-sm font-semibold text-slate-600">
+                    Are you sure you want to log out? You will need to sign in again to access your account.
+                </p>
+                <div class="mt-5 flex flex-wrap justify-end gap-2">
+                    <button
+                        type="button"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50 transition"
+                        @click="closeLogoutConfirm"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white hover:bg-slate-800 transition"
+                        @click="logout"
+                    >
+                        Log out
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </div>
 </template>

@@ -54,6 +54,28 @@ const preserveOn403 = () => {
 export const sanitizeString = (str) =>
     typeof str === 'string' ? str.replace(/[<>"'`]/g, '') : '';
 
+/** Path for this request — used to avoid treating login/register failures as "session expired". */
+const resolveRequestPath = config => {
+    if (!config?.url) return '';
+    try {
+        const u = new URL(config.url, config.baseURL || 'http://localhost');
+        return u.pathname || '';
+    } catch {
+        return String(config.url).split('?')[0] || '';
+    }
+};
+
+const shouldSkipUnauthorizedRedirect = config => {
+    if (!config) return false;
+    const p = resolveRequestPath(config);
+    if (/\/auth\/logout(\/|$)/.test(p)) return true;
+    if (/\/auth\/login/.test(p)) return true;
+    if (/\/auth\/register(\/|$)/.test(p)) return true;
+    if (/\/auth\/forgot-password(\/|$)/.test(p)) return true;
+    if (/\/auth\/reset-password(\/|$)/.test(p)) return true;
+    return false;
+};
+
 /** Sanctum: XSRF-TOKEN must be readable on `document.cookie` (shared parent domain with API). */
 const xsrfTokenFromCookie = () => {
     if (typeof document === 'undefined') return null;
@@ -133,12 +155,12 @@ api.interceptors.response.use(
             }
         }
 
-        if (res?.status === 401) {
+        if (res?.status === 401 && !shouldSkipUnauthorizedRedirect(config)) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
             document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }
 
-        if (res?.status === 403 && !preserveOn403()) {
+        if (res?.status === 403 && !preserveOn403() && !shouldSkipUnauthorizedRedirect(config)) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, sanitizeString(res?.data?.message || 'Access denied. Please sign in again.'));
             document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }

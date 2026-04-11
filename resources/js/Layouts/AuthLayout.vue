@@ -1,8 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { useAuth } from '@/composables/useAuth';
-
 /** Used only if Inertia shared props are missing (e.g. error boundary). Mirrors config/auth_slides.php */
 const FALLBACK_SLIDES = [
     { image: '/App/1.png', title: 'Smart learning dashboard', subtitle: 'Track lessons, goals, and your growth in one place.', tag: 'Dashboard' },
@@ -47,7 +45,6 @@ const showDemoModal = ref(false);
 const demoPlaying = ref(false);
 /** Avoid loading the mobile YouTube iframe until idle — prevents request storms if the layout remounts often. */
 const mobileDemoEmbedReady = ref(false);
-const { clearSession, enforceBestRoute } = useAuth();
 let intervalId = null;
 let mobileEmbedTimer = null;
 
@@ -110,26 +107,14 @@ const onInertiaFinish = () => {
     }
 };
 
-const handleUnauthorized = () => {
-    if (router.processing) return;
-    clearSession();
-    const target = route('login');
-    const targetPath = new URL(target, window.location.origin).pathname.replace(/\/$/, '') || '/';
-    const currentPath = (window.location.pathname || '').replace(/\/$/, '') || '/';
-    if (targetPath === currentPath) return;
-    router.visit(target, { replace: true, preserveState: false, preserveScroll: false });
-};
-
 const initAuthRedirect = () => {
-    // Server-side (routes/auth.php) already redirects authenticated users to dashboard.
-    // Nothing to do on mount — enforceBestRoute runs on inertia:finish for navigations.
+    // Server-side (routes/auth.php) redirects authenticated users to dashboard on full page loads.
 };
 
 onMounted(() => {
     initAuthRedirect();
 
     document.addEventListener('inertia:finish', onInertiaFinish);
-    document.addEventListener('app:unauthorized', handleUnauthorized);
 
     startAutoPlay();
     mobileEmbedTimer = window.setTimeout(() => {
@@ -138,7 +123,6 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
     document.removeEventListener('inertia:finish', onInertiaFinish);
-    document.removeEventListener('app:unauthorized', handleUnauthorized);
     if (intervalId) clearInterval(intervalId);
     if (mobileEmbedTimer) clearTimeout(mobileEmbedTimer);
 });
