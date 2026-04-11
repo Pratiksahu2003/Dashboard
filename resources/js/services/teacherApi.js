@@ -12,6 +12,32 @@ function normaliseError(e) {
     return err;
 }
 
+/**
+ * Public teacher profile API uses User ID. Listing cards may expose `id`, `user_id`, or `user.id`.
+ */
+export function resolveTeacherUserId(teacher) {
+    if (!teacher || typeof teacher !== 'object') return null;
+    const raw = teacher.user_id ?? teacher.user?.id ?? teacher.id;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export function slugifyTeacherName(name) {
+    const s = String(name ?? 'teacher')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    return s || 'teacher';
+}
+
+/** Path for Inertia page `/teachers/{slug}-{id}` (API show uses user id only). */
+export function teacherProfilePath(teacher) {
+    const id = resolveTeacherUserId(teacher);
+    if (!id) return null;
+    const slug = slugifyTeacherName(teacher.name ?? teacher.user?.name ?? teacher.display_name);
+    return `/teachers/${slug}-${id}`;
+}
+
 /** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */
 function normaliseOptionList(val) {
     if (val == null) return [];
@@ -93,8 +119,14 @@ export async function listTeachers(params = {}) {
  * Returns the full teacher profile object directly.
  */
 export async function getTeacher(id) {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId) || numericId <= 0) {
+        const err = new Error('Invalid teacher id');
+        err.status = 404;
+        throw err;
+    }
     try {
-        const body = await api.get(`/teachers/${id}`);
+        const body = await api.get(`/teachers/${numericId}`);
         return body?.data ?? body;
     } catch (e) {
         throw normaliseError(e);

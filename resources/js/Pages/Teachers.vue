@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, onMounted, computed } from 'vue';
+import { router, Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import FilterPanel from '@/Components/FilterPanel.vue';
@@ -118,8 +118,8 @@ function goToPage(n) {
 // ─── Card click ───────────────────────────────────────────────────────────────
 
 function onTeacherClick(teacher) {
-  const slug = (teacher.name || 'teacher').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  router.visit(`/teachers/${slug}-${teacher.id}`);
+  const path = teacherProfilePath(teacher);
+  if (path) router.visit(path);
 }
 
 // ─── Mount ────────────────────────────────────────────────────────────────────
@@ -130,9 +130,35 @@ onMounted(() => {
     fetchTeachers({ per_page: 12, sort: 'created_at', order: 'desc' }),
   ]);
 });
+
+const teachersMetaTitle = computed(() => {
+  const n = pagination.value?.total;
+  if (typeof n === 'number' && n > 0) return `Find ${n.toLocaleString()} teachers | SuGanta`;
+  return 'Find teachers | SuGanta';
+});
+
+const teachersMetaDescription = computed(() => {
+  const n = pagination.value?.total;
+  const countBit =
+    typeof n === 'number' && n > 0
+      ? `${n.toLocaleString()} tutors listed. `
+      : '';
+  return `${countBit}Search SuGanta by subject, place, teaching mode, availability, experience, and hourly budget. Open a profile to see full details and get in touch.`;
+});
 </script>
 
 <template>
+  <Head>
+    <title>{{ teachersMetaTitle }}</title>
+    <meta name="description" :content="teachersMetaDescription" />
+    <meta property="og:title" :content="teachersMetaTitle" />
+    <meta property="og:description" :content="teachersMetaDescription" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" :content="teachersMetaTitle" />
+    <meta name="twitter:description" :content="teachersMetaDescription" />
+  </Head>
+
   <AppLayout>
     <div class="relative max-w-7xl mx-auto">
       <!-- subtle page backdrop -->

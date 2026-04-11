@@ -33,6 +33,10 @@ Route::post('/auth/sync-cache', SyncSpaAuthCacheController::class)->name('auth.s
 Route::get('/firebase/web-config', FirebaseWebConfigController::class);
 Route::post('/broadcasting/auth', BroadcastingAuthProxyController::class);
 
+// Public teacher directory (uses public API; must not require auth)
+Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
+Route::get('/teachers/{slug}-{id}', [TeacherController::class, 'show'])->where(['id' => '[0-9]+'])->name('teacher-profile');
+
 // Protected routes (authentication required)
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -61,9 +65,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/contact', ContactController::class)->name('contact');
     Route::get('/chat/{conversation?}', ChatController::class)->where(['conversation' => '[0-9]+'])->name('chat');
-
-    Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
-    Route::get('/teachers/{slug}-{id}', [TeacherController::class, 'show'])->where(['id' => '[0-9]+'])->name('teacher-profile');
 });
 
 require __DIR__.'/auth.php';

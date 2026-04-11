@@ -21,12 +21,17 @@ const profile = computed(() => t.value?.profile ?? {});
 const name = computed(() => t.value?.user?.name ?? '');
 const initials = computed(() => name.value.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?');
 const avatarUrl = computed(() => t.value?.profile_image_url ?? profile.value?.profile_image_url ?? null);
-/** Plain bio text; null if empty — UI shows a friendly placeholder */
+/** Plain bio text; null if empty — UI can show a default line */
 const bioPlain = computed(() => {
   const raw = profile.value?.bio;
   if (raw == null || String(raw).trim() === '') return null;
   return String(raw).replace(/\r\n/g, '\n').trim();
 });
+
+const DEFAULT_PROFILE_BIO =
+  'Professional educator on SuGanta offering personalized support. Explore subjects, qualifications, rates, and contact options on this page.';
+
+const profileBioDisplay = computed(() => bioPlain.value || DEFAULT_PROFILE_BIO);
 const city = computed(() => t.value?.location?.city ?? '');
 const state = computed(() => t.value?.location?.state ?? '');
 const area = computed(() => t.value?.location?.area ?? '');
@@ -120,16 +125,36 @@ const portfolio = computed(() => t.value?.portfolio ?? null);
 const heroRateLabel = computed(() => hourlyRateRange.value || monthlyRateRange.value || '');
 const heroRateCaption = computed(() => (hourlyRateRange.value ? 'Hourly range' : monthlyRateRange.value ? 'Monthly range' : ''));
 
-const metaTitle = computed(() => name.value ? `${name.value} - Teacher Profile | SuGanta` : 'Teacher Profile | SuGanta');
+const metaTitle = computed(() => {
+  if (!name.value) return 'Teacher profile | SuGanta';
+  const loc = cityState.value ? ` in ${cityState.value}` : '';
+  const qual = qualification.value ? ` — ${qualification.value}` : '';
+  return `${name.value}${qual} | Tutor${loc} | SuGanta`;
+});
+
 const metaDescription = computed(() => {
-  const parts = [];
-  if (name.value) parts.push(name.value);
-  if (qualification.value) parts.push(qualification.value);
-  if (experience.value) parts.push(experience.value);
-  if (cityState.value) parts.push(cityState.value);
-  if (subjects.value.length) parts.push(`Teaches ${subjects.value.slice(0, 3).map(s => s.name).join(', ')}`);
-  if (bioPlain.value) parts.push(bioPlain.value.slice(0, 140) + (bioPlain.value.length > 140 ? '…' : ''));
-  return parts.join(' • ') || 'Find the best teachers on SuGanta';
+  if (!name.value) {
+    return 'Discover qualified tutors on SuGanta. Compare subjects, experience, teaching mode, and rates, then connect in a few clicks.';
+  }
+  const subjectLine = subjects.value.length
+    ? `Teaches ${subjects.value.slice(0, 4).map((s) => s.name).join(', ')}${subjects.value.length > 4 ? '…' : ''}.`
+    : '';
+  const creds = [qualification.value, experience.value, teachingMode.value].filter(Boolean).join('. ');
+  const credLine = creds ? `${creds}.` : '';
+  const locLine = cityState.value ? `Based in ${cityState.value}.` : '';
+
+  let bioLine = '';
+  if (bioPlain.value) {
+    const oneLine = bioPlain.value.replace(/\s+/g, ' ').trim();
+    bioLine = oneLine.length > 100 ? `${oneLine.slice(0, 97)}…` : oneLine;
+  } else {
+    bioLine = `${name.value} offers tutoring on SuGanta. View the profile for qualifications, availability, rates, and contact options.`;
+  }
+
+  const pieces = [subjectLine, credLine, locLine, bioLine].filter(Boolean);
+  let desc = pieces.join(' ');
+  if (desc.length > 160) desc = `${desc.slice(0, 157)}…`;
+  return desc;
 });
 
 async function loadTeacher() {
@@ -137,7 +162,7 @@ async function loadTeacher() {
   error.value = null;
   errorCode.value = null;
   try {
-    teacher.value = await getTeacher(props.id);
+    teacher.value = await getTeacher(Number(props.id));
   } catch (e) {
     error.value = e?.message ?? 'Failed to load teacher profile';
     errorCode.value = e?.status ?? null;
@@ -147,8 +172,8 @@ async function loadTeacher() {
 }
 
 function navigateToTeacher(t) {
-  const slug = (t.name ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  router.visit(`/teachers/${slug}-${t.id}`);
+  const path = teacherProfilePath(t);
+  if (path) router.visit(path);
 }
 
 onMounted(loadTeacher);
@@ -244,14 +269,17 @@ onMounted(loadTeacher);
               </div>
             </div>
 
-            <!-- Stats -->
+            <!-- Stats (ratings only when there are reviews — avoids empty star rows) -->
             <div class="mb-6 flex flex-wrap gap-2">
-              <div class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/80">
+              <div
+                v-if="Number(rating) > 0 || Number(totalReviews) > 0"
+                class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/80"
+              >
                 <div class="flex">
                   <svg v-for="i in 5" :key="i" class="h-4 w-4 sm:h-5 sm:w-5" :class="i <= Math.round(rating) ? 'text-amber-400' : 'text-slate-200'" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
                 </div>
                 <span class="text-sm font-bold text-slate-900">{{ rating }}</span>
-                <span class="text-sm text-slate-500">({{ totalReviews }})</span>
+                <span class="text-sm text-slate-500">({{ totalReviews }} reviews)</span>
               </div>
               <span v-if="experience" class="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-800">{{ experience }}</span>
               <span v-if="teachingMode" class="rounded-full bg-violet-100/80 px-3 py-1.5 text-sm font-semibold text-violet-900">{{ teachingMode }}</span>
@@ -261,8 +289,10 @@ onMounted(loadTeacher);
             <!-- Bio -->
             <div class="mb-6 rounded-2xl border border-slate-200/60 bg-white/60 p-5 backdrop-blur-sm">
               <h2 class="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">About</h2>
-              <p v-if="bioPlain" class="text-slate-700 leading-relaxed whitespace-pre-line">{{ bioPlain }}</p>
-              <p v-else class="text-slate-500 italic leading-relaxed">This teacher has not added a biography yet.</p>
+              <p
+                class="leading-relaxed whitespace-pre-line"
+                :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
+              >{{ profileBioDisplay }}</p>
             </div>
 
             <!-- Subjects -->
