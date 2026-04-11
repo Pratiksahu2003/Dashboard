@@ -21,10 +21,12 @@ use App\Http\Controllers\Pages\StudyRequirementsController;
 use App\Http\Controllers\Pages\SupportTicketDetailsController;
 use App\Http\Controllers\Pages\SupportTicketsCreateController;
 use App\Http\Controllers\Pages\SupportTicketsExistingController;
+use App\Http\Controllers\LogoutController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
 Route::get('/', HomeController::class);
+Route::post('/logout', LogoutController::class)->name('logout');
 Route::get('/firebase/web-config', FirebaseWebConfigController::class);
 Route::post('/broadcasting/auth', BroadcastingAuthProxyController::class);
 

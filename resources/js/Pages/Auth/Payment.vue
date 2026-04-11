@@ -89,17 +89,20 @@ const hasPricing = computed(() => {
 });
 
 const handleLogout = async () => {
-    try {
-        await api.post('/auth/logout');
-    } catch (e) {
-        /* ignore */
-    }
     clearSession();
     localStorage.setItem(
         POST_VERIFY_LOGIN_NOTICE_KEY,
         'Please sign in again to continue. If you completed payment, use your email and password to access the dashboard.',
     );
-    router.visit(route('login'));
+    try {
+        await router.post(route('logout'), {}, {
+            replace: true,
+            preserveState: false,
+            preserveScroll: false,
+        });
+    } catch {
+        window.location.assign(route('login'));
+    }
 };
 
 const proceedToPayment = () => {

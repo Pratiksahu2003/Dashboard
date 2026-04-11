@@ -222,6 +222,31 @@ trait ResolvesAuthState
         }
     }
 
+    /**
+     * Drop cached SPA auth for this request (Laravel session key + raw Cookie-line key).
+     * Required on logout; otherwise GET /login can still see a stale "authenticated" cache entry.
+     */
+    public static function forgetSpaAuthCacheForRequest(Request $request): void
+    {
+        $session = $request->cookie(config('session.cookie'));
+        if (is_string($session) && $session !== '') {
+            self::forgetUser($session);
+        }
+
+        $cookieLine = SugantaBrowserProxyHeaders::cookieLine($request) ?? '';
+        if ($cookieLine !== '') {
+            $material = "\0\0" . hash('sha256', $cookieLine);
+            $cacheKey = 'spa_user:' . hash('sha256', $material);
+            try {
+                Cache::forget($cacheKey);
+            } catch (\Exception $e) {
+                Log::debug('Auth cache invalidation failed (cookie line)', [
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
     private function sessionCookieValue(Request $request): ?string
     {
         $value = $request->cookie(config('session.cookie'));

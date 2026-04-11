@@ -113,20 +113,19 @@ const closeLogoutConfirm = () => {
 const logout = async () => {
     logoutConfirmOpen.value = false;
     await teardownWebPush().catch(() => {});
-
-    const maxWaitMs = 12000;
-    try {
-        await Promise.race([
-            api.post('/auth/logout'),
-            new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('logout-timeout')), maxWaitMs);
-            }),
-        ]);
-    } catch {
-        /* Offline, expired session, or timeout — still sign out locally */
-    }
     clearSession();
-    router.visit(route('login'), { replace: true, preserveState: false, preserveScroll: false });
+
+    // Server clears SPA auth cache + proxies API logout; otherwise /login can bounce back to dashboard.
+    try {
+        await router.post(route('logout'), {}, {
+            replace: true,
+            preserveState: false,
+            preserveScroll: false,
+        });
+    } catch {
+        clearSession();
+        window.location.assign(route('login'));
+    }
 };
 
 const navItems = computed(() => {
