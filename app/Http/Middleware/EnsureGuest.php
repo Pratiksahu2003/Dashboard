@@ -12,7 +12,7 @@ class EnsureGuest
 
     public function handle(Request $request, Closure $next): Response
     {
-        if ($this->resolveAuthState($request)['authenticated']) {
+        if ($this->resolveAuthState($request, false)['authenticated']) {
             return redirect()->route('dashboard');
         }
 

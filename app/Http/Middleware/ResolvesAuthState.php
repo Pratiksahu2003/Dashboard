@@ -37,8 +37,11 @@ trait ResolvesAuthState
 
     private const API_TIMEOUT = 3;
 
-    /** @return array{authenticated: bool, user: array|null} */
-    protected function resolveAuthState(Request $request): array
+    /**
+     * @param  bool  $trustNegativeCache  When false (guest pages), ignore cached "logged out" so a fresh session is detected after login.
+     * @return array{authenticated: bool, user: array|null}
+     */
+    protected function resolveAuthState(Request $request, bool $trustNegativeCache = true): array
     {
         if ($this->shouldSkipResolution($request)) {
             return $this->unauthenticated();
@@ -52,7 +55,13 @@ trait ResolvesAuthState
         try {
             $cached = Cache::get($cacheKey);
             if (is_array($cached) && array_key_exists('authenticated', $cached)) {
-                return $this->normalizeCachedAuthState($cached);
+                if ($trustNegativeCache) {
+                    return $this->normalizeCachedAuthState($cached);
+                }
+                if (($cached['authenticated'] ?? false) === true) {
+                    return $this->normalizeCachedAuthState($cached);
+                }
+                // Negative cache can be stale right after login — fetch live below.
             }
         } catch (\Exception $e) {
             Log::debug('Auth cache read failed', [

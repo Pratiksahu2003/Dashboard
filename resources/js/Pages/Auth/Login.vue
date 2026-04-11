@@ -63,8 +63,16 @@ const persistDeviceTokenFromLoginResponse = response => {
     }
 };
 
-const goToDashboardFullLoad = () => {
-    window.location.assign(route('dashboard'));
+/** Bust server-side SPA auth cache, then open dashboard (avoids stale "logged out" cache after OTP/login). */
+const goToDashboardAfterLogin = () => {
+    router.post(route('auth.sync-cache'), {}, {
+        replace: true,
+        preserveState: false,
+        preserveScroll: false,
+        onError: () => {
+            window.location.assign(route('dashboard'));
+        },
+    });
 };
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -203,7 +211,7 @@ const submitOtpVerify = async () => {
             authStore.setRequiresOtp(false);
             localStorage.removeItem(AUTH_IDENTIFIER_KEY);
             persistDeviceTokenFromLoginResponse(response);
-            goToDashboardFullLoad();
+            goToDashboardAfterLogin();
         }
     } catch (err) {
         verifyAttempts.value++;
@@ -252,7 +260,18 @@ watch(() => form.identifier, () => {
     otpStatus.value = null;
 });
 
-onMounted(() => {
+onMounted(async () => {
+    try {
+        const me = await api.get('/auth/user');
+        const payload = me?.data;
+        if (payload?.authenticated === true && payload?.user && typeof payload.user.id !== 'undefined') {
+            goToDashboardAfterLogin();
+            return;
+        }
+    } catch {
+        /* stay on login */
+    }
+
     const postVerifyLs = localStorage.getItem(POST_VERIFY_LOGIN_NOTICE_KEY);
     const postVerifySs = sessionStorage.getItem('post_verify_notice');
     const postVerify = postVerifyLs || postVerifySs;
@@ -344,7 +363,7 @@ const handlePasswordLogin = async () => {
             loginAttempts.value = 0;
             authStore.setRequiresOtp(false);
             persistDeviceTokenFromLoginResponse(response);
-            goToDashboardFullLoad();
+            goToDashboardAfterLogin();
         }
     } catch (err) {
         trackFailedAttempt();
