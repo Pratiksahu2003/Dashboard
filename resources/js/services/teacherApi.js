@@ -12,14 +12,61 @@ function normaliseError(e) {
     return err;
 }
 
+/** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */
+function normaliseOptionList(val) {
+    if (val == null) return [];
+    if (Array.isArray(val)) {
+        return val
+            .map((item) => {
+                if (!item || typeof item !== 'object') return null;
+                const id = item.id;
+                const label = item.label ?? item.name;
+                if (id == null || label == null) return null;
+                return { id: Number(id), label: String(label) };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.id - b.id);
+    }
+    if (typeof val === 'object') {
+        return Object.entries(val)
+            .map(([id, label]) => ({ id: Number(id), label: String(label) }))
+            .filter((o) => !Number.isNaN(o.id))
+            .sort((a, b) => a.id - b.id);
+    }
+    return [];
+}
+
 /**
- * GET /teachers/options
- * Returns the options/subjects/cities object directly.
+ * Teacher filter dropdowns: public Options API + Subjects list (subjects are not in /options).
+ * @see docs/ProfileAndOptionsApi.md — GET /api/v1/options
+ * @see docs/SubjectApi.md — GET /api/v1/subjects
  */
 export async function getOptions() {
+    const key = [
+        'teaching_mode',
+        'availability_status',
+        'hourly_rate_range',
+        'teaching_experience_years',
+    ].join(',');
+
     try {
-        const body = await api.get('/teachers/options');
-        return body?.data ?? {};
+        const [optionsRes, subjectsRes] = await Promise.all([
+            api.get('/options', { params: { key } }),
+            api.get('/subjects'),
+        ]);
+
+        const raw = optionsRes?.data ?? {};
+        const subjects = Array.isArray(subjectsRes?.data) ? subjectsRes.data : [];
+
+        return {
+            subjects,
+            options: {
+                teaching_mode: normaliseOptionList(raw.teaching_mode),
+                availability_status: normaliseOptionList(raw.availability_status),
+                hourly_rate_range: normaliseOptionList(raw.hourly_rate_range),
+                teaching_experience_years: normaliseOptionList(raw.teaching_experience_years),
+            },
+        };
     } catch (e) {
         throw normaliseError(e);
     }
