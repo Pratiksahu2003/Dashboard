@@ -21,9 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
             // Security headers on every response.
             \App\Http\Middleware\SecurityHeaders::class,
-            // Resolve authenticated user from API (cached per session).
-            \App\Http\Middleware\SyncApiUser::class,
-            // Share Inertia props.
+            // Share Inertia props. Authentication is handled by EnsureGuest and EnsureAuthenticated middleware.
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
@@ -33,6 +31,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // CSRF exceptions — broadcasting auth is proxied server-side.
         $middleware->validateCsrfTokens(except: [
             'broadcasting/auth',
+        ]);
+
+        // Register middleware aliases for route groups
+        $middleware->alias([
+            'guest' => \App\Http\Middleware\EnsureGuest::class,
+            'auth' => \App\Http\Middleware\EnsureAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

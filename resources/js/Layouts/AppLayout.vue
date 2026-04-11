@@ -31,7 +31,7 @@ let chatUnreadRefreshTimer = null;
 
 const onInertiaFinish = () => {
     // Just keep user ref in sync with latest Inertia props.
-    // No redirect logic here — server handles auth guards via SyncApiUser middleware.
+    // No redirect logic here — server handles auth guards via middleware.
     user.value = usePage().props.auth?.user ?? null;
 };
 

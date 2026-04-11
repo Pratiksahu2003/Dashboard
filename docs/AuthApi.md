@@ -584,3 +584,50 @@ Local storage uses fixed string keys such as `auth_token`, `user`, `auth_device_
 ---
 
 *Generated from `routes/api/v1.php` auth routes, `AuthController`, `VerificationController`, `AuthService`, and form requests. SPA behavior cross-checked with `resources/js/api.js` and `resources/js/composables/useAuth.js`.*
+
+## SPA: Current user (login check)
+
+**`GET /auth/user`** · Public (no `401` when logged out)
+
+Send **`credentials: 'include'`** for session auth, and/or **`Authorization: Bearer`** for token auth. Resolves the user the same way as `auth:sanctum`.
+
+### Success — logged out — `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Not authenticated",
+  "code": 200,
+  "data": {
+    "authenticated": false,
+    "user": null
+  }
+}
+```
+
+### Success — logged in — `200 OK`
+
+```json
+{
+  "success": true,
+  "message": "Authenticated",
+  "code": 200,
+  "data": {
+    "authenticated": true,
+    "auth_mode": "session",
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "role": "student",
+      "phone": null,
+      "email_verified_at": "2025-01-15T10:00:00.000000Z",
+      "phone_verified_at": null,
+      "registration_fee_status": "not_required",
+      "verification_status": "verified"
+    }
+  }
+}
+```
+
+`auth_mode` is `token` when a Bearer token is present on the request, otherwise `session` when authenticated via cookie.
