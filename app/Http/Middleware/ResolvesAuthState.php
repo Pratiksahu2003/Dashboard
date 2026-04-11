@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\Log;
  *  - Authenticated state cached for 5 minutes.
  * 
  * Security:
- *  - Cache key is SHA-256 of the raw session cookie — never stored in plaintext.
+ *  - Cache keys hash opaque material (session id and/or bearer); never store raw secrets in cache keys.
  *  - Only whitelisted fields are stored and forwarded to the frontend.
- *  - Sensitive fields (password, tokens, hashes) are never exposed.
+ *  - The upstream API origin is trusted; we forward the browser Cookie header only to that host.
  */
 trait ResolvesAuthState
 {
@@ -157,7 +157,6 @@ trait ResolvesAuthState
             return true;
         }
 
-        // No credential hints — same as an anonymous browser hitting a public document.
         if (!$this->hasResolvableCredentials($request)) {
             return true;
         }
@@ -166,7 +165,7 @@ trait ResolvesAuthState
     }
 
     /**
-     * Generate cache key from session cookie.
+     * Generate cache key from session / bearer.
      * 
      * Returns SHA-256 of session and/or bearer material, prefixed with 'spa_user:'.
      * Returns null if neither session cookie nor Bearer token is present.
@@ -179,11 +178,18 @@ trait ResolvesAuthState
         $sessionCookieValue = $this->sessionCookieValue($request);
         $bearer = $this->bearerTokenValue($request);
 
-        if ($sessionCookieValue === null && $bearer === null) {
+               $cookieLine = $this->cookieHeaderForApiProxy($request) ?? '';
+
+        if ($sessionCookieValue === null && $bearer === null && $cookieLine === '') {
             return null;
         }
 
-        $material = ($sessionCookieValue ?? '') . "\0" . ($bearer ?? '');
+        // Session/bearer alone identify the cache entry; cookie-only probes use the full header hash.
+        if ($sessionCookieValue !== null || $bearer !== null) {
+            $material = ($sessionCookieValue ?? '') . "\0" . ($bearer ?? '');
+        } else {
+            $material = "\0\0" . hash('sha256', $cookieLine);
+        }
 
         return 'spa_user:' . hash('sha256', $material);
     }
@@ -203,42 +209,23 @@ trait ResolvesAuthState
         $apiUrl = rtrim($apiOrigin, '/') . '/auth/user';
 
         try {
-            // Build HTTP client with timeout (Requirement 5.5)
-            $httpClient = Http::timeout(self::API_TIMEOUT)
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
-                ]);
+            $headers = [
+                'Accept' => 'application/json',
+                'X-Requested-With' => 'XMLHttpRequest',
+            ];
 
-            // Include session cookies (Requirement 1.3)
-            $sessionCookieName = config('session.cookie');
-            $sessionCookieValue = $this->sessionCookieValue($request);
-            
-            if ($sessionCookieValue !== null) {
-                // Create a cookie jar with the session cookie
-                $cookieJar = new \GuzzleHttp\Cookie\CookieJar(false, [
-                    new \GuzzleHttp\Cookie\SetCookie([
-                        'Name' => $sessionCookieName,
-                        'Value' => $sessionCookieValue,
-                        'Domain' => parse_url($apiOrigin, PHP_URL_HOST),
-                        'Path' => '/',
-                        'Secure' => str_starts_with($apiOrigin, 'https'),
-                        'HttpOnly' => true,
-                    ])
-                ]);
-                
-                $httpClient = $httpClient->withOptions([
-                    'cookies' => $cookieJar,
-                ]);
+            $cookieHeader = $this->cookieHeaderForApiProxy($request);
+            if ($cookieHeader !== null && $cookieHeader !== '') {
+                $headers['Cookie'] = $cookieHeader;
             }
 
-            // Include bearer token if present (Requirement 1.4)
-            $authHeader = $request->header('Authorization');
-            if ($authHeader && str_starts_with($authHeader, 'Bearer ')) {
-                $httpClient = $httpClient->withToken(substr($authHeader, 7));
+            $httpClient = Http::timeout(self::API_TIMEOUT)->withHeaders($headers);
+
+            $bearer = $this->bearerTokenValue($request);
+            if ($bearer !== null) {
+                $httpClient = $httpClient->withToken($bearer);
             }
 
-            // Make the API call
             $response = $httpClient->get($apiUrl);
 
             // Handle non-200 responses (Requirement 6.2)
@@ -280,23 +267,23 @@ trait ResolvesAuthState
      */
     protected function parseAuthResponse(array $response): array
     {
-        // Extract data object from response (Requirement 10.1)
         $data = $response['data'] ?? null;
-        
-        if (!is_array($data)) {
+
+        if (! is_array($data)) {
             return [
                 'authenticated' => false,
                 'user' => null,
                 'auth_mode' => null,
             ];
         }
-        
-        // Extract authenticated status (Requirement 10.2, 10.3)
+
         $authenticated = ($data['authenticated'] ?? false) === true;
         $user = $data['user'] ?? null;
-        
-        // User must be authenticated AND have user data (Requirement 10.2)
-        if (!$authenticated || !is_array($user) || empty($user)) {
+        if (is_object($user)) {
+            $user = json_decode(json_encode($user), true);
+        }
+
+        if (! $authenticated || ! is_array($user) || $user === []) {
             return [
                 'authenticated' => false,
                 'user' => null,
@@ -381,11 +368,42 @@ trait ResolvesAuthState
      */
     private function hasResolvableCredentials(Request $request): bool
     {
+        if ($this->bearerTokenValue($request) !== null) {
+            return true;
+        }
+
         if ($this->sessionCookieValue($request) !== null) {
             return true;
         }
 
-        return $this->bearerTokenValue($request) !== null;
+        $line = $this->cookieHeaderForApiProxy($request);
+
+        return $line !== null && $line !== '';
+    }
+
+    /**
+     * Raw Cookie header for proxying to the API (Sanctum / auth cookies often differ from SESSION_COOKIE).
+     * Falls back to rebuilding from the cookie bag when the header is missing (e.g. some unit tests).
+     */
+    private function cookieHeaderForApiProxy(Request $request): ?string
+    {
+        $raw = $request->headers->get('Cookie');
+        if (is_string($raw) && $raw !== '') {
+            return $raw;
+        }
+
+        $pairs = [];
+        foreach ($request->cookies->all() as $name => $value) {
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+            if (! is_scalar($value) || (string) $value === '') {
+                continue;
+            }
+            $pairs[] = $name . '=' . (string) $value;
+        }
+
+        return $pairs === [] ? null : implode('; ', $pairs);
     }
 
     /**
