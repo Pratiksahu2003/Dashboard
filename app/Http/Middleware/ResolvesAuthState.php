@@ -125,7 +125,7 @@ trait ResolvesAuthState
     protected function callAuthUserEndpoint(Request $request): ?array
     {
         $apiOrigin = config('services.suganta.api_origin', 'https://api.suganta.com');
-        $apiUrl = rtrim($apiOrigin, '/') . '/auth/user';
+        $apiUrl = rtrim($apiOrigin, '/') . '/api/v1/auth/user';
 
         try {
             $headers = [
