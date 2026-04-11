@@ -117,8 +117,9 @@ function goToPage(n) {
 
 // ─── Card click ───────────────────────────────────────────────────────────────
 
-function onTeacherClick(id) {
-  router.visit(`/teachers/${id}`);
+function onTeacherClick(teacher) {
+  const slug = (teacher.name || 'teacher').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  router.visit(`/teachers/${slug}-${teacher.id}`);
 }
 
 // ─── Mount ────────────────────────────────────────────────────────────────────
@@ -212,23 +213,23 @@ onMounted(() => {
           </div>
 
           <!-- Loading skeletons -->
-          <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-if="loading" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div
               v-for="i in 12"
               :key="i"
-              class="bg-white rounded-xl border border-gray-100 p-4 animate-pulse"
+              class="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse flex gap-4"
               data-testid="teacher-skeleton"
             >
-              <div class="flex gap-3 mb-3">
-                <div class="w-14 h-14 rounded-full bg-gray-200"></div>
-                <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div class="h-3 bg-gray-200 rounded w-1/2"></div>
+              <div class="w-20 h-20 rounded-full bg-gray-200 flex-shrink-0 mt-1"></div>
+              <div class="flex-1 space-y-2 pt-1">
+                <div class="h-4 bg-gray-200 rounded w-2/3"></div>
+                <div class="h-3 bg-gray-200 rounded w-1/3"></div>
+                <div class="h-3 bg-gray-200 rounded w-full"></div>
+                <div class="h-3 bg-gray-200 rounded w-4/5"></div>
+                <div class="flex gap-2 pt-1">
+                  <div class="h-8 bg-gray-200 rounded-xl flex-1"></div>
+                  <div class="h-8 bg-gray-200 rounded-xl flex-1"></div>
                 </div>
-              </div>
-              <div class="space-y-2">
-                <div class="h-3 bg-gray-200 rounded"></div>
-                <div class="h-3 bg-gray-200 rounded w-5/6"></div>
               </div>
             </div>
           </div>
@@ -244,7 +245,7 @@ onMounted(() => {
           </div>
 
           <!-- Teacher cards -->
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <TeacherCard
               v-for="teacher in teachers"
               :key="teacher.id"
