@@ -8,8 +8,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Resolves Sanctum session auth via GET {api}/auth/user, with caching.
- * Proxies the incoming Cookie header only (no Bearer). Used by EnsureGuest / EnsureAuthenticated.
+ * Resolves API web-session auth via GET {api}{auth_user_path}, with caching.
+ * Proxies the browser Cookie header and SPA headers (Origin, Referer, User-Agent) so the API
+ * can treat the call like credentials: 'include' from the dashboard origin (see config services.suganta).
  */
 trait ResolvesAuthState
 {
@@ -125,13 +126,18 @@ trait ResolvesAuthState
     protected function callAuthUserEndpoint(Request $request): ?array
     {
         $apiOrigin = config('services.suganta.api_origin', 'https://api.suganta.com');
-        $apiUrl = rtrim($apiOrigin, '/') . '/auth/user';
+        $path = config('services.suganta.auth_user_path', '/api/v1/auth/user');
+        $path = '/' . ltrim((string) $path, '/');
+        $apiUrl = rtrim($apiOrigin, '/') . $path;
 
         try {
-            $headers = [
-                'Accept' => 'application/json',
-                'X-Requested-With' => 'XMLHttpRequest',
-            ];
+            $headers = array_merge(
+                [
+                    'Accept' => 'application/json',
+                    'X-Requested-With' => 'XMLHttpRequest',
+                ],
+                $this->spaHeadersForApiProxy($request),
+            );
 
             $cookieHeader = $this->cookieHeaderForApiProxy($request);
             if ($cookieHeader !== null && $cookieHeader !== '') {
@@ -246,6 +252,7 @@ trait ResolvesAuthState
 
     private function cookieHeaderForApiProxy(Request $request): ?string
     {
+        // Prefer the raw header so encrypted API session cookies stay as sent by the browser.
         $raw = $request->headers->get('Cookie');
         if (is_string($raw) && $raw !== '') {
             return $raw;
@@ -263,5 +270,41 @@ trait ResolvesAuthState
         }
 
         return $pairs === [] ? null : implode('; ', $pairs);
+    }
+
+    /**
+     * Forward browser SPA context. Server-side Http clients send no Origin/Referer unless we add them;
+     * the API may rely on these for stateful / session resolution alongside cookies.
+     *
+     * @return array<string, string>
+     */
+    private function spaHeadersForApiProxy(Request $request): array
+    {
+        $headers = [];
+        $appBase = rtrim((string) config('app.url'), '/');
+
+        $origin = $request->headers->get('Origin');
+        if ((! is_string($origin) || $origin === '') && $appBase !== '') {
+            $origin = $appBase;
+        }
+        if (is_string($origin) && $origin !== '') {
+            $headers['Origin'] = $origin;
+        }
+
+        $referer = $request->headers->get('Referer');
+        if ((! is_string($referer) || $referer === '') && $appBase !== '') {
+            $uri = $request->getRequestUri();
+            $referer = $appBase . (is_string($uri) && $uri !== '' ? $uri : '/');
+        }
+        if (is_string($referer) && $referer !== '') {
+            $headers['Referer'] = $referer;
+        }
+
+        $ua = $request->userAgent();
+        if (is_string($ua) && $ua !== '') {
+            $headers['User-Agent'] = $ua;
+        }
+
+        return $headers;
     }
 }

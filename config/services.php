@@ -41,6 +41,8 @@ return [
     */
     'suganta' => [
         'api_origin' => rtrim(env('VITE_API_ORIGIN', 'https://api.suganta.com'), '/'),
+        /** Path only, e.g. /api/v1/auth/user or /auth/user — must match the API route that reads the web session. */
+        'auth_user_path' => env('SUGANTA_AUTH_USER_PATH', '/api/v1/auth/user'),
         'reverb_app_key' => env('REVERB_APP_KEY') ?: env('VITE_REVERB_APP_KEY'),
         'reverb_app_secret' => env('REVERB_APP_SECRET'),
     ],
