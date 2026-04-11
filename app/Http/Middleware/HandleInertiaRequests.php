@@ -26,9 +26,7 @@ class HandleInertiaRequests extends Middleware
             fn () => config('auth_slides.items', [])
         );
 
-        // User is resolved by authentication middleware and stored in request attributes.
-        // Already whitelisted there — no need to re-filter here.
-        $user = $request->attributes->get('api_user') ?: null;
+        $user = $request->attributes->get('api_user');
 
         return [
             ...parent::share($request),

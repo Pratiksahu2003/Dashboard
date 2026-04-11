@@ -4,9 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 /**
- * Guest-only auth pages.
- * EnsureGuest middleware checks request()->attributes->get('api_user')
- * and redirects authenticated users to the dashboard.
+ * Guest-only auth pages (EnsureGuest resolves /auth/user; redirects if already authenticated).
  */
 Route::middleware('guest')->group(function () {
     Route::get('login', function () {

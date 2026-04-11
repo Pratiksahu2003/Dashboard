@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api, { sanitizeString } from '@/api';
-import { AUTH_BEARER_TOKEN_KEY, AUTH_DEVICE_TOKEN_KEY, PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
+import { AUTH_DEVICE_TOKEN_KEY, PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { useOtpCountdown } from '@/composables/useOtpCountdown';
 import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -56,16 +56,15 @@ const handlePaste = (event) => {
     }
 };
 
-const persistSanctumAuthFromLoginResponse = response => {
-    const d = response?.data;
-    const t = d?.token;
-    if (typeof t === 'string' && t !== '') {
-        localStorage.setItem(AUTH_BEARER_TOKEN_KEY, t);
-    }
-    const deviceTok = d?.device_token;
+const persistDeviceTokenFromLoginResponse = response => {
+    const deviceTok = response?.data?.device_token;
     if (typeof deviceTok === 'string' && deviceTok !== '') {
         localStorage.setItem(AUTH_DEVICE_TOKEN_KEY, deviceTok);
     }
+};
+
+const goToDashboardFullLoad = () => {
+    window.location.assign(route('dashboard'));
 };
 
 const verifyOtp = async () => {
@@ -117,8 +116,8 @@ const verifyOtp = async () => {
             showSuccess('Verification successful.');
             authStore.setRequiresOtp(false);
             localStorage.removeItem('auth_identifier');
-            persistSanctumAuthFromLoginResponse(response);
-            router.visit(route('dashboard'));
+            persistDeviceTokenFromLoginResponse(response);
+            goToDashboardFullLoad();
         }
     } catch (err) {
         verifyAttempts.value++;

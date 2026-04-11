@@ -1,9 +1,8 @@
 /**
  * Browser storage keys for auth (localStorage unless noted).
- * Sanctum SPA: `withCredentials` + `X-XSRF-TOKEN` (api.js). When the API returns `data.token` (e.g. auth_mode "both"),
- * we also persist it so axios + Inertia can send `Authorization: Bearer` for `/auth/user` on the dashboard.
+ * Auth is Sanctum SPA only: session cookies from the API origin + `/sanctum/csrf-cookie` + `X-XSRF-TOKEN` (see api.js).
+ * Do not store API personal access tokens; identity on the dashboard comes from cookies forwarded to `/auth/user`.
  */
-export const AUTH_BEARER_TOKEN_KEY = 'auth_token';
 export const AUTH_DEVICE_TOKEN_KEY = 'auth_device_token';
 export const PAYMENT_DETAILS_KEY = 'payment_details';
 export const AUTH_IDENTIFIER_KEY = 'auth_identifier';

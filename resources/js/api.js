@@ -1,6 +1,5 @@
 import axios from 'axios';
 import {
-    AUTH_BEARER_TOKEN_KEY,
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
@@ -35,7 +34,10 @@ let _csrf = null;
 const bootstrapCsrf = () => {
     if (!_csrf) {
         _csrf = axios
-            .get(`${SANCTUM_URL}/sanctum/csrf-cookie`, { withCredentials: true })
+            .get(`${SANCTUM_URL}/sanctum/csrf-cookie`, {
+                withCredentials: true,
+                headers: { Accept: 'application/json' },
+            })
             .catch(err => { _csrf = null; return Promise.reject(err); });
     }
     return _csrf;
@@ -80,8 +82,13 @@ const api = axios.create({
 api.interceptors.request.use(async config => {
     const method = (config.method || '').toLowerCase();
 
-    // Auto-fetch CSRF cookie before any state-mutating request.
-    if (MUTATING.has(method)) await bootstrapCsrf();
+    // Sanctum SPA: refresh CSRF cookie before mutating API calls (see https://laravel.com/docs/sanctum#spa-authentication).
+    if (MUTATING.has(method)) {
+        await bootstrapCsrf();
+        if (!xsrfTokenFromCookie()) {
+            await new Promise(r => { setTimeout(r, 0); });
+        }
+    }
 
     // Origin allowlist — block requests to untrusted domains.
     const resolved = new URL(config.url || '', config.baseURL || ALLOWED_API_ORIGIN);
@@ -97,9 +104,6 @@ api.interceptors.request.use(async config => {
 
     const xsrf = xsrfTokenFromCookie();
     if (xsrf) config.headers['X-XSRF-TOKEN'] = xsrf;
-
-    const bearer = getStorage()?.getItem(AUTH_BEARER_TOKEN_KEY);
-    if (bearer) config.headers.Authorization = `Bearer ${bearer}`;
 
     return config;
 }, err => Promise.reject(err));

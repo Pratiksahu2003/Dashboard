@@ -19,8 +19,14 @@ export const useAuthStore = defineStore('auth', {
     },
 
     actions: {
-        /** No-op — kept for call-site compatibility during migration. */
-        syncFromStorage() {},
+        /** Drop legacy PAT if present — Sanctum SPA is cookie-only. */
+        syncFromStorage() {
+            try {
+                localStorage.removeItem('auth_token');
+            } catch {
+                /* ignore */
+            }
+        },
 
         setRequiresOtp(value) {
             this.requiresOtp = !!value;
