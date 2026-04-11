@@ -199,7 +199,7 @@ export const useAuth = () => {
         const user = usePage().props.auth.user;
 
         if (!user) return 'login';
-        if (!isEmailVerified(user)) return 'auth.otp.verify';
+        if (!isEmailVerified(user)) return 'login';
         if (!isRegistrationFeeSatisfied(user)) return 'auth.payment.required';
         return 'dashboard';
     };
@@ -228,7 +228,7 @@ export const useAuth = () => {
         if (current === best) return true;
 
         // If best is dashboard, we allow sub-routes
-        const isOnAuthPage = ['login', 'register', 'password.request', 'password.reset', 'auth.otp.verify', 'auth.payment.required'].includes(current) || component.startsWith('Auth/');
+        const isOnAuthPage = ['login', 'register', 'password.request', 'password.reset', 'auth.payment.required'].includes(current) || component.startsWith('Auth/');
 
         if (best === 'dashboard') {
             if (isOnAuthPage) {
@@ -250,12 +250,10 @@ export const useAuth = () => {
         }
 
         // If best is an auth gate (OTP or Payment)
-        if (['auth.otp.verify', 'auth.payment.required'].includes(best)) {
+        if (best === 'auth.payment.required') {
             if (current !== best) {
-                if (best === 'auth.payment.required') {
-                    const u = usePage().props.auth.user;
-                    if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
-                }
+                const u = usePage().props.auth.user;
+                if (u) ensureRegistrationPaymentDetails(u, getRegistrationChargesContext);
                 safeVisitNamedRoute(best);
                 return false;
             }

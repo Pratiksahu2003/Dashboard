@@ -18,7 +18,7 @@ const pageDescriptionMap = [
     { match: /^\/register/i, description: 'Create your SuGanta account to manage notes, subscriptions, and marketplace access.' },
     { match: /^\/forgot-password/i, description: 'Reset your SuGanta account password securely and continue your workflow.' },
     { match: /^\/reset-password/i, description: 'Set a new secure password for your SuGanta account.' },
-    { match: /^\/verify-otp/i, description: 'Verify your OTP to complete secure authentication on SuGanta.' },
+    { match: /^\/otp-verify/i, description: 'Sign in to SuGanta — enter your one-time code on the login page when prompted.' },
     { match: /^\/payment-required/i, description: 'Complete registration fee payment to unlock your SuGanta dashboard access.' },
     { match: /^\/dashboard/i, description: 'View your overview dashboard with leads, payments, notifications, and recent activity.' },
     { match: /^\/notes/i, description: 'Browse notes, purchase securely, and download content with subscription-aware access control.' },

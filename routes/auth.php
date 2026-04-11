@@ -11,6 +11,7 @@ Route::middleware('guest')->group(function () {
         return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => request()->query('status', session('status')),
+            'openOtpVerify' => request()->boolean('otp_verify'),
         ]);
     })->name('login');
 
@@ -35,7 +36,7 @@ Route::middleware('guest')->group(function () {
  * during the OTP and payment flows regardless of session state.
  */
 Route::get('otp-verify', function () {
-    return Inertia::render('Auth/VerifyOtp');
+    return redirect()->route('login', ['otp_verify' => 1]);
 })->name('auth.otp.verify');
 
 Route::get('payment-required', function () {
