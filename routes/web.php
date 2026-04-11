@@ -21,6 +21,7 @@ use App\Http\Controllers\Pages\StudyRequirementsController;
 use App\Http\Controllers\Pages\SupportTicketDetailsController;
 use App\Http\Controllers\Pages\SupportTicketsCreateController;
 use App\Http\Controllers\Pages\SupportTicketsExistingController;
+use App\Http\Controllers\Pages\TeacherController;
 use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\SyncSpaAuthCacheController;
 use Illuminate\Support\Facades\Route;
@@ -60,6 +61,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/contact', ContactController::class)->name('contact');
     Route::get('/chat/{conversation?}', ChatController::class)->where(['conversation' => '[0-9]+'])->name('chat');
+
+    Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
+    Route::get('/teachers/{id}', [TeacherController::class, 'show'])->where(['id' => '[0-9]+'])->name('teacher-profile');
 });
 
 require __DIR__.'/auth.php';
