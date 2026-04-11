@@ -18,7 +18,6 @@ const filters = ref({
   availability: null,
   hourly_rate_range: null,
   experience: null,
-  verified: false,
 });
 const search = ref('');
 const sort = ref('created_at');
@@ -88,7 +87,6 @@ function onClearFilters() {
     availability: null,
     hourly_rate_range: null,
     experience: null,
-    verified: false,
   };
   search.value = '';
   sort.value = 'created_at';

@@ -1,7 +1,7 @@
 <template>
   <!-- Skeleton loading state -->
   <div v-if="loading" data-testid="filter-skeleton" class="space-y-4">
-    <div v-for="i in 7" :key="i" class="animate-pulse">
+    <div v-for="i in 6" :key="i" class="animate-pulse">
       <div class="h-4 bg-gray-200 rounded w-1/3 mb-1"></div>
       <div class="h-9 bg-gray-200 rounded w-full"></div>
     </div>
@@ -124,21 +124,6 @@
           {{ item.label }}
         </option>
       </select>
-    </div>
-
-    <!-- Verified Only -->
-    <div class="flex items-center gap-2">
-      <input
-        id="filter-verified-checkbox"
-        type="checkbox"
-        :checked="filters.verified"
-        class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-        data-testid="filter-verified"
-        @change="update('verified', $event.target.checked)"
-      />
-      <label for="filter-verified-checkbox" class="text-sm font-medium text-gray-700 cursor-pointer">
-        Verified teachers only
-      </label>
     </div>
 
     <!-- Action buttons -->
