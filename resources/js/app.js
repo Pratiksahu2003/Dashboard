@@ -10,7 +10,7 @@ import { MotionPlugin } from '@vueuse/motion';
 import { useAuthStore } from './stores/auth';
 import { installUnauthorizedRedirect } from './services/unauthorizedRedirect';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'SuGanta Intl';
 const defaultDescription = 'SuGanta dashboard for notes, subscriptions, marketplace, payments, leads, and AI-powered workflows.';
 
 const pageDescriptionMap = [
