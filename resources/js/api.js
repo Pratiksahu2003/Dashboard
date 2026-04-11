@@ -1,5 +1,6 @@
 import axios from 'axios';
 import {
+    AUTH_BEARER_TOKEN_KEY,
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_REDIRECT_REASON_KEY,
 } from '@/constants/authStorage';
@@ -51,6 +52,18 @@ const preserveOn403 = () => {
 export const sanitizeString = (str) =>
     typeof str === 'string' ? str.replace(/[<>"'`]/g, '') : '';
 
+/** Sanctum: XSRF-TOKEN must be readable on `document.cookie` (shared parent domain with API). */
+const xsrfTokenFromCookie = () => {
+    if (typeof document === 'undefined') return null;
+    const m = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+    if (!m) return null;
+    try {
+        return decodeURIComponent(m[1]);
+    } catch {
+        return m[1];
+    }
+};
+
 // ─── Axios instance ───────────────────────────────────────────────────────────
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || `${ALLOWED_API_ORIGIN}/api/v1`,
@@ -81,6 +94,12 @@ api.interceptors.request.use(async config => {
 
     const deviceToken = getStorage()?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) config.headers['X-Device-Token'] = deviceToken;
+
+    const xsrf = xsrfTokenFromCookie();
+    if (xsrf) config.headers['X-XSRF-TOKEN'] = xsrf;
+
+    const bearer = getStorage()?.getItem(AUTH_BEARER_TOKEN_KEY);
+    if (bearer) config.headers.Authorization = `Bearer ${bearer}`;
 
     return config;
 }, err => Promise.reject(err));

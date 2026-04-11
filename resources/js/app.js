@@ -8,6 +8,9 @@ import { createPinia } from 'pinia';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { MotionPlugin } from '@vueuse/motion';
 import { useAuthStore } from './stores/auth';
+import { registerInertiaAuthHeaders } from './inertiaAuthHeaders';
+
+registerInertiaAuthHeaders();
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 const defaultDescription = 'SuGanta dashboard for notes, subscriptions, marketplace, payments, leads, and AI-powered workflows.';

@@ -2,6 +2,7 @@ import { getActivePinia } from 'pinia';
 import { router, usePage } from '@inertiajs/vue3';
 import { useAuthStore } from '@/stores/auth';
 import {
+    AUTH_BEARER_TOKEN_KEY,
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
@@ -12,6 +13,7 @@ import {
 
 /** Re-export for pages that import keys from composable (stable public API). */
 export {
+    AUTH_BEARER_TOKEN_KEY,
     AUTH_DEVICE_TOKEN_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
@@ -133,8 +135,11 @@ export const useAuth = () => {
     /** True when a session-authenticated user exists in Inertia shared props. */
     const isAuthenticated = () => !!usePage().props.auth.user;
 
-    /** No longer needed — returns null unconditionally. */
-    const getToken = () => null;
+    /** Personal access token when API returns `data.token` (hybrid with cookie session). */
+    const getToken = () => {
+        if (typeof window === 'undefined') return null;
+        return localStorage.getItem(AUTH_BEARER_TOKEN_KEY);
+    };
 
     /**
      * User + verified email + registration fee satisfied (per AuthApi.md login rules).
@@ -146,7 +151,8 @@ export const useAuth = () => {
 
     const clearSession = () => {
         // Purge legacy credential keys from existing browser sessions
-        localStorage.removeItem('auth_token');
+        localStorage.removeItem(AUTH_BEARER_TOKEN_KEY);
+        localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
         localStorage.removeItem('user');
         localStorage.removeItem('auth_session_ts');
         // Clear non-credential UI state keys

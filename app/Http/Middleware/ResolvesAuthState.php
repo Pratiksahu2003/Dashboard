@@ -277,11 +277,22 @@ trait ResolvesAuthState
             ];
         }
 
-        $authenticated = ($data['authenticated'] ?? false) === true;
+        $explicitAuth = array_key_exists('authenticated', $data) ? $data['authenticated'] : null;
+        if ($explicitAuth === false) {
+            return [
+                'authenticated' => false,
+                'user' => null,
+                'auth_mode' => null,
+            ];
+        }
+
         $user = $data['user'] ?? null;
         if (is_object($user)) {
             $user = json_decode(json_encode($user), true);
         }
+
+        $authenticated = $explicitAuth === true
+            || ($explicitAuth === null && is_array($user) && isset($user['id']));
 
         if (! $authenticated || ! is_array($user) || $user === []) {
             return [
