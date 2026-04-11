@@ -14,9 +14,10 @@ use Illuminate\Support\Facades\Log;
  * Resolves user authentication state from the /auth/user endpoint with caching.
  * 
  * Performance:
- *  - Skips non-GET and Inertia partial requests entirely.
- *  - Skips if no session cookie present (unauthenticated visitors).
+ *  - Skips non-GET requests (web auth gates are GET page loads / Inertia visits).
+ *  - Skips when no session cookie and no Bearer token (nothing to resolve).
  *  - Cache hit: ~0ms (file read). Cache miss: one HTTP call to API, then cached.
+ *  - Inertia GET visits (X-Inertia) are resolved like full page loads so SPA navigations stay authorized.
  *  - Unauthenticated state cached for 60s to prevent API hammering.
  *  - Authenticated state cached for 5 minutes.
  * 
@@ -144,9 +145,7 @@ trait ResolvesAuthState
      * 
      * Skips resolution for:
      * - Non-GET requests
-     * - Inertia XHR navigation requests
-     * - Inertia partial data requests
-     * - Requests without session cookies
+     * - Requests with no session cookie and no Authorization: Bearer token
      * 
      * @param Request $request
      * @return bool
@@ -158,18 +157,8 @@ trait ResolvesAuthState
             return true;
         }
 
-        // Skip Inertia XHR navigation requests (Requirement 5.2)
-        if ($request->hasHeader('X-Inertia')) {
-            return true;
-        }
-
-        // Skip Inertia partial data requests (Requirement 5.3)
-        if ($request->hasHeader('X-Inertia-Partial-Data')) {
-            return true;
-        }
-
-        // Skip if no session cookie present (Requirement 5.4)
-        if ($this->sessionCookieValue($request) === null) {
+        // No credential hints — same as an anonymous browser hitting a public document.
+        if (!$this->hasResolvableCredentials($request)) {
             return true;
         }
 
@@ -179,8 +168,8 @@ trait ResolvesAuthState
     /**
      * Generate cache key from session cookie.
      * 
-     * Returns SHA-256 hash of the session cookie value prefixed with 'spa_user:'.
-     * Returns null if no session cookie is present.
+     * Returns SHA-256 of session and/or bearer material, prefixed with 'spa_user:'.
+     * Returns null if neither session cookie nor Bearer token is present.
      * 
      * @param Request $request
      * @return string|null
@@ -188,12 +177,15 @@ trait ResolvesAuthState
     protected function getCacheKey(Request $request): ?string
     {
         $sessionCookieValue = $this->sessionCookieValue($request);
-        
-        if ($sessionCookieValue === null) {
+        $bearer = $this->bearerTokenValue($request);
+
+        if ($sessionCookieValue === null && $bearer === null) {
             return null;
         }
-        
-        return 'spa_user:' . hash('sha256', $sessionCookieValue);
+
+        $material = ($sessionCookieValue ?? '') . "\0" . ($bearer ?? '');
+
+        return 'spa_user:' . hash('sha256', $material);
     }
 
     /**
@@ -356,8 +348,9 @@ trait ResolvesAuthState
      */
     public static function forgetUser(string $sessionCookieValue): void
     {
-        // Compute cache key (Requirement 9.4)
-        $cacheKey = 'spa_user:' . hash('sha256', $sessionCookieValue);
+        // Compute cache key — session-only material matches getCacheKey() when no Bearer is used.
+        $material = $sessionCookieValue . "\0";
+        $cacheKey = 'spa_user:' . hash('sha256', $material);
         
         // Delete cached authentication state (Requirement 9.2)
         try {
@@ -381,5 +374,31 @@ trait ResolvesAuthState
     {
         $value = $request->cookie(config('session.cookie'));
         return is_string($value) && $value !== '' ? $value : null;
+    }
+
+    /**
+     * True when we should call /auth/user (session cookie and/or API bearer).
+     */
+    private function hasResolvableCredentials(Request $request): bool
+    {
+        if ($this->sessionCookieValue($request) !== null) {
+            return true;
+        }
+
+        return $this->bearerTokenValue($request) !== null;
+    }
+
+    /**
+     * Raw bearer token from Authorization header, or null if missing/empty.
+     */
+    private function bearerTokenValue(Request $request): ?string
+    {
+        $header = $request->header('Authorization');
+        if (!is_string($header) || !str_starts_with($header, 'Bearer ')) {
+            return null;
+        }
+        $token = trim(substr($header, 7));
+
+        return $token !== '' ? $token : null;
     }
 }
