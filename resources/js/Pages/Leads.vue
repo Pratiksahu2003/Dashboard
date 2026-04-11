@@ -120,13 +120,28 @@ const initializeStateFromQuery = () => {
     return Number.isFinite(lead) && lead > 0 ? lead : null;
 };
 
+/** Single-lead responses from useLeadApi are already API `data` payloads; support a nested `.data` if present. */
+const unwrapLeadRecord = raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    if (raw.id != null) return raw;
+    const inner = raw.data;
+    if (inner && typeof inner === 'object' && !Array.isArray(inner) && inner.id != null) return inner;
+    return null;
+};
+
 const loadLeads = async () => {
     isLoading.value = true;
     try {
-        const response = await listLeads(toSafeParams());
-        const payload = response?.data || {};
-        leads.value = Array.isArray(payload?.data) ? payload.data : [];
-        meta.value = payload?.meta || { current_page: 1, last_page: 1, per_page: Number(filters.value.per_page) || 15, total: 0 };
+        const envelope = await listLeads(toSafeParams());
+        const rows = envelope?.data;
+        leads.value = Array.isArray(rows) ? rows : [];
+        meta.value =
+            envelope?.meta || {
+                current_page: 1,
+                last_page: 1,
+                per_page: Number(filters.value.per_page) || 15,
+                total: 0,
+            };
         syncQueryState();
     } catch (error) {
         showError(parseErrorMessage(error), 'Leads');
@@ -139,7 +154,7 @@ const selectLead = async leadId => {
     if (!leadId) return;
     try {
         const response = await getLead(leadId);
-        selectedLead.value = response?.data || null;
+        selectedLead.value = unwrapLeadRecord(response);
         syncQueryState();
     } catch (error) {
         showError(parseErrorMessage(error), 'Lead Details');
@@ -265,7 +280,7 @@ const submitLead = async () => {
     isCreating.value = true;
     try {
         const response = await createLead(payload);
-        const created = response?.data || null;
+        const created = unwrapLeadRecord(response);
         showSuccess('Lead created successfully.', 'Leads');
         resetLeadForm();
         filters.value.page = 1;
