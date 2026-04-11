@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Support\SugantaBrowserProxyHeaders;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -110,7 +111,7 @@ trait ResolvesAuthState
     protected function getCacheKey(Request $request): ?string
     {
         $session = $this->sessionCookieValue($request);
-        $cookieLine = $this->cookieHeaderForApiProxy($request) ?? '';
+        $cookieLine = SugantaBrowserProxyHeaders::cookieLine($request) ?? '';
 
         if ($session !== null) {
             $material = $session . "\0";
@@ -131,18 +132,7 @@ trait ResolvesAuthState
         $apiUrl = rtrim($apiOrigin, '/') . $path;
 
         try {
-            $headers = array_merge(
-                [
-                    'Accept' => 'application/json',
-                    'X-Requested-With' => 'XMLHttpRequest',
-                ],
-                $this->spaHeadersForApiProxy($request),
-            );
-
-            $cookieHeader = $this->cookieHeaderForApiProxy($request);
-            if ($cookieHeader !== null && $cookieHeader !== '') {
-                $headers['Cookie'] = $cookieHeader;
-            }
+            $headers = SugantaBrowserProxyHeaders::forJsonApi($request, false);
 
             $response = Http::timeout(self::API_TIMEOUT)
                 ->withHeaders($headers)
@@ -245,66 +235,8 @@ trait ResolvesAuthState
             return true;
         }
 
-        $line = $this->cookieHeaderForApiProxy($request);
+        $line = SugantaBrowserProxyHeaders::cookieLine($request);
 
         return is_string($line) && $line !== '';
-    }
-
-    private function cookieHeaderForApiProxy(Request $request): ?string
-    {
-        // Prefer the raw header so encrypted API session cookies stay as sent by the browser.
-        $raw = $request->headers->get('Cookie');
-        if (is_string($raw) && $raw !== '') {
-            return $raw;
-        }
-
-        $pairs = [];
-        foreach ($request->cookies->all() as $name => $value) {
-            if (! is_string($name) || $name === '') {
-                continue;
-            }
-            if (! is_scalar($value) || (string) $value === '') {
-                continue;
-            }
-            $pairs[] = $name . '=' . (string) $value;
-        }
-
-        return $pairs === [] ? null : implode('; ', $pairs);
-    }
-
-    /**
-     * Forward browser SPA context. Server-side Http clients send no Origin/Referer unless we add them;
-     * the API may rely on these for stateful / session resolution alongside cookies.
-     *
-     * @return array<string, string>
-     */
-    private function spaHeadersForApiProxy(Request $request): array
-    {
-        $headers = [];
-        $appBase = rtrim((string) config('app.url'), '/');
-
-        $origin = $request->headers->get('Origin');
-        if ((! is_string($origin) || $origin === '') && $appBase !== '') {
-            $origin = $appBase;
-        }
-        if (is_string($origin) && $origin !== '') {
-            $headers['Origin'] = $origin;
-        }
-
-        $referer = $request->headers->get('Referer');
-        if ((! is_string($referer) || $referer === '') && $appBase !== '') {
-            $uri = $request->getRequestUri();
-            $referer = $appBase . (is_string($uri) && $uri !== '' ? $uri : '/');
-        }
-        if (is_string($referer) && $referer !== '') {
-            $headers['Referer'] = $referer;
-        }
-
-        $ua = $request->userAgent();
-        if (is_string($ua) && $ua !== '') {
-            $headers['User-Agent'] = $ua;
-        }
-
-        return $headers;
     }
 }

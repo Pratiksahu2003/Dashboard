@@ -26,11 +26,13 @@ class HandleInertiaRequests extends Middleware
             fn () => config('auth_slides.items', [])
         );
 
-        $user = $request->attributes->get('api_user');
-
+        // Inertia runs this middleware before route middleware, so `api_user` is not set yet.
+        // Use a closure so the user is resolved when the response is built (after EnsureAuthenticated).
         return [
             ...parent::share($request),
-            'auth' => ['user' => $user],
+            'auth' => [
+                'user' => fn () => $request->attributes->get('api_user'),
+            ],
             'authSlides' => $authSlides,
             'authSlidesVersion' => $slideVersion,
         ];

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Support\SugantaBrowserProxyHeaders;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
@@ -22,15 +23,11 @@ class BroadcastingAuthProxyController extends Controller
             ], 422)->header('Cache-Control', 'no-store, max-age=0');
         }
 
-        $upstream = Http::withCookies($request->cookies->all(), parse_url($apiOrigin, PHP_URL_HOST))
-            ->withHeaders([
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'X-Requested-With' => 'XMLHttpRequest',
-            ])->post($apiOrigin . '/broadcasting/auth', [
-            'socket_id' => $socketId,
-            'channel_name' => $channelName,
-        ]);
+        $upstream = Http::withHeaders(SugantaBrowserProxyHeaders::forJsonApi($request))
+            ->post(rtrim($apiOrigin, '/') . '/broadcasting/auth', [
+                'socket_id' => $socketId,
+                'channel_name' => $channelName,
+            ]);
 
         if ($upstream->status() !== 200) {
             Log::warning('broadcasting.auth.proxy: upstream rejected', [
@@ -68,12 +65,8 @@ class BroadcastingAuthProxyController extends Controller
         $conversationId = (int) substr($channelName, strlen('private-chat.conversation.'));
         if ($conversationId <= 0) return null;
 
-        $can = Http::withCookies($request->cookies->all(), parse_url($apiOrigin, PHP_URL_HOST))
-            ->withHeaders([
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-                'X-Requested-With' => 'XMLHttpRequest',
-            ])->get($apiOrigin . '/api/v3/chat/conversations/' . $conversationId);
+        $can = Http::withHeaders(SugantaBrowserProxyHeaders::forJsonApi($request, false))
+            ->get(rtrim($apiOrigin, '/') . '/api/v3/chat/conversations/' . $conversationId);
 
         $ok = $can->status() === 200 && (bool) data_get($can->json(), 'success', false) === true;
         Log::info('broadcasting.auth.proxy: local-sign check', [
