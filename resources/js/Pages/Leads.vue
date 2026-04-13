@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
@@ -56,6 +56,36 @@ const statusOptions = ['new', 'contacted', 'qualified', 'converted', 'closed'];
 const typeOptions = ['student', 'parent', 'institute', 'teacher'];
 const sourceOptions = ['website', 'social_media', 'referral', 'advertisement', 'direct'];
 const priorityOptions = ['low', 'medium', 'high', 'urgent'];
+
+const createModalOpen = ref(false);
+
+function openCreateModal() {
+    createModalOpen.value = true;
+}
+
+function closeCreateModal() {
+    createModalOpen.value = false;
+}
+
+function onCreateModalKeydown(e) {
+    if (e.key === 'Escape') closeCreateModal();
+}
+
+watch(createModalOpen, (open) => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = open ? 'hidden' : '';
+    if (open) {
+        document.addEventListener('keydown', onCreateModalKeydown);
+    } else {
+        document.removeEventListener('keydown', onCreateModalKeydown);
+    }
+});
+
+onUnmounted(() => {
+    if (typeof document === 'undefined') return;
+    document.removeEventListener('keydown', onCreateModalKeydown);
+    document.body.style.overflow = '';
+});
 
 const totalLabel = computed(() => `${meta.value.total || 0} lead${Number(meta.value.total || 0) === 1 ? '' : 's'}`);
 const selectedLeadId = computed(() => Number(selectedLead.value?.id || 0) || null);
@@ -314,6 +344,7 @@ const submitLead = async () => {
         const created = unwrapLeadRecord(response);
         showSuccess('Lead created successfully.', 'Leads');
         resetLeadForm();
+        createModalOpen.value = false;
         filters.value.page = 1;
         await loadLeads();
         if (created?.id) await selectLead(created.id);
@@ -362,6 +393,16 @@ const formatDateTime = value => {
 onMounted(async () => {
     if (!requireAuth()) return;
     const leadIdFromQuery = initializeStateFromQuery();
+    if (typeof window !== 'undefined') {
+        const q = new URLSearchParams(window.location.search);
+        if (q.get('create') === '1') {
+            createModalOpen.value = true;
+            q.delete('create');
+            const next = new URL(window.location.href);
+            next.search = q.toString();
+            window.history.replaceState({}, '', next.pathname + (next.search ? `?${next.search}` : '') + next.hash);
+        }
+    }
     await loadLeads();
     if (leadIdFromQuery) await selectLead(leadIdFromQuery);
 });
@@ -379,9 +420,18 @@ onMounted(async () => {
                         <p class="text-xs font-black uppercase tracking-[0.2em] text-white/70">Lead API</p>
                         <h1 class="mt-1 text-2xl font-black tracking-tight">Lead Management</h1>
                     </div>
-                    <div class="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-right">
-                        <p class="text-[11px] font-black uppercase tracking-wide text-white/70">Total</p>
-                        <p class="text-lg font-black">{{ totalLabel }}</p>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            class="rounded-xl bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm transition hover:bg-indigo-50"
+                            @click="openCreateModal"
+                        >
+                            Create lead
+                        </button>
+                        <div class="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-right">
+                            <p class="text-[11px] font-black uppercase tracking-wide text-white/70">Total</p>
+                            <p class="text-lg font-black">{{ totalLabel }}</p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -491,6 +541,172 @@ onMounted(async () => {
                 </div>
             </section>
         </div>
+
+        <Teleport to="body">
+            <div
+                v-if="createModalOpen"
+                class="fixed inset-0 z-[180] flex items-end justify-center bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="leads-create-title"
+                @click.self="closeCreateModal"
+            >
+                <div class="flex max-h-[min(90vh,880px)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                    <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-5 py-4">
+                        <div>
+                            <h2 id="leads-create-title" class="text-lg font-black text-slate-900">Create lead</h2>
+                            <p class="mt-0.5 text-xs font-semibold text-slate-500">Add a lead for a tutor (lead owner).</p>
+                        </div>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+                            aria-label="Close"
+                            @click="closeCreateModal"
+                        >
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+                        <form class="space-y-4" @submit.prevent="submitLead">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Lead owner (search user) *</span>
+                                    <input
+                                        v-model="ownerLookupQuery"
+                                        type="text"
+                                        autocomplete="off"
+                                        placeholder="Type name or email (min 2 chars)"
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                        @input="lookupUsersForOwner"
+                                    />
+                                    <div v-if="isOwnerLookupLoading" class="mt-1 text-xs text-slate-500">Searching…</div>
+                                    <ul v-else-if="ownerLookupResults.length" class="mt-1 max-h-40 overflow-auto rounded-lg border border-slate-200 bg-slate-50 text-sm">
+                                        <li
+                                            v-for="u in ownerLookupResults"
+                                            :key="u.id"
+                                            class="cursor-pointer border-b border-slate-100 px-3 py-2 last:border-0 hover:bg-white"
+                                            @click="pickOwner(u)"
+                                        >
+                                            {{ u.name || u.email }} <span class="text-slate-500">#{{ u.id }}</span>
+                                        </li>
+                                    </ul>
+                                    <p v-if="leadForm.lead_owner_id" class="mt-1 text-xs font-semibold text-emerald-700">Selected owner ID: {{ leadForm.lead_owner_id }}</p>
+                                </label>
+
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Name *</span>
+                                    <input v-model="leadForm.name" type="text" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Phone *</span>
+                                    <input v-model="leadForm.phone" type="tel" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Email</span>
+                                    <input v-model="leadForm.email" type="email" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Assign to (optional)</span>
+                                    <input
+                                        v-model="assignedLookupQuery"
+                                        type="text"
+                                        autocomplete="off"
+                                        placeholder="Search user to assign"
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                        @input="lookupUsersForAssignee"
+                                    />
+                                    <div v-if="isAssignedLookupLoading" class="mt-1 text-xs text-slate-500">Searching…</div>
+                                    <ul v-else-if="assignedLookupResults.length" class="mt-1 max-h-40 overflow-auto rounded-lg border border-slate-200 bg-slate-50 text-sm">
+                                        <li
+                                            v-for="u in assignedLookupResults"
+                                            :key="u.id"
+                                            class="cursor-pointer border-b border-slate-100 px-3 py-2 last:border-0 hover:bg-white"
+                                            @click="pickAssignee(u)"
+                                        >
+                                            {{ u.name || u.email }} <span class="text-slate-500">#{{ u.id }}</span>
+                                        </li>
+                                    </ul>
+                                    <p v-if="leadForm.assigned_to" class="mt-1 text-xs font-semibold text-emerald-700">Assigned user ID: {{ leadForm.assigned_to }}</p>
+                                </label>
+
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Type</span>
+                                    <select v-model="leadForm.type" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">—</option>
+                                        <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Source</span>
+                                    <select v-model="leadForm.source" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option value="">—</option>
+                                        <option v-for="s in sourceOptions" :key="s" :value="s">{{ s.replace('_', ' ') }}</option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Status</span>
+                                    <select v-model="leadForm.status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option v-for="s in statusOptions" :key="s" :value="s">{{ s }}</option>
+                                    </select>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Priority</span>
+                                    <select v-model="leadForm.priority" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                                        <option v-for="p in priorityOptions" :key="p" :value="p">{{ p }}</option>
+                                    </select>
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Subject interest</span>
+                                    <input v-model="leadForm.subject_interest" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Grade / level</span>
+                                    <input v-model="leadForm.grade_level" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Estimated value</span>
+                                    <input v-model="leadForm.estimated_value" type="number" step="0.01" min="0" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Location</span>
+                                    <input v-model="leadForm.location" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Message</span>
+                                    <textarea v-model="leadForm.message" rows="3" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">UTM source</span>
+                                    <input v-model="leadForm.utm_source" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">UTM medium</span>
+                                    <input v-model="leadForm.utm_medium" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">UTM campaign</span>
+                                    <input v-model="leadForm.utm_campaign" type="text" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                                </label>
+                            </div>
+
+                            <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+                                <button
+                                    type="submit"
+                                    class="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-black text-white hover:bg-slate-700 disabled:opacity-50"
+                                    :disabled="isCreating"
+                                >
+                                    {{ isCreating ? 'Creating…' : 'Create lead' }}
+                                </button>
+                                <button type="button" class="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-50" @click="closeCreateModal">
+                                    Cancel
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
     </AppLayout>
 </template>
 

@@ -57,23 +57,41 @@ function closeAvatarLightbox() {
   avatarLightboxOpen.value = false;
 }
 
-function onAvatarLightboxKeydown(e) {
-  if (e.key === 'Escape') closeAvatarLightbox();
+const reviewModalOpen = ref(false);
+const leadModalOpen = ref(false);
+
+const bodyScrollLocked = computed(
+  () => avatarLightboxOpen.value || reviewModalOpen.value || leadModalOpen.value,
+);
+
+function onOverlayEscape(e) {
+  if (e.key !== 'Escape') return;
+  if (avatarLightboxOpen.value) {
+    closeAvatarLightbox();
+    return;
+  }
+  if (reviewModalOpen.value) {
+    reviewModalOpen.value = false;
+    return;
+  }
+  if (leadModalOpen.value) {
+    leadModalOpen.value = false;
+  }
 }
 
-watch(avatarLightboxOpen, (open) => {
+watch(bodyScrollLocked, (locked) => {
   if (typeof document === 'undefined') return;
-  document.body.style.overflow = open ? 'hidden' : '';
-  if (open) {
-    document.addEventListener('keydown', onAvatarLightboxKeydown);
+  document.body.style.overflow = locked ? 'hidden' : '';
+  if (locked) {
+    document.addEventListener('keydown', onOverlayEscape);
   } else {
-    document.removeEventListener('keydown', onAvatarLightboxKeydown);
+    document.removeEventListener('keydown', onOverlayEscape);
   }
 });
 
 onUnmounted(() => {
   if (typeof document === 'undefined') return;
-  document.removeEventListener('keydown', onAvatarLightboxKeydown);
+  document.removeEventListener('keydown', onOverlayEscape);
   document.body.style.overflow = '';
 });
 
@@ -195,7 +213,6 @@ const reviewsError = ref(null);
 const reviewEligibility = ref(null);
 const reviewCheckLoading = ref(false);
 const reviewCheckError = ref(null);
-const showWriteReviewForm = ref(false);
 const reviewRating = ref(5);
 const reviewTitle = ref('');
 const reviewComment = ref('');
@@ -203,8 +220,12 @@ const reviewSubmitting = ref(false);
 
 const isLoggedIn = computed(() => page.props?.auth?.user != null);
 
-/** Inertia shows a user, but API cookie/session may be expired — force login redirect. */
-function redirectToLoginIfSessionStale(errOrCode) {
+/**
+ * Force login via global handler. Use `always: true` for mutations (e.g. submit review) even if
+ * Inertia `auth.user` was empty; use default on public review GETs so guests are not redirected.
+ */
+function redirectToLoginIfSessionStale(errOrCode, options = {}) {
+  const always = options.always === true;
   let code;
   if (typeof errOrCode === 'object' && errOrCode !== null) {
     code = errOrCode?.code ?? errOrCode?.status;
@@ -212,9 +233,11 @@ function redirectToLoginIfSessionStale(errOrCode) {
     code = errOrCode;
   }
   const n = Number(code);
-  if ((n === 401 || n === 403) && isLoggedIn.value && typeof document !== 'undefined') {
-    document.dispatchEvent(new CustomEvent('app:unauthorized'));
-    return true;
+  if ((n === 401 || n === 403) && typeof document !== 'undefined') {
+    if (always || isLoggedIn.value) {
+      document.dispatchEvent(new CustomEvent('app:unauthorized'));
+      return true;
+    }
   }
   return false;
 }
@@ -269,16 +292,13 @@ async function loadReviewEligibility() {
   reviewCheckLoading.value = true;
   try {
     reviewEligibility.value = await checkReviewEligibility(props.id);
-    if (reviewEligibility.value?.can_review) {
+    if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) {
       reviewRating.value = 5;
       reviewTitle.value = '';
       reviewComment.value = '';
-      showWriteReviewForm.value = true;
-    } else {
-      showWriteReviewForm.value = false;
     }
   } catch (e) {
-    if (redirectToLoginIfSessionStale(e)) {
+    if (redirectToLoginIfSessionStale(e, { always: true })) {
       reviewEligibility.value = null;
       return;
     }
@@ -295,11 +315,20 @@ function beginEditReview() {
   reviewRating.value = Math.min(5, Math.max(1, Number(ex.rating) || 5));
   reviewTitle.value = ex.title ?? '';
   reviewComment.value = ex.comment ?? '';
-  showWriteReviewForm.value = true;
+  reviewModalOpen.value = true;
 }
 
-function cancelReviewEdit() {
-  showWriteReviewForm.value = false;
+function openNewReviewModal() {
+  const el = reviewEligibility.value;
+  if (!el?.can_review || el.has_reviewed) return;
+  reviewRating.value = 5;
+  reviewTitle.value = '';
+  reviewComment.value = '';
+  reviewModalOpen.value = true;
+}
+
+function closeReviewModal() {
+  reviewModalOpen.value = false;
 }
 
 async function submitReviewForm() {
@@ -329,23 +358,31 @@ async function submitReviewForm() {
       });
       alertSuccess('Thanks! Your review was submitted.', 'Review');
     }
-    showWriteReviewForm.value = false;
+    reviewModalOpen.value = false;
     reviewRating.value = 5;
     reviewTitle.value = '';
     reviewComment.value = '';
     await loadReviewData();
     await loadReviewEligibility();
   } catch (err) {
-    if (redirectToLoginIfSessionStale(err)) return;
+    if (redirectToLoginIfSessionStale(err, { always: true })) return;
     alertError(parseReviewApiError(err), 'Review');
   } finally {
     reviewSubmitting.value = false;
   }
 }
 
-function scrollToCreateLead() {
-  if (typeof document === 'undefined') return;
-  document.getElementById('create-lead')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function openLeadModal() {
+  if (!isLoggedIn.value) return;
+  leadModalOpen.value = true;
+}
+
+function closeLeadModal() {
+  leadModalOpen.value = false;
+}
+
+function onLeadCreatedFromProfile() {
+  closeLeadModal();
 }
 
 const displayAverageRating = computed(() => {
@@ -763,7 +800,7 @@ onMounted(loadTeacher);
             <p v-else-if="reviewCheckError" class="text-sm text-red-700">{{ reviewCheckError }}</p>
             <template v-else-if="reviewEligibility">
               <div
-                v-if="reviewEligibility.has_reviewed && reviewEligibility.existing_review && !showWriteReviewForm"
+                v-if="reviewEligibility.has_reviewed && reviewEligibility.existing_review"
                 class="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 ring-1 ring-emerald-100/80"
               >
                 <p class="text-xs font-bold uppercase tracking-wider text-emerald-800">Your review</p>
@@ -793,73 +830,21 @@ onMounted(loadTeacher);
                   Edit your review
                 </button>
               </div>
-              <form
-                v-if="reviewEligibility.can_review || (reviewEligibility.has_reviewed && showWriteReviewForm)"
+              <div
+                v-if="reviewEligibility.can_review && !reviewEligibility.has_reviewed"
                 class="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 ring-1 ring-indigo-100/80 sm:p-5"
-                @submit.prevent="submitReviewForm"
               >
-                <p class="text-sm font-semibold text-slate-900">
-                  {{ reviewEligibility.has_reviewed ? 'Update your review' : 'Write a review' }}
+                <p class="text-sm text-slate-700">
+                  Share your experience with {{ name.split(' ')[0] || 'this tutor' }}.
                 </p>
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                  <span class="text-xs font-bold uppercase tracking-wide text-slate-500">Rating</span>
-                  <div class="flex gap-1">
-                    <button
-                      v-for="star in 5"
-                      :key="star"
-                      type="button"
-                      class="rounded-lg p-1 transition hover:bg-white/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      :aria-pressed="reviewRating >= star"
-                      :aria-label="`Rate ${star} out of 5`"
-                      @click="reviewRating = star"
-                    >
-                      <svg
-                        class="h-8 w-8"
-                        :class="star <= reviewRating ? 'text-amber-400' : 'text-slate-300'"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <label class="mt-4 block">
-                  <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Title (optional)</span>
-                  <input
-                    v-model="reviewTitle"
-                    type="text"
-                    maxlength="255"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                </label>
-                <label class="mt-3 block">
-                  <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Comment (optional)</span>
-                  <textarea
-                    v-model="reviewComment"
-                    rows="3"
-                    maxlength="5000"
-                    class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                </label>
-                <div class="mt-4 flex flex-wrap gap-3">
-                  <button
-                    type="submit"
-                    class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
-                    :disabled="reviewSubmitting"
-                  >
-                    {{ reviewSubmitting ? 'Saving…' : reviewEligibility.has_reviewed ? 'Update review' : 'Submit review' }}
-                  </button>
-                  <button
-                    v-if="reviewEligibility.has_reviewed"
-                    type="button"
-                    class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                    @click="cancelReviewEdit"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                <button
+                  type="button"
+                  class="mt-3 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500"
+                  @click="openNewReviewModal"
+                >
+                  Write a review
+                </button>
+              </div>
             </template>
           </template>
         </div>
@@ -1000,7 +985,7 @@ onMounted(loadTeacher);
         </template>
       </div>
 
-      <!-- Contact CTA (below reviews): scrolls to lead form -->
+      <!-- Contact CTA (below reviews): opens lead modal -->
       <div class="mb-8">
         <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-8">
           <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
@@ -1015,7 +1000,7 @@ onMounted(loadTeacher);
             v-if="isLoggedIn"
             type="button"
             class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-700"
-            @click="scrollToCreateLead"
+            @click="openLeadModal"
           >
             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
             Contact Now
@@ -1047,19 +1032,6 @@ onMounted(loadTeacher);
         </ul>
       </div>
 
-      <!-- Request contact / lead form -->
-      <div id="create-lead" class="mb-8 scroll-mt-28">
-        <CreateLeadForm
-          :owner-user-id="leadOwnerUserId"
-          :auth-user-id="authUserIdNumber"
-          :teacher-name="name"
-          :viewer-name="viewerLeadName"
-          :viewer-email="viewerLeadEmail"
-          :default-location="cityState"
-          :default-subject="defaultLeadSubject"
-        />
-      </div>
-
       <!-- Portfolio -->
       <div v-if="portfolio" class="mb-8 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
         <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Portfolio</h2>
@@ -1084,6 +1056,130 @@ onMounted(loadTeacher);
           />
         </div>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="reviewModalOpen && reviewEligibility && !isSelfProfile"
+          class="fixed inset-0 z-[190] flex items-end justify-center bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-modal-title"
+          @click.self="closeReviewModal"
+        >
+          <div class="flex max-h-[min(90vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+              <h2 id="review-modal-title" class="text-lg font-bold text-slate-900">
+                {{ reviewEligibility.has_reviewed ? 'Update your review' : 'Write a review' }}
+              </h2>
+              <button
+                type="button"
+                class="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+                aria-label="Close"
+                @click="closeReviewModal"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <form class="min-h-0 flex-1 overflow-y-auto px-5 py-4" @submit.prevent="submitReviewForm">
+              <div class="mt-1 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wide text-slate-500">Rating</span>
+                <div class="flex gap-1">
+                  <button
+                    v-for="star in 5"
+                    :key="star"
+                    type="button"
+                    class="rounded-lg p-1 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    :aria-pressed="reviewRating >= star"
+                    :aria-label="`Rate ${star} out of 5`"
+                    @click="reviewRating = star"
+                  >
+                    <svg
+                      class="h-8 w-8"
+                      :class="star <= reviewRating ? 'text-amber-400' : 'text-slate-300'"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <label class="mt-4 block">
+                <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Title (optional)</span>
+                <input
+                  v-model="reviewTitle"
+                  type="text"
+                  maxlength="255"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </label>
+              <label class="mt-3 block">
+                <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Comment (optional)</span>
+                <textarea
+                  v-model="reviewComment"
+                  rows="3"
+                  maxlength="5000"
+                  class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </label>
+              <div class="mt-5 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
+                <button
+                  type="submit"
+                  class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
+                  :disabled="reviewSubmitting"
+                >
+                  {{ reviewSubmitting ? 'Saving…' : reviewEligibility.has_reviewed ? 'Update review' : 'Submit review' }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  @click="closeReviewModal"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </Teleport>
+
+      <Teleport to="body">
+        <div
+          v-if="leadModalOpen && teacher"
+          class="fixed inset-0 z-[190] flex items-end justify-center bg-slate-950/60 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lead-modal-title"
+          @click.self="closeLeadModal"
+        >
+          <div class="flex max-h-[min(92vh,820px)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-5 py-4">
+              <h2 id="lead-modal-title" class="text-lg font-bold text-slate-900">Request contact</h2>
+              <button
+                type="button"
+                class="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
+                aria-label="Close"
+                @click="closeLeadModal"
+              >
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
+              <CreateLeadForm
+                class="!border-0 !bg-transparent !p-0 !shadow-none"
+                :owner-user-id="leadOwnerUserId"
+                :auth-user-id="authUserIdNumber"
+                :teacher-name="name"
+                :viewer-name="viewerLeadName"
+                :viewer-email="viewerLeadEmail"
+                :default-location="cityState"
+                :default-subject="defaultLeadSubject"
+                @created="onLeadCreatedFromProfile"
+              />
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <Teleport to="body">
         <div

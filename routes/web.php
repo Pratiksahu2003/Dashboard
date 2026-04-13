@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\BroadcastingAuthProxyController;
 use App\Http\Controllers\FirebaseWebConfigController;
+use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\Pages\AiAdviserController;
 use App\Http\Controllers\Pages\ChatController;
 use App\Http\Controllers\Pages\ContactController;
@@ -10,19 +11,19 @@ use App\Http\Controllers\Pages\GoogleWorkspaceController;
 use App\Http\Controllers\Pages\GoogleWorkspacePagesController;
 use App\Http\Controllers\Pages\HomeController;
 use App\Http\Controllers\Pages\LeadController;
+use App\Http\Controllers\Pages\LeadCreateController;
 use App\Http\Controllers\Pages\MarketplaceController;
 use App\Http\Controllers\Pages\NotesController;
 use App\Http\Controllers\Pages\NotificationsController;
 use App\Http\Controllers\Pages\PaymentsController;
 use App\Http\Controllers\Pages\PortfolioController;
 use App\Http\Controllers\Pages\ProfileController;
-use App\Http\Controllers\Pages\SubscriptionsController;
 use App\Http\Controllers\Pages\StudyRequirementsController;
+use App\Http\Controllers\Pages\SubscriptionsController;
 use App\Http\Controllers\Pages\SupportTicketDetailsController;
 use App\Http\Controllers\Pages\SupportTicketsCreateController;
 use App\Http\Controllers\Pages\SupportTicketsExistingController;
 use App\Http\Controllers\Pages\TeacherController;
-use App\Http\Controllers\LogoutController;
 use App\Http\Controllers\SyncSpaAuthCacheController;
 use Illuminate\Support\Facades\Route;
 
@@ -42,6 +43,7 @@ Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNum
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/ai-adviser', AiAdviserController::class)->name('ai-adviser');
+    Route::get('/leads/create', LeadCreateController::class)->name('leads.create');
     Route::get('/leads', LeadController::class)->name('leads');
     Route::get('/google-workspace', GoogleWorkspaceController::class)->name('google-workspace');
     Route::get('/google-workspace/overview', [GoogleWorkspacePagesController::class, 'overview'])->name('google-workspace.overview');

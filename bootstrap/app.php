@@ -1,9 +1,14 @@
 <?php
 
+use App\Http\Middleware\EnsureAuthenticated;
+use App\Http\Middleware\EnsureGuest;
+use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HydrateInertiaApiUser;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Middleware\TrustProxies;
+use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,11 +23,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             // HTTP/2 push Link headers — must run before response is sent.
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            AddLinkHeadersForPreloadedAssets::class,
             // Security headers on every response.
-            \App\Http\Middleware\SecurityHeaders::class,
+            SecurityHeaders::class,
+            // Resolve API session user for Inertia `auth.user` on public pages (before shared props).
+            HydrateInertiaApiUser::class,
             // Share Inertia props. Authentication is handled by EnsureGuest and EnsureAuthenticated middleware.
-            \App\Http\Middleware\HandleInertiaRequests::class,
+            HandleInertiaRequests::class,
         ]);
 
         // Rate limiting backed by Redis — accurate sliding window counters.
@@ -35,8 +42,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Register middleware aliases for route groups
         $middleware->alias([
-            'guest' => \App\Http\Middleware\EnsureGuest::class,
-            'auth' => \App\Http\Middleware\EnsureAuthenticated::class,
+            'guest' => EnsureGuest::class,
+            'auth' => EnsureAuthenticated::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
