@@ -69,16 +69,29 @@ const instituteTypeLabel = computed(() => optLabel(profile.value?.institute_type
 const instituteCategoryLabel = computed(() => optLabel(profile.value?.institute_category));
 const establishmentLabel = computed(() => optLabel(profile.value?.establishment_year));
 
-const descriptionPlain = computed(() => {
-  const raw = profile.value?.description;
-  if (raw == null || String(raw).trim() === '') return null;
-  return String(raw).replace(/\r\n/g, '\n').trim();
+/** Normalize API text (CRLF, CR, literal newlines) for `whitespace-pre-line` display. */
+function normalizeAboutText(raw) {
+  if (raw == null || String(raw).trim() === '') return '';
+  return String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+}
+
+/** Full about copy: institute description plus profile/user bio when the API returns both. */
+const aboutPlain = computed(() => {
+  const desc = normalizeAboutText(profile.value?.description ?? profile.value?.institute_description);
+  const bio = normalizeAboutText(profile.value?.bio ?? user.value?.bio);
+  if (!desc && !bio) return null;
+  if (desc && !bio) return desc;
+  if (!desc && bio) return bio;
+  if (desc === bio) return desc;
+  if (bio.includes(desc)) return bio;
+  if (desc.includes(bio)) return desc;
+  return `${desc}\n\n${bio}`;
 });
 
 const DEFAULT_ABOUT =
   'This institute lists programs and contact details on SuGanta. Explore courses, facilities, and reach out from this page.';
 
-const aboutDisplay = computed(() => descriptionPlain.value || DEFAULT_ABOUT);
+const aboutDisplay = computed(() => aboutPlain.value || DEFAULT_ABOUT);
 
 const specializations = computed(() =>
   Array.isArray(profile.value?.specializations) ? profile.value.specializations : [],
@@ -454,8 +467,8 @@ const metaDescription = computed(() => {
   if (!name.value) {
     return 'Discover schools and institutes on SuGanta — programs, facilities, and contact options.';
   }
-  const one = descriptionPlain.value
-    ? descriptionPlain.value.replace(/\s+/g, ' ').trim().slice(0, 140)
+  const one = aboutPlain.value
+    ? aboutPlain.value.replace(/\s+/g, ' ').trim().slice(0, 140)
     : `${name.value} is listed on SuGanta with programs and contact details.`;
   return one.length > 160 ? `${one.slice(0, 157)}…` : one;
 });
@@ -760,7 +773,7 @@ onMounted(loadInstitute);
           <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
             <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
-            <p class="relative max-w-3xl whitespace-pre-line text-base leading-[1.7] sm:text-lg" :class="descriptionPlain ? 'text-slate-700' : 'text-slate-500'">
+            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] sm:text-lg" :class="aboutPlain ? 'text-slate-700' : 'text-slate-500'">
               {{ aboutDisplay }}
             </p>
           </div>
