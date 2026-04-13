@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { Link, router, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InstituteCard from '@/Components/InstituteCard.vue';
+import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getInstitute, instituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
@@ -103,6 +104,71 @@ const whatsapp = computed(() => profile.value?.whatsapp ?? '');
 const website = computed(() => profile.value?.website ?? '');
 const address = computed(() => profile.value?.address ?? '');
 
+/** Institute show API may nest portfolio under `profile.portfolio` (or top-level `portfolio`). */
+const portfolioRecord = computed(() => {
+  const p = profile.value?.portfolio ?? data.value?.portfolio;
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  return p;
+});
+
+const portfolioImages = computed(() => {
+  const imgs = portfolioRecord.value?.images;
+  if (!Array.isArray(imgs)) return [];
+  return imgs
+    .map((x) => (x && typeof x === 'object' && x.url ? String(x.url).trim() : null))
+    .filter(Boolean);
+});
+
+const portfolioFiles = computed(() => {
+  const files = portfolioRecord.value?.files;
+  if (!Array.isArray(files)) return [];
+  return files.filter((f) => f && typeof f === 'object' && f.url);
+});
+
+const portfolioTagList = computed(() => {
+  const p = portfolioRecord.value;
+  if (!p) return [];
+  if (Array.isArray(p.tags_array) && p.tags_array.length) {
+    return p.tags_array.map((t) => String(t).trim()).filter(Boolean);
+  }
+  if (typeof p.tags === 'string' && p.tags.trim()) {
+    return p.tags.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  return [];
+});
+
+const portfolioCategoryLabels = computed(() => {
+  const p = portfolioRecord.value;
+  if (!p) return [];
+  if (Array.isArray(p.categories_array) && p.categories_array.length) {
+    return p.categories_array.map((c) => String(c).trim()).filter(Boolean);
+  }
+  if (p.category && String(p.category).trim()) {
+    return [String(p.category).trim()];
+  }
+  return [];
+});
+
+const hasPortfolioContent = computed(() => {
+  const p = portfolioRecord.value;
+  if (!p) return false;
+  const desc = p.description && String(p.description).replace(/<[^>]*>/g, '').trim();
+  const title = p.title && String(p.title).trim();
+  return !!(desc || title || portfolioImages.value.length || portfolioFiles.value.length);
+});
+
+/** Profile website, or portfolio public URL (many institutes only set the latter). */
+const publicWebsiteUrl = computed(() => {
+  const w = String(website.value ?? '').trim();
+  if (w) return /^https?:\/\//i.test(w) ? w : `https://${w}`;
+  const pu = portfolioRecord.value?.url;
+  if (pu && String(pu).trim()) {
+    const s = String(pu).trim();
+    return /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  }
+  return '';
+});
+
 const relatedInstitutes = computed(() =>
   Array.isArray(data.value?.related_institutes) ? data.value.related_institutes : [],
 );
@@ -179,7 +245,13 @@ const viewerLeadName = computed(() => {
 });
 const viewerLeadEmail = computed(() => String(authUser.value?.email ?? '').trim());
 const viewerLeadPhone = computed(() => String(authUser.value?.phone ?? '').trim());
-const defaultLeadSubject = computed(() => (coursesOffered.value[0] ? String(coursesOffered.value[0]) : ''));
+const defaultLeadSubject = computed(() => {
+  if (coursesOffered.value[0]) return String(coursesOffered.value[0]);
+  const pt = portfolioRecord.value?.title;
+  if (pt && String(pt).trim()) return String(pt).trim();
+  if (portfolioTagList.value[0]) return portfolioTagList.value[0];
+  return '';
+});
 
 const isSelfProfile = computed(
   () =>
@@ -592,12 +664,147 @@ onMounted(loadInstitute);
       </div>
 
       <div
+        v-if="establishmentLabel || counts.total_students || counts.total_teachers || counts.total_branches != null"
+        class="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4"
+      >
+        <div
+          v-if="establishmentLabel"
+          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+        >
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Established</p>
+          <p class="mt-1 text-lg font-bold text-slate-900">{{ establishmentLabel }}</p>
+        </div>
+        <div
+          v-if="counts.total_students"
+          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+        >
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Students</p>
+          <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_students }}</p>
+        </div>
+        <div
+          v-if="counts.total_teachers"
+          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+        >
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Teaching staff</p>
+          <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_teachers }}</p>
+        </div>
+        <div
+          v-if="counts.total_branches != null"
+          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+        >
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Branches</p>
+          <p class="mt-1 text-lg font-bold tabular-nums text-slate-900">{{ counts.total_branches }}</p>
+        </div>
+      </div>
+
+      <div
         class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       >
         <div class="min-w-0 space-y-8">
-          <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
-            <h2 class="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">About</h2>
-            <p class="whitespace-pre-line leading-relaxed" :class="descriptionPlain ? 'text-slate-700' : 'text-slate-500'">{{ aboutDisplay }}</p>
+          <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
+            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
+            <p class="relative max-w-3xl whitespace-pre-line text-base leading-[1.7] sm:text-lg" :class="descriptionPlain ? 'text-slate-700' : 'text-slate-500'">
+              {{ aboutDisplay }}
+            </p>
+          </div>
+
+          <div
+            v-if="hasPortfolioContent"
+            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_12px_40px_-16px_rgba(79,70,229,0.2)]"
+          >
+            <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/[0.04] via-transparent to-indigo-600/[0.06]"></div>
+            <div class="relative p-6 sm:p-8">
+              <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0">
+                  <p class="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-violet-600">Portfolio &amp; showcase</p>
+                  <h2 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                    {{ portfolioRecord?.title || 'Programs & highlights' }}
+                  </h2>
+                  <p v-if="portfolioRecord?.order != null" class="mt-1 text-xs text-slate-400">Display order {{ portfolioRecord.order }}</p>
+                </div>
+                <span
+                  v-if="portfolioRecord?.is_featured"
+                  class="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80"
+                >
+                  Featured portfolio
+                </span>
+              </div>
+
+              <div v-if="portfolioCategoryLabels.length" class="mb-4 flex flex-wrap gap-2">
+                <span
+                  v-for="(cat, ci) in portfolioCategoryLabels"
+                  :key="`cat-${ci}`"
+                  class="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                >
+                  {{ cat }}
+                </span>
+              </div>
+
+              <div v-if="portfolioTagList.length" class="mb-6 flex flex-wrap gap-1.5">
+                <span
+                  v-for="(tag, ti) in portfolioTagList"
+                  :key="`tag-${ti}`"
+                  class="rounded-lg border border-indigo-100/80 bg-indigo-50/80 px-2.5 py-1 text-xs font-medium text-indigo-900"
+                >
+                  {{ tag }}
+                </span>
+              </div>
+
+              <div
+                v-if="portfolioRecord?.description"
+                class="institute-portfolio-prose prose prose-slate max-w-none text-slate-700 prose-headings:font-bold prose-headings:text-slate-900 prose-a:text-indigo-600 prose-strong:text-slate-900"
+                v-html="portfolioRecord.description"
+              ></div>
+
+              <div v-if="portfolioImages.length" class="mt-8">
+                <h3 class="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Photos</h3>
+                <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  <button
+                    v-for="(purl, pi) in portfolioImages"
+                    :key="pi"
+                    type="button"
+                    class="group relative block overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 text-left shadow-md ring-1 ring-slate-900/5 transition hover:border-indigo-300 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    @click="galleryLightboxUrl = purl"
+                  >
+                    <img
+                      :src="purl"
+                      :alt="portfolioRecord?.title ? `${portfolioRecord.title} — ${pi + 1}` : `Portfolio ${pi + 1}`"
+                      class="h-36 w-full object-cover transition duration-500 group-hover:scale-[1.04] md:h-44"
+                    />
+                    <span class="sr-only">View full size</span>
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="portfolioFiles.length" class="mt-8 border-t border-slate-100 pt-8">
+                <h3 class="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Brochures &amp; documents</h3>
+                <ul class="space-y-3">
+                  <li
+                    v-for="(f, fi) in portfolioFiles"
+                    :key="fi"
+                    class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 transition hover:border-indigo-200 hover:bg-white"
+                  >
+                    <span class="min-w-0 truncate text-sm font-semibold text-slate-800" :title="f.name || f.path">{{ f.name || f.path || 'Download' }}</span>
+                    <a
+                      :href="f.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="shrink-0 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-indigo-500"
+                    >
+                      Open
+                    </a>
+                  </li>
+                </ul>
+              </div>
+
+              <div v-if="publicWebsiteUrl && !website" class="mt-6 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/40 px-4 py-3 text-sm text-indigo-950">
+                <span class="font-semibold">Official site:</span>
+                <a :href="publicWebsiteUrl" target="_blank" rel="noopener noreferrer" class="ml-1 break-all font-medium underline-offset-2 hover:underline">
+                  {{ publicWebsiteUrl.replace(/^https?:\/\//, '') }}
+                </a>
+              </div>
+            </div>
           </div>
 
           <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
@@ -656,10 +863,20 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <div v-if="address || pincode" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
-            <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Address</h2>
+          <div v-if="address || pincode || (profile.latitude != null && profile.longitude != null)" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+            <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Location</h2>
             <p v-if="address" class="font-medium leading-relaxed text-slate-800">{{ address }}</p>
             <p v-if="pincode" class="mt-2 text-sm text-slate-600">PIN: {{ pincode }}</p>
+            <a
+              v-if="profile.latitude != null && profile.longitude != null"
+              :href="`https://www.google.com/maps?q=${profile.latitude},${profile.longitude}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:border-indigo-200 hover:bg-white"
+            >
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+              Open in Maps
+            </a>
           </div>
 
           <div v-if="coursesOffered.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
@@ -826,35 +1043,12 @@ onMounted(loadInstitute);
                 No published reviews yet.
               </div>
               <ul v-else class="flex flex-col gap-4">
-                <li
+                <PublicReviewCard
                   v-for="rev in reviewList"
-                  v-show="!rev.status || rev.status === 'published'"
                   :key="rev.id"
-                  class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm ring-1 ring-slate-100/80"
-                >
-                  <div class="flex flex-wrap items-start gap-3">
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-sm font-bold text-white ring-2 ring-slate-100">
-                      {{ (rev.reviewer?.name || '?').slice(0, 1).toUpperCase() }}
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-semibold text-slate-900">{{ rev.reviewer?.name ?? 'User' }}</span>
-                        <span class="text-xs text-slate-400">{{ rev.time_ago || rev.reviewed_at || '' }}</span>
-                      </div>
-                      <div class="mt-1 flex items-center gap-0.5">
-                        <svg v-for="i in 5" :key="i" class="h-4 w-4" :class="i <= (rev.rating || 0) ? 'text-amber-400' : 'text-slate-200'" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      </div>
-                      <h3 v-if="rev.title" class="mt-2 font-semibold text-slate-800">{{ rev.title }}</h3>
-                      <p v-if="rev.comment" class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ rev.comment }}</p>
-                      <div v-if="rev.reply" class="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-slate-700">
-                        <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-indigo-600">Response</span>
-                        <p class="whitespace-pre-line">{{ rev.reply }}</p>
-                      </div>
-                    </div>
-                  </div>
-                </li>
+                  :review="rev"
+                  reply-label="Response from institute"
+                />
               </ul>
 
               <div v-if="reviewPagination.last_page > reviewPagination.current_page" class="mt-6 flex justify-center">
@@ -894,8 +1088,10 @@ onMounted(loadInstitute);
               <p v-if="phonePrimary"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">Phone</span>{{ phonePrimary }}</p>
               <p v-if="whatsapp"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">WhatsApp</span>{{ whatsapp }}</p>
             </div>
-            <p v-if="website" class="relative mb-4 text-sm">
-              <a :href="website" target="_blank" rel="noopener noreferrer" class="font-semibold underline-offset-2 hover:underline">Website</a>
+            <p v-if="publicWebsiteUrl" class="relative mb-4 text-sm">
+              <a :href="publicWebsiteUrl" target="_blank" rel="noopener noreferrer" class="break-all font-semibold underline-offset-2 hover:underline">
+                {{ publicWebsiteUrl.replace(/^https?:\/\//, '') }}
+              </a>
             </p>
             <button
               v-if="isLoggedIn"
@@ -1027,3 +1223,24 @@ onMounted(loadInstitute);
     </Teleport>
   </AppLayout>
 </template>
+
+<style scoped>
+.institute-portfolio-prose :deep(p) {
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+.institute-portfolio-prose :deep(p:first-child) {
+  margin-top: 0;
+}
+.institute-portfolio-prose :deep(ul),
+.institute-portfolio-prose :deep(ol) {
+  margin: 0.75em 0;
+  padding-left: 1.25rem;
+}
+.institute-portfolio-prose :deep(li) {
+  margin: 0.35em 0;
+}
+.institute-portfolio-prose :deep(a) {
+  word-break: break-word;
+}
+</style>

@@ -24,6 +24,77 @@ function normaliseError(e) {
     return err;
 }
 
+/** Strip a single layer of wrapping quotes some APIs return on comments. */
+function normaliseReviewRow(rev) {
+    if (!rev || typeof rev !== 'object') return rev;
+    const out = { ...rev };
+    if (typeof out.comment === 'string') {
+        let s = out.comment.trim();
+        if (s.length >= 2 && ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'")))) {
+            s = s.slice(1, -1);
+        }
+        out.comment = s;
+    }
+    return out;
+}
+
+/**
+ * Supports both documented shape `data: { data: [], current_page, … }` and live shape
+ * `data: []` with Laravel `meta` + `links` at the root.
+ */
+function parseReviewsListPayload(body, fallbackPage, fallbackPerPage) {
+    const rootData = body?.data;
+    const meta = body?.meta && typeof body.meta === 'object' ? body.meta : null;
+
+    let rows = [];
+    let current_page = fallbackPage;
+    let last_page = 1;
+    let total = 0;
+    let per_page = fallbackPerPage;
+
+    if (Array.isArray(rootData)) {
+        rows = rootData;
+        if (meta) {
+            current_page = Number(meta.current_page) > 0 ? Number(meta.current_page) : fallbackPage;
+            last_page = Number(meta.last_page) > 0 ? Number(meta.last_page) : 1;
+            total = Number(meta.total) >= 0 ? Number(meta.total) : rows.length;
+            per_page = Number(meta.per_page) > 0 ? Number(meta.per_page) : fallbackPerPage;
+        } else {
+            total = rows.length;
+            last_page = 1;
+        }
+    } else if (rootData && typeof rootData === 'object' && !Array.isArray(rootData)) {
+        rows = Array.isArray(rootData.data) ? rootData.data : [];
+        current_page = Number(rootData.current_page ?? meta?.current_page) > 0
+            ? Number(rootData.current_page ?? meta?.current_page)
+            : fallbackPage;
+        last_page = Number(rootData.last_page ?? meta?.last_page) > 0
+            ? Number(rootData.last_page ?? meta?.last_page)
+            : 1;
+        total = Number(rootData.total ?? meta?.total) >= 0
+            ? Number(rootData.total ?? meta?.total)
+            : rows.length;
+        per_page = Number(rootData.per_page ?? meta?.per_page) > 0
+            ? Number(rootData.per_page ?? meta?.per_page)
+            : fallbackPerPage;
+    }
+
+    return {
+        items: rows.map(normaliseReviewRow),
+        pagination: {
+            current_page,
+            last_page,
+            total,
+            per_page,
+        },
+    };
+}
+
+const reviewFetchHeaders = {
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+};
+
 /**
  * @param {number} reviewableUserId
  * @returns {Promise<object|null>} stats payload or null
@@ -34,7 +105,8 @@ export async function getTeacherReviewStats(reviewableUserId) {
     try {
         const body = await api.get('/reviews/stats', {
             baseURL: getApiV2BaseUrl(),
-            params: { reviewable_type: 'user', reviewable_id: id },
+            params: { reviewable_type: 'user', reviewable_id: id, _cb: Date.now() },
+            headers: reviewFetchHeaders,
             skipAuthRedirect: true,
         });
         return body?.data ?? null;
@@ -66,20 +138,12 @@ export async function listTeacherReviews(reviewableUserId, opts = {}) {
                 sort,
                 per_page,
                 page,
+                _cb: Date.now(),
             },
+            headers: reviewFetchHeaders,
             skipAuthRedirect: true,
         });
-        const inner = body?.data ?? {};
-        const rows = Array.isArray(inner.data) ? inner.data : [];
-        return {
-            items: rows,
-            pagination: {
-                current_page: inner.current_page ?? page,
-                last_page: inner.last_page ?? 1,
-                total: inner.total ?? rows.length,
-                per_page: inner.per_page ?? per_page,
-            },
-        };
+        return parseReviewsListPayload(body, page, per_page);
     } catch (e) {
         throw normaliseError(e);
     }
@@ -99,7 +163,8 @@ export async function checkReviewEligibility(reviewableUserId) {
     try {
         const body = await api.get('/reviews/check', {
             baseURL: getApiV2BaseUrl(),
-            params: { reviewable_type: 'user', reviewable_id: id },
+            params: { reviewable_type: 'user', reviewable_id: id, _cb: Date.now() },
+            headers: reviewFetchHeaders,
         });
         return body?.data ?? {};
     } catch (e) {

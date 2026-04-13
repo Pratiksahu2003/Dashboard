@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { Link, router, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
+import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getTeacher, teacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
@@ -961,66 +962,12 @@ onMounted(loadTeacher);
             No published reviews yet.
           </div>
           <ul v-else class="flex flex-col gap-4">
-            <li
+            <PublicReviewCard
               v-for="rev in reviewList"
-              v-show="!rev.status || rev.status === 'published'"
               :key="rev.id"
-              class="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm ring-1 ring-slate-100/80"
-            >
-              <div class="flex flex-wrap items-start gap-3">
-                <img
-                  v-if="rev.reviewer?.avatar"
-                  :src="rev.reviewer.avatar"
-                  alt=""
-                  class="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-slate-100"
-                />
-                <div
-                  v-else
-                  class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 text-sm font-bold text-white ring-2 ring-slate-100"
-                >
-                  {{ (rev.reviewer?.name || '?').slice(0, 1).toUpperCase() }}
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <span class="font-semibold text-slate-900">{{ rev.reviewer?.name ?? 'Student' }}</span>
-                    <span v-if="rev.is_verified" class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-800">Verified</span>
-                    <span class="text-xs text-slate-400">{{ rev.time_ago || rev.reviewed_at || '' }}</span>
-                  </div>
-                  <div class="mt-1 flex items-center gap-0.5">
-                    <svg
-                      v-for="i in 5"
-                      :key="i"
-                      class="h-4 w-4"
-                      :class="i <= (rev.rating || 0) ? 'text-amber-400' : 'text-slate-200'"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  </div>
-                  <h3 v-if="rev.title" class="mt-2 font-semibold text-slate-800">{{ rev.title }}</h3>
-                  <p v-if="rev.comment" class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ rev.comment }}</p>
-                  <div v-if="rev.tags?.length" class="mt-3 flex flex-wrap gap-1.5">
-                    <span
-                      v-for="(tag, ti) in rev.tags"
-                      :key="ti"
-                      class="rounded-lg bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-800"
-                    >{{ tag }}</span>
-                  </div>
-                  <p v-if="rev.helpful_count != null && rev.helpful_count > 0" class="mt-2 text-xs font-medium text-slate-500">
-                    {{ rev.helpful_count }} found this helpful
-                  </p>
-                  <div
-                    v-if="rev.reply"
-                    class="mt-4 rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3 text-sm text-slate-700"
-                  >
-                    <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-indigo-600">Response from tutor</span>
-                    <p class="whitespace-pre-line">{{ rev.reply }}</p>
-                    <p v-if="rev.replied_at" class="mt-1 text-xs text-slate-500">{{ rev.replied_at }}</p>
-                  </div>
-                </div>
-              </div>
-            </li>
+              :review="rev"
+              reply-label="Response from tutor"
+            />
           </ul>
 
           <div v-if="reviewPagination.last_page > reviewPagination.current_page" class="mt-6 flex justify-center">
