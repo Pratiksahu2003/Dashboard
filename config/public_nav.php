@@ -60,29 +60,6 @@ return [
     'footer' => [
         'tagline' => 'Connecting learners, teachers, and institutes — all in one place.',
 
-        'social' => [
-            [
-                'label' => 'Facebook',
-                'href'  => 'https://www.facebook.com/sugantaofficial',
-                'icon'  => 'facebook',
-            ],
-            [
-                'label' => 'Instagram',
-                'href'  => 'https://www.instagram.com/sugantaofficial',
-                'icon'  => 'instagram',
-            ],
-            [
-                'label' => 'YouTube',
-                'href'  => 'https://www.youtube.com/@suganta',
-                'icon'  => 'youtube',
-            ],
-            [
-                'label' => 'LinkedIn',
-                'href'  => 'https://www.linkedin.com/company/suganta',
-                'icon'  => 'linkedin',
-            ],
-        ],
-
         'columns' => [
             [
                 'heading' => 'Platform',
@@ -133,8 +110,6 @@ return [
                 'store' => 'google',
             ],
         ],
-
-        'copyright' => '© ' . date('Y') . ' SuGanta International. All rights reserved.',
     ],
 
 ];

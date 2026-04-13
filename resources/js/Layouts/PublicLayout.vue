@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import PublicHeader from '@/Components/Public/PublicHeader.vue';
 import PublicFooter from '@/Components/Public/PublicFooter.vue';
@@ -18,6 +19,7 @@ const props = defineProps({
 // Prefer prop, fall back to Inertia shared props.
 const page = usePage();
 const nav = props.publicNav ?? page.props.publicNav ?? null;
+const company = computed(() => page.props.company ?? {});
 </script>
 
 <template>
@@ -29,6 +31,6 @@ const nav = props.publicNav ?? page.props.publicNav ?? null;
             <slot />
         </main>
 
-        <PublicFooter v-if="nav" :footer="nav.footer" />
+        <PublicFooter v-if="nav" :footer="nav.footer" :company="company" />
     </div>
 </template>
