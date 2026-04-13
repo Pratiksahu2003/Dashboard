@@ -19,7 +19,7 @@ const { success: alertSuccess, error: alertError } = useAlerts();
 
 const props = defineProps({
   id: { type: Number, required: true },
-  /** From `/teachers/{slug}/{id}`; null when served from legacy `/teachers/{id}`. */
+  /** From `/teachers/{id}/{slug}`; null when served from legacy `/teachers/{id}`. */
   slug: { type: String, default: null },
 });
 
@@ -260,6 +260,7 @@ const viewerLeadName = computed(() => {
   return String(u.name ?? '').trim();
 });
 const viewerLeadEmail = computed(() => String(authUser.value?.email ?? '').trim());
+const viewerLeadPhone = computed(() => String(authUser.value?.phone ?? '').trim());
 const defaultLeadSubject = computed(() => {
   const first = subjects.value[0];
   return first?.name ? String(first.name) : '';
@@ -439,7 +440,10 @@ const heroMonthlyLine = computed(() => {
   return monthlyRateRange.value || '';
 });
 
-const hasHeroRates = computed(() => !!(heroHourlyLine.value || heroMonthlyLine.value));
+/** Prefer hourly in UI; only show monthly when hourly is absent. */
+const showHeroHourlyRate = computed(() => !!heroHourlyLine.value);
+const showHeroMonthlyRate = computed(() => !heroHourlyLine.value && !!heroMonthlyLine.value);
+const hasHeroRates = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
 
 const canonicalPath = computed(() => (t.value ? teacherProfilePath(t.value) : null));
 const canonicalUrl = computed(() => {
@@ -660,11 +664,11 @@ onMounted(loadTeacher);
                 v-if="hasHeroRates"
                 class="shrink-0 space-y-3 rounded-2xl border border-indigo-100/80 bg-white/90 px-5 py-4 text-right shadow-md shadow-indigo-500/5 backdrop-blur-sm"
               >
-                <div v-if="heroHourlyLine">
+                <div v-if="showHeroHourlyRate">
                   <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
                   <div class="text-xl font-bold tabular-nums text-indigo-600 sm:text-2xl">{{ heroHourlyLine }}</div>
                 </div>
-                <div v-if="heroMonthlyLine">
+                <div v-else-if="showHeroMonthlyRate">
                   <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
                   <div class="text-xl font-bold text-indigo-600 sm:text-2xl">{{ heroMonthlyLine }}</div>
                 </div>
@@ -723,8 +727,8 @@ onMounted(loadTeacher);
               <div v-if="fieldOfStudy" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Field of study</span><p class="text-slate-900 font-semibold">{{ fieldOfStudy }}</p></div>
               <div v-if="graduationYear" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Graduation year</span><p class="text-slate-900 font-semibold">{{ graduationYear }}</p></div>
               <div v-if="specialization" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Specialization</span><p class="text-slate-900 font-semibold">{{ specialization }}</p></div>
-              <div v-if="heroHourlyLine" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Hourly rate</span><p class="text-slate-900 font-semibold">{{ heroHourlyLine }}</p></div>
-              <div v-if="heroMonthlyLine" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Monthly rate</span><p class="text-slate-900 font-semibold">{{ heroMonthlyLine }}</p></div>
+              <div v-if="showHeroHourlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Hourly rate</span><p class="text-slate-900 font-semibold">{{ heroHourlyLine }}</p></div>
+              <div v-else-if="showHeroMonthlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Monthly rate</span><p class="text-slate-900 font-semibold">{{ heroMonthlyLine }}</p></div>
               <div v-if="teachingMode" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Teaching mode</span><p class="text-slate-900 font-semibold">{{ teachingMode }}</p></div>
               <div v-if="availability" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Availability</span><p class="text-slate-900 font-semibold">{{ availability }}</p></div>
               <div v-if="travelRadius" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Travel radius</span><p class="text-slate-900 font-semibold">{{ travelRadius }}</p></div>
@@ -1153,8 +1157,10 @@ onMounted(loadTeacher);
           @click.self="closeLeadModal"
         >
           <div class="flex max-h-[min(92vh,820px)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-5 py-4">
-              <h2 id="lead-modal-title" class="text-lg font-bold text-slate-900">Request contact</h2>
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30 px-5 py-4">
+              <h2 id="lead-modal-title" class="text-lg font-bold tracking-tight text-slate-900">
+                Contact {{ name.split(' ')[0] || 'tutor' }}
+              </h2>
               <button
                 type="button"
                 class="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-50"
@@ -1166,12 +1172,13 @@ onMounted(loadTeacher);
             </div>
             <div class="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
               <CreateLeadForm
-                class="!border-0 !bg-transparent !p-0 !shadow-none"
+                compact
                 :owner-user-id="leadOwnerUserId"
                 :auth-user-id="authUserIdNumber"
                 :teacher-name="name"
                 :viewer-name="viewerLeadName"
                 :viewer-email="viewerLeadEmail"
+                :viewer-phone="viewerLeadPhone"
                 :default-location="cityState"
                 :default-subject="defaultLeadSubject"
                 @created="onLeadCreatedFromProfile"

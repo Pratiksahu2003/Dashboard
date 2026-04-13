@@ -32,7 +32,7 @@ export function slugifyTeacherName(name) {
 }
 
 /**
- * SEO slug for `/teachers/{slug}/{id}`. Strips a trailing `-{id}` from API `slug` when present.
+ * SEO slug for `/teachers/{id}/{slug}`. Strips a trailing `-{id}` from API `slug` when present.
  */
 export function teacherSeoSlug(teacher) {
     if (!teacher || typeof teacher !== 'object') return 'teacher';
@@ -46,12 +46,12 @@ export function teacherSeoSlug(teacher) {
     );
 }
 
-/** Canonical Inertia path `/teachers/{slug}/{id}` (public API uses numeric user id). */
+/** Canonical Inertia path `/teachers/{id}/{slug}` (public API uses numeric user id). */
 export function teacherProfilePath(teacher) {
     const id = resolveTeacherUserId(teacher);
     if (!id) return null;
     const slug = teacherSeoSlug(teacher);
-    return `/teachers/${slug}/${id}`;
+    return `/teachers/${id}/${slug}`;
 }
 
 /** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */

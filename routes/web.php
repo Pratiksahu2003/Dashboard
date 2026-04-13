@@ -36,7 +36,14 @@ Route::post('/broadcasting/auth', BroadcastingAuthProxyController::class);
 
 // Public teacher directory (uses public API; must not require auth)
 Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
-Route::get('/teachers/{slug}/{id}', [TeacherController::class, 'show'])->whereNumber('id')->name('teacher-profile');
+Route::get('/teachers/{id}/{slug}', [TeacherController::class, 'show'])
+    ->whereNumber('id')
+    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]*')
+    ->name('teacher-profile');
+/** Previous `/teachers/{slug}/{id}` — 301 to canonical `{id}/{slug}`. */
+Route::get('/teachers/{legacySlug}/{legacyId}', function (string $legacySlug, int $legacyId) {
+    return redirect()->route('teacher-profile', ['id' => $legacyId, 'slug' => $legacySlug], 301);
+})->whereNumber('legacyId')->where('legacySlug', '[a-zA-Z][a-zA-Z0-9\-]*');
 Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
 
 // Protected routes (authentication required)

@@ -10,10 +10,15 @@ const props = defineProps({
   /** Signed-in viewer id (creator). Sent as `user_id` in the JSON body when set; API also records the session user. */
   authUserId: { type: Number, default: null },
   teacherName: { type: String, default: '' },
+  /** From account — used as lead `name` (no manual field). */
   viewerName: { type: String, default: '' },
   viewerEmail: { type: String, default: '' },
+  /** From account — required by API for `phone`. */
+  viewerPhone: { type: String, default: '' },
   defaultLocation: { type: String, default: '' },
   defaultSubject: { type: String, default: '' },
+  /** When true, minimal chrome for use inside a dialog (no large title / hairline). */
+  compact: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['created']);
@@ -28,9 +33,6 @@ const sourceOptions = ['website', 'social_media', 'referral', 'advertisement', '
 const priorityOptions = ['low', 'medium', 'high', 'urgent'];
 
 const form = ref({
-  name: '',
-  phone: '',
-  email: '',
   type: 'student',
   source: 'website',
   subject_interest: '',
@@ -44,18 +46,19 @@ const isSelfLead = computed(
   () => props.authUserId != null && Number(props.authUserId) === Number(props.ownerUserId),
 );
 
+const resolvedName = computed(() => props.viewerName?.trim() || '');
+const resolvedPhone = computed(() => props.viewerPhone?.trim() || '');
+const resolvedEmail = computed(() => props.viewerEmail?.trim() || '');
+
+const profileReadyForLead = computed(() => resolvedName.value.length > 0 && resolvedPhone.value.length > 0);
+
 function applyPrefills() {
-  if (props.viewerName) form.value.name = props.viewerName;
-  if (props.viewerEmail) form.value.email = props.viewerEmail;
   if (props.defaultLocation) form.value.location = props.defaultLocation;
   if (props.defaultSubject) form.value.subject_interest = props.defaultSubject;
 }
 
 function resetForm() {
   form.value = {
-    name: '',
-    phone: '',
-    email: '',
     type: 'student',
     source: 'website',
     subject_interest: '',
@@ -76,7 +79,7 @@ watch(
 );
 
 watch(
-  () => [props.viewerName, props.viewerEmail, props.defaultLocation, props.defaultSubject],
+  () => [props.defaultLocation, props.defaultSubject],
   () => applyPrefills(),
 );
 
@@ -106,10 +109,12 @@ async function submit() {
     showError('You cannot create a lead for your own profile.', 'Lead');
     return;
   }
-  const name = form.value.name?.trim();
-  const phone = form.value.phone?.trim();
-  if (!name || !phone) {
-    showError('Name and phone are required.', 'Lead');
+  if (!resolvedName.value) {
+    showError('Your account needs a display name. Update your profile and try again.', 'Lead');
+    return;
+  }
+  if (!resolvedPhone.value) {
+    showError('Add a phone number to your profile to request contact.', 'Lead');
     return;
   }
 
@@ -121,11 +126,11 @@ async function submit() {
 
   const creatorId = Number(props.authUserId);
   const payload = {
-    name,
-    phone,
+    name: resolvedName.value,
+    phone: resolvedPhone.value,
     lead_owner_id: ownerId,
     ...(Number.isFinite(creatorId) && creatorId > 0 ? { user_id: creatorId } : {}),
-    email: form.value.email?.trim() || undefined,
+    ...(resolvedEmail.value ? { email: resolvedEmail.value } : {}),
     type: form.value.type || undefined,
     source: form.value.source || undefined,
     subject_interest: form.value.subject_interest?.trim() || undefined,
@@ -160,143 +165,160 @@ async function submit() {
 
 <template>
   <section
-    class="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+    :class="[
+      'relative overflow-hidden bg-white',
+      compact
+        ? 'rounded-none border-0 shadow-none'
+        : 'rounded-2xl border border-slate-200/90 shadow-[0_20px_50px_-24px_rgba(15,23,42,0.25)] sm:rounded-3xl',
+    ]"
     data-testid="create-lead-form"
   >
-    <div class="mb-6">
-      <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Request contact</h2>
-      <p class="mt-1 text-sm text-slate-500">
-        Send a lead to
-        <span class="font-semibold text-slate-700">{{ teacherName || 'this tutor' }}</span>
-        <template v-if="authUserId"> — signed in as user #{{ authUserId }}</template>.
-        <span class="mt-0.5 block text-xs text-slate-400">Lead owner (this tutor) user id: {{ ownerUserId }}</span>
+    <div
+      v-if="!compact"
+      class="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500"
+      aria-hidden="true"
+    />
+    <div :class="compact ? 'relative' : 'relative p-6 sm:p-8'">
+      <div v-if="!compact" class="mb-8">
+        <h2 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Request contact</h2>
+        <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
+          Your name, phone, and email are taken from your signed-in account and shared with
+          <span class="font-semibold text-slate-800">{{ teacherName || 'this tutor' }}</span>
+          when you send this request.
+        </p>
+      </div>
+      <p v-else class="mb-6 text-sm leading-relaxed text-slate-600">
+        We'll use your account <span class="font-medium text-slate-800">name, phone, and email</span> for this request to
+        <span class="font-semibold text-slate-800">{{ teacherName || 'this tutor' }}</span>.
       </p>
-    </div>
 
-    <div v-if="!authUserId" class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-6 text-center text-sm text-slate-600">
-      <Link href="/login" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
-      to submit your details and create a lead for this teacher.
-    </div>
-
-    <div v-else-if="isSelfLead" class="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-4 text-sm text-amber-900">
-      You are viewing your own profile — leads are for students contacting tutors.
-    </div>
-
-    <form v-else class="space-y-4" @submit.prevent="submit">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Your name *</span>
-          <input
-            v-model="form.name"
-            type="text"
-            required
-            maxlength="255"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            autocomplete="name"
-          />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Phone *</span>
-          <input
-            v-model="form.phone"
-            type="tel"
-            required
-            maxlength="30"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            autocomplete="tel"
-          />
-        </label>
-        <label class="block sm:col-span-2">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Email</span>
-          <input
-            v-model="form.email"
-            type="email"
-            maxlength="255"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            autocomplete="email"
-          />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Type</span>
-          <select
-            v-model="form.type"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Source</span>
-          <select
-            v-model="form.source"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option v-for="s in sourceOptions" :key="s" :value="s">{{ s.replace('_', ' ') }}</option>
-          </select>
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Subject interest</span>
-          <input
-            v-model="form.subject_interest"
-            type="text"
-            maxlength="255"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
-        </label>
-        <label class="block">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Grade / level</span>
-          <input
-            v-model="form.grade_level"
-            type="text"
-            maxlength="100"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
-        </label>
-        <label class="block sm:col-span-2">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Location</span>
-          <input
-            v-model="form.location"
-            type="text"
-            maxlength="255"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
-        </label>
-        <label class="block sm:col-span-2">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Message</span>
-          <textarea
-            v-model="form.message"
-            rows="3"
-            maxlength="5000"
-            class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            placeholder="What would you like to study, timing, mode, etc."
-          />
-        </label>
-        <label class="block sm:col-span-2">
-          <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Priority</span>
-          <select
-            v-model="form.priority"
-            class="w-full max-w-xs rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          >
-            <option v-for="p in priorityOptions" :key="p" :value="p">{{ p }}</option>
-          </select>
-        </label>
+      <div
+        v-if="!authUserId"
+        class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/90 px-5 py-8 text-center"
+      >
+        <p class="text-sm text-slate-600">
+          <Link href="/login" class="font-semibold text-indigo-600 underline-offset-2 hover:text-violet-600 hover:underline">
+            Sign in
+          </Link>
+          to send a contact request using your profile details.
+        </p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3 pt-2">
-        <button
-          type="submit"
-          class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="isSubmitting"
-        >
-          {{ isSubmitting ? 'Submitting…' : 'Submit lead' }}
-        </button>
-        <Link
-          href="/leads"
-          class="text-sm font-semibold text-indigo-600 hover:text-violet-600"
-        >
-          View my leads
-        </Link>
+      <div
+        v-else-if="isSelfLead"
+        class="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 to-orange-50/50 px-5 py-4 text-sm text-amber-950"
+      >
+        You're on your own profile — leads are for learners contacting tutors.
       </div>
-    </form>
+
+      <template v-else>
+        <div
+          v-if="!profileReadyForLead"
+          class="mb-6 rounded-2xl border border-rose-100 bg-rose-50/80 px-5 py-4 text-sm text-rose-900"
+        >
+                   <p class="font-medium">Complete your profile first</p>
+          <ul class="mt-2 list-inside list-disc space-y-1 text-rose-800/90">
+            <li v-if="!resolvedName">Add your name.</li>
+            <li v-if="!resolvedPhone">Add a phone number.</li>
+          </ul>
+          <p class="mt-2 text-sm text-rose-800/80">Both are required for the tutor to reach you.</p>
+          <Link
+            href="/profile"
+            class="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-rose-800 underline-offset-2 hover:underline"
+          >
+            Open profile settings
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
+
+        <form v-else class="space-y-6" @submit.prevent="submit">
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">I am a</span>
+              <select
+                v-model="form.type"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option v-for="t in typeOptions" :key="t" :value="t">{{ t }}</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">How you found them</span>
+              <select
+                v-model="form.source"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option v-for="s in sourceOptions" :key="s" :value="s">{{ s.replace('_', ' ') }}</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">Subject interest</span>
+              <input
+                v-model="form.subject_interest"
+                type="text"
+                maxlength="255"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                placeholder="e.g. Mathematics"
+              />
+            </label>
+            <label class="block">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">Grade / level</span>
+              <input
+                v-model="form.grade_level"
+                type="text"
+                maxlength="100"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                placeholder="Optional"
+              />
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">Location</span>
+              <input
+                v-model="form.location"
+                type="text"
+                maxlength="255"
+                class="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                placeholder="City or area"
+              />
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">Message</span>
+              <textarea
+                v-model="form.message"
+                rows="4"
+                maxlength="5000"
+                class="w-full resize-y rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                placeholder="Goals, schedule, online or in-person — anything that helps the tutor respond."
+              />
+            </label>
+            <label class="block sm:col-span-2">
+              <span class="mb-1.5 block text-sm font-medium text-slate-700">Priority</span>
+              <select
+                v-model="form.priority"
+                class="w-full max-w-xs rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-sm text-slate-900 shadow-sm transition focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              >
+                <option v-for="p in priorityOptions" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="flex flex-col gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="submit"
+              class="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[200px]"
+              :disabled="isSubmitting"
+            >
+              {{ isSubmitting ? 'Sending…' : 'Send request' }}
+            </button>
+            <Link
+              href="/leads"
+              class="text-center text-sm font-medium text-indigo-600 underline-offset-2 hover:text-violet-600 hover:underline sm:text-left"
+            >
+              View my leads
+            </Link>
+          </div>
+        </form>
+      </template>
+    </div>
   </section>
 </template>

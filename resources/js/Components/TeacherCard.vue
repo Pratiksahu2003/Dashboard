@@ -145,13 +145,13 @@
               class="flex-1 sm:flex-none text-left sm:text-right space-y-3"
               data-testid="teacher-rates"
             >
-              <div v-if="hourlyRateLine" data-testid="hourly-rate">
+              <div v-if="showCardHourlyRate" data-testid="hourly-rate">
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hourly</div>
                 <div class="text-lg font-bold leading-tight text-indigo-600 sm:text-xl tabular-nums">
                   {{ hourlyRateLine }}
                 </div>
               </div>
-              <div v-if="monthlyRateLine" data-testid="monthly-rate">
+              <div v-else-if="showCardMonthlyRate" data-testid="monthly-rate">
                 <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Monthly</div>
                 <div class="text-lg font-bold leading-tight text-indigo-600 sm:text-xl">
                   {{ monthlyRateLine }}
@@ -273,7 +273,9 @@ const monthlyRateLine = computed(() => {
   );
 });
 
-const hasAnyRate = computed(() => !!(hourlyRateLine.value || monthlyRateLine.value));
+const showCardHourlyRate = computed(() => !!hourlyRateLine.value);
+const showCardMonthlyRate = computed(() => !hourlyRateLine.value && !!monthlyRateLine.value);
+const hasAnyRate = computed(() => showCardHourlyRate.value || showCardMonthlyRate.value);
 
 const visibleSubjects = computed(() => (props.teacher.subjects ?? []).slice(0, 4));
 

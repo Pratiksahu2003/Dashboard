@@ -49,6 +49,7 @@ const viewerLeadName = computed(() => {
   return String(u.name ?? '').trim();
 });
 const viewerLeadEmail = computed(() => String(authUser.value?.email ?? '').trim());
+const viewerLeadPhone = computed(() => String(authUser.value?.phone ?? '').trim());
 
 const leadModalOwnerId = computed(() => {
   if (!leadModalTeacher.value) return null;
@@ -438,9 +439,9 @@ const teachersMetaDescription = computed(() => {
           class="flex max-h-[min(92vh,880px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-slate-200/80 sm:max-h-[90vh] sm:rounded-3xl"
           @click.stop
         >
-          <div class="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-3 sm:px-5">
-            <p class="min-w-0 truncate text-sm font-semibold text-slate-900">
-              Lead · {{ leadModalTeacherName || 'Tutor' }}
+          <div class="flex shrink-0 items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 to-indigo-50/30 px-4 py-3 sm:px-5">
+            <p class="min-w-0 truncate text-base font-bold tracking-tight text-slate-900">
+              Contact {{ leadModalTeacherName || 'tutor' }}
             </p>
             <button
               type="button"
@@ -463,14 +464,15 @@ const teachersMetaDescription = computed(() => {
             <CreateLeadForm
               v-else
               :key="leadModalOwnerId"
+              compact
               :owner-user-id="leadModalOwnerId"
               :auth-user-id="authUserIdNumber"
               :teacher-name="leadModalTeacherName"
               :viewer-name="viewerLeadName"
               :viewer-email="viewerLeadEmail"
+              :viewer-phone="viewerLeadPhone"
               :default-location="leadModalLocation"
               :default-subject="leadModalSubject"
-              class="!shadow-none border-0 !ring-0"
               @created="closeLeadModal"
             />
           </div>
