@@ -165,6 +165,7 @@ export async function checkReviewEligibility(reviewableUserId) {
             baseURL: getApiV2BaseUrl(),
             params: { reviewable_type: 'user', reviewable_id: id, _cb: Date.now() },
             headers: reviewFetchHeaders,
+            skipAuthRedirect: true,
         });
         return body?.data ?? {};
     } catch (e) {

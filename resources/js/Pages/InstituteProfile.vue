@@ -298,6 +298,20 @@ function pathsMatch(a, b) {
   return normalizePathname(a) === normalizePathname(b);
 }
 
+/**
+ * When the path already has `/institutes/{id}/…` for the same user id as the payload, do not
+ * `router.replace` to a “canonical” slug — that fights the server URL and can loop Inertia visits.
+ */
+function shouldSkipCanonicalInstituteReplace(institute) {
+  if (typeof window === 'undefined' || !institute) return true;
+  const wantId = resolveInstituteUserId(institute);
+  if (!wantId) return false;
+  const cur = window.location.pathname || '';
+  const m = cur.match(/^\/institutes\/(\d+)(?:\/[^/]*)?\/?$/i);
+  if (!m) return false;
+  return Number(m[1]) === Number(wantId);
+}
+
 function redirectToLoginIfSessionStale(errOrCode, options = {}) {
   const always = options.always === true;
   let code;
@@ -574,6 +588,7 @@ watch(
   data,
   (val) => {
     if (!val || typeof window === 'undefined') return;
+    if (shouldSkipCanonicalInstituteReplace(val)) return;
     const path = instituteProfilePath(val);
     if (!path) return;
     if (pathsMatch(window.location.pathname, path)) return;

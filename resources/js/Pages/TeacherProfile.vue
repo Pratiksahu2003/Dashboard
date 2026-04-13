@@ -261,6 +261,19 @@ function pathsMatch(a, b) {
   return normalizePathname(a) === normalizePathname(b);
 }
 
+/**
+ * Same idea as institutes: avoid slug-only `router.replace` when `/teachers/{id}/…` already matches.
+ */
+function shouldSkipCanonicalTeacherReplace(row) {
+  if (typeof window === 'undefined' || !row) return true;
+  const wantId = resolveTeacherUserId(row);
+  if (!wantId) return false;
+  const cur = window.location.pathname || '';
+  const m = cur.match(/^\/teachers\/(\d+)(?:\/[^/]*)?\/?$/i);
+  if (!m) return false;
+  return Number(m[1]) === Number(wantId);
+}
+
 function redirectToLoginIfSessionStale(errOrCode, options = {}) {
   const always = options.always === true;
   let code;
@@ -592,6 +605,7 @@ watch(
   teacher,
   (val) => {
     if (!val || typeof window === 'undefined') return;
+    if (shouldSkipCanonicalTeacherReplace(val)) return;
     const path = teacherProfilePath(val);
     if (!path) return;
     if (pathsMatch(window.location.pathname, path)) return;
