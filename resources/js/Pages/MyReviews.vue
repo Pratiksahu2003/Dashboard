@@ -295,6 +295,17 @@ function statusBadgeClass(s) {
 
 const overlayOpen = computed(() => editOpen.value || deleteOpen.value || createOpen.value);
 
+const reviewTotal = computed(() => {
+    const t = pagination.value?.total;
+    return Number.isFinite(Number(t)) && Number(t) >= 0 ? Number(t) : null;
+});
+
+function teacherInitial(name) {
+    const s = String(name || '').trim();
+    if (!s) return '?';
+    return s[0].toUpperCase();
+}
+
 watch(overlayOpen, open => {
     if (typeof document === 'undefined') return;
     document.body.style.overflow = open ? 'hidden' : '';
@@ -309,99 +320,180 @@ onUnmounted(() => {
     <Head title="My reviews" />
 
     <AppLayout>
-        <div class="h-full overflow-y-auto">
-            <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 class="text-2xl font-black text-slate-900 sm:text-3xl">My reviews</h1>
-                        <p class="mt-1 text-sm text-slate-600">
-                            Reviews you wrote about teachers. Create new ones from here (by teacher ID) or from a teacher profile.
-                        </p>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <Link
-                            :href="route('teachers')"
-                            class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 shadow-sm transition hover:bg-slate-50"
-                        >
-                            Browse teachers
-                        </Link>
+        <template #breadcrumb>My reviews</template>
+
+        <div
+            class="h-full overflow-y-auto bg-gradient-to-b from-slate-100/90 via-white to-indigo-50/35 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.5)_transparent]"
+        >
+            <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+                <header class="relative">
+                    <div
+                        class="pointer-events-none absolute -left-6 -top-6 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl sm:h-52 sm:w-52"
+                        aria-hidden="true"
+                    ></div>
+                    <div
+                        class="pointer-events-none absolute -right-10 top-0 h-36 w-36 rounded-full bg-violet-400/15 blur-3xl"
+                        aria-hidden="true"
+                    ></div>
+                    <p class="relative text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600/90">Your feedback</p>
+                    <div class="relative mt-2 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                        <div class="max-w-xl">
+                            <h1 class="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">My reviews</h1>
+                            <p class="mt-2 text-base leading-relaxed text-slate-600">
+                                Everything you've shared about tutors: polish a review, remove one, or add another from a profile.
+                            </p>
+                            <div v-if="listState === 'ok' && reviewTotal != null" class="mt-4 inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/80 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm backdrop-blur-sm">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                {{ reviewTotal }} {{ reviewTotal === 1 ? 'review' : 'reviews' }} total
+                            </div>
+                        </div>
                         <button
                             type="button"
-                            class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500"
+                            class="relative shrink-0 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40"
                             @click="openCreate"
                         >
-                            New review
+                            + New review
                         </button>
                     </div>
+                </header>
+
+                <section class="relative mt-10" aria-label="Browse directories">
+                    <h2 class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Jump to listings</h2>
+                    <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                        <Link
+                            :href="route('teachers')"
+                            class="group relative flex items-start gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] transition hover:border-indigo-200 hover:shadow-[0_16px_40px_-16px_rgba(79,70,229,0.2)]"
+                        >
+                            <div
+                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25"
+                            >
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-black text-slate-900">Teachers</p>
+                                <p class="mt-1 text-sm font-medium leading-snug text-slate-600">
+                                    Open a tutor profile and leave or edit a review there.
+                                </p>
+                            </div>
+                            <svg
+                                class="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                        <Link
+                            :href="route('institutes')"
+                            class="group relative flex items-start gap-4 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] transition hover:border-violet-200 hover:shadow-[0_16px_40px_-16px_rgba(124,58,237,0.18)]"
+                        >
+                            <div
+                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md shadow-violet-500/25"
+                            >
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                </svg>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="font-black text-slate-900">Institutes</p>
+                                <p class="mt-1 text-sm font-medium leading-snug text-slate-600">
+                                    Browse schools and coaching centers, then open staff or linked tutors to review.
+                                </p>
+                            </div>
+                            <svg
+                                class="h-5 w-5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-violet-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </Link>
+                    </div>
+                </section>
+
+                <section
+                    class="mt-8 rounded-2xl border border-slate-200/70 bg-white/75 p-4 shadow-sm backdrop-blur-md sm:p-5"
+                    aria-label="Filter reviews"
+                >
+                    <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
+                        <label class="flex min-w-[10rem] flex-1 flex-col gap-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Status</span>
+                            <select
+                                v-model="statusFilter"
+                                class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            >
+                                <option value="all">All statuses</option>
+                                <option value="published">Published</option>
+                                <option value="pending">Pending</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="hidden">Hidden</option>
+                            </select>
+                        </label>
+                        <label class="flex min-w-[10rem] flex-1 flex-col gap-1.5">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Sort</span>
+                            <select
+                                v-model="sortFilter"
+                                class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            >
+                                <option value="latest">Newest first</option>
+                                <option value="oldest">Oldest first</option>
+                                <option value="highest">Highest rating</option>
+                                <option value="lowest">Lowest rating</option>
+                            </select>
+                        </label>
+                        <label class="flex w-full min-w-[8rem] flex-col gap-1.5 sm:w-auto sm:max-w-[10rem]">
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Page size</span>
+                            <select
+                                v-model.number="perPage"
+                                class="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            >
+                                <option :value="10">10 per page</option>
+                                <option :value="20">20 per page</option>
+                                <option :value="30">30 per page</option>
+                            </select>
+                        </label>
+                    </div>
+                </section>
+
+                <div v-if="listState === 'loading'" class="mt-10 space-y-4">
+                    <div class="h-32 animate-pulse rounded-2xl bg-gradient-to-r from-slate-100 to-slate-50/80"></div>
+                    <div class="h-32 animate-pulse rounded-2xl bg-gradient-to-r from-slate-100 to-slate-50/80"></div>
                 </div>
 
-                <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <span class="text-xs font-bold uppercase tracking-wide text-slate-500">Status</span>
-                        <select
-                            v-model="statusFilter"
-                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                            <option value="all">All</option>
-                            <option value="published">Published</option>
-                            <option value="pending">Pending</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="hidden">Hidden</option>
-                        </select>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <span class="text-xs font-bold uppercase tracking-wide text-slate-500">Sort</span>
-                        <select
-                            v-model="sortFilter"
-                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                            <option value="latest">Latest</option>
-                            <option value="oldest">Oldest</option>
-                            <option value="highest">Highest rating</option>
-                            <option value="lowest">Lowest rating</option>
-                        </select>
-                    </label>
-                    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                        <span class="text-xs font-bold uppercase tracking-wide text-slate-500">Per page</span>
-                        <select
-                            v-model.number="perPage"
-                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                        >
-                            <option :value="10">10</option>
-                            <option :value="20">20</option>
-                            <option :value="30">30</option>
-                        </select>
-                    </label>
-                </div>
-
-                <div v-if="listState === 'loading'" class="mt-10 space-y-4 animate-pulse">
-                    <div class="h-28 rounded-2xl bg-slate-200/80"></div>
-                    <div class="h-28 rounded-2xl bg-slate-200/80"></div>
-                </div>
-
-                <div v-else-if="listState === 'error'" class="mt-10 rounded-2xl border border-rose-100 bg-rose-50/80 p-6 text-sm text-rose-800">
-                    {{ listError }}
+                <div
+                    v-else-if="listState === 'error'"
+                    class="mt-10 rounded-2xl border border-rose-200/80 bg-rose-50/90 p-6 shadow-sm"
+                >
+                    <p class="text-sm font-semibold text-rose-900">{{ listError }}</p>
                     <button
                         type="button"
-                        class="mt-3 block rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-bold text-rose-900 hover:bg-rose-50"
+                        class="mt-4 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-900 shadow-sm transition hover:bg-rose-50"
                         @click="loadList(1)"
                     >
-                        Retry
+                        Try again
                     </button>
                 </div>
 
                 <template v-else>
-                    <p v-if="pagination.total != null" class="mt-6 text-sm font-semibold text-slate-600">
-                        {{ pagination.total }} {{ pagination.total === 1 ? 'review' : 'reviews' }}
-                    </p>
-
-                    <ul v-if="items.length" class="mt-4 flex flex-col gap-4">
+                    <ul v-if="items.length" class="mt-8 flex flex-col gap-5">
                         <li
                             v-for="rev in items"
                             :key="rev.id"
-                            class="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+                            class="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_8px_30px_-14px_rgba(15,23,42,0.1)] transition hover:border-indigo-200/60 hover:shadow-[0_20px_40px_-18px_rgba(79,70,229,0.15)]"
                         >
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-indigo-500 via-violet-500 to-indigo-600 opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                            <div class="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-stretch sm:p-6">
+                                <div
+                                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-100 to-indigo-50 text-lg font-black text-indigo-700 ring-1 ring-slate-100"
+                                >
+                                    {{ teacherInitial(rev.reviewable?.name) }}
+                                </div>
                                 <div class="min-w-0 flex-1">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span
@@ -410,14 +502,14 @@ onUnmounted(() => {
                                         >
                                             {{ rev.status || '—' }}
                                         </span>
-                                        <span class="text-xs text-slate-500">{{ rev.time_ago || rev.reviewed_at }}</span>
+                                        <span class="text-xs font-semibold text-slate-500">{{ rev.time_ago || rev.reviewed_at }}</span>
                                     </div>
-                                    <p class="mt-2 flex flex-wrap items-baseline gap-x-1.5 text-sm font-bold text-slate-500">
-                                        <span>For</span>
+                                    <p class="mt-3 flex flex-wrap items-baseline gap-x-1.5 text-sm font-bold text-slate-500">
+                                        <span>Review for</span>
                                         <Link
                                             v-if="profilePathForReviewable(rev.reviewable)"
                                             :href="profilePathForReviewable(rev.reviewable)"
-                                            class="text-indigo-600 hover:text-violet-600"
+                                            class="text-indigo-600 underline decoration-indigo-200 underline-offset-2 transition hover:text-violet-600"
                                         >
                                             {{ rev.reviewable?.name || 'Teacher' }}
                                         </Link>
@@ -431,28 +523,32 @@ onUnmounted(() => {
                                             :class="i <= (rev.rating || 0) ? 'text-amber-400' : 'text-slate-200'"
                                             fill="currentColor"
                                             viewBox="0 0 20 20"
+                                            aria-hidden="true"
                                         >
                                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                         </svg>
                                     </div>
-                                    <h2 v-if="rev.title" class="mt-2 text-lg font-bold text-slate-900">{{ rev.title }}</h2>
-                                    <p v-if="rev.comment" class="mt-1 whitespace-pre-line text-sm text-slate-700">{{ rev.comment }}</p>
-                                    <div v-if="rev.reply" class="mt-4 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                                        <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Their reply</p>
-                                        <p class="mt-1 whitespace-pre-line text-sm text-slate-800">{{ rev.reply }}</p>
+                                    <h2 v-if="rev.title" class="mt-2 text-lg font-black tracking-tight text-slate-900">{{ rev.title }}</h2>
+                                    <p v-if="rev.comment" class="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">{{ rev.comment }}</p>
+                                    <div
+                                        v-if="rev.reply"
+                                        class="mt-4 rounded-xl border border-slate-100 bg-slate-50/90 p-4 ring-1 ring-slate-100/80"
+                                    >
+                                        <p class="text-[10px] font-black uppercase tracking-wider text-slate-500">Their reply</p>
+                                        <p class="mt-1 whitespace-pre-line text-sm font-medium text-slate-800">{{ rev.reply }}</p>
                                     </div>
                                 </div>
-                                <div class="flex shrink-0 flex-row gap-2 sm:flex-col">
+                                <div class="flex shrink-0 flex-row gap-2 sm:flex-col sm:justify-start">
                                     <button
                                         type="button"
-                                        class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
+                                        class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:flex-initial sm:min-w-[7.5rem]"
                                         @click="openEdit(rev)"
                                     >
                                         Edit
                                     </button>
                                     <button
                                         type="button"
-                                        class="rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-sm font-bold text-rose-800 hover:bg-rose-100"
+                                        class="min-w-0 flex-1 rounded-xl border border-rose-200/80 bg-rose-50/90 px-4 py-2.5 text-sm font-black text-rose-800 shadow-sm transition hover:bg-rose-100 sm:flex-initial sm:min-w-[7.5rem]"
                                         @click="openDelete(rev)"
                                     >
                                         Delete
@@ -464,20 +560,49 @@ onUnmounted(() => {
 
                     <div
                         v-else
-                        class="mt-10 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-16 text-center text-sm text-slate-600"
+                        class="mt-10 overflow-hidden rounded-2xl border border-dashed border-slate-300/80 bg-gradient-to-br from-white to-slate-50/80 px-6 py-16 text-center shadow-sm"
                     >
-                        No reviews yet. Open a teacher profile or use
-                        <button type="button" class="font-bold text-indigo-600 hover:text-violet-600" @click="openCreate">New review</button>
-                        with their user ID from the profile URL.
+                        <div class="mx-auto max-w-md">
+                            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.696h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.696l1.519-4.674z" />
+                                </svg>
+                            </div>
+                            <p class="text-base font-bold text-slate-900">No reviews yet</p>
+                            <p class="mt-2 text-sm leading-relaxed text-slate-600">
+                                Jump to Teachers or Institutes below, open a profile, or start with a teacher user ID.
+                            </p>
+                            <div class="mt-6 flex flex-wrap justify-center gap-3">
+                                <Link
+                                    :href="route('teachers')"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    Teachers
+                                </Link>
+                                <Link
+                                    :href="route('institutes')"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm transition hover:bg-slate-50"
+                                >
+                                    Institutes
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-black text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500"
+                                    @click="openCreate"
+                                >
+                                    New review
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div
                         v-if="items.length && pagination.last_page > pagination.current_page"
-                        class="mt-8 flex justify-center"
+                        class="mt-10 flex justify-center pb-4"
                     >
                         <button
                             type="button"
-                            class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
+                            class="rounded-2xl border border-slate-200 bg-white px-8 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50 disabled:opacity-50"
                             :disabled="listState === 'appending'"
                             @click="loadMore"
                         >
@@ -637,9 +762,12 @@ onUnmounted(() => {
                     </div>
 
                     <div v-if="createStep === 'id'" class="overflow-y-auto px-5 py-4">
-                        <p class="text-sm text-slate-600">
-                            Open any teacher profile — the first number in the URL is their user ID. Or start from
-                            <Link :href="route('teachers')" class="font-semibold text-indigo-600 hover:text-violet-600" @click="closeCreate">Teachers</Link>.
+                        <p class="text-sm leading-relaxed text-slate-600">
+                            Open a teacher profile — the first number in the URL is their user ID. Browse
+                            <Link :href="route('teachers')" class="font-semibold text-indigo-600 hover:text-violet-600" @click="closeCreate">Teachers</Link>
+                            or
+                            <Link :href="route('institutes')" class="font-semibold text-violet-600 hover:text-indigo-600" @click="closeCreate">Institutes</Link>
+                            to find someone to review.
                         </p>
                         <label class="mt-4 block">
                             <span class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Teacher user ID</span>
