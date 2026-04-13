@@ -69,36 +69,34 @@ function isExternalHref(href) {
 </script>
 
 <template>
-    <footer class="relative mt-auto border-t border-slate-200 bg-white text-slate-700 shadow-[0_-1px_0_0_rgba(15,23,42,0.04)]">
+    <footer class="relative mt-auto border-t border-slate-200/90 bg-white text-slate-700">
         <div
-            class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/60 to-transparent"
+            class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600 opacity-90"
             aria-hidden="true"
         />
 
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <!-- Main -->
-            <div class="grid grid-cols-1 gap-12 py-14 lg:grid-cols-12 lg:gap-10">
-                <!-- Brand -->
+            <div class="grid grid-cols-1 gap-8 py-8 sm:py-9 lg:grid-cols-12 lg:gap-8">
                 <div class="lg:col-span-4">
                     <a
                         :href="contact.website || 'https://www.suganta.com'"
                         target="_blank"
                         rel="noopener noreferrer"
-                        class="inline-flex rounded-lg outline-none ring-offset-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        class="inline-flex rounded-md outline-none ring-offset-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
-                        <img src="/logo/Su2501.png" :alt="companyName" class="h-10 w-auto" />
+                        <img src="/logo/Su2501.png" :alt="companyName" class="h-8 w-auto" />
                     </a>
-                    <p class="mt-5 max-w-sm text-sm leading-relaxed text-slate-600">
+                    <p class="mt-3 max-w-xs text-xs leading-relaxed text-slate-600 sm:text-[13px]">
                         {{ footer.tagline }}
                     </p>
 
-                    <div v-if="socialItems.length" class="mt-7">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Follow us</p>
-                        <ul class="mt-3 flex flex-wrap gap-2" role="list">
+                    <div v-if="socialItems.length" class="mt-4">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Follow</p>
+                        <ul class="mt-2 flex flex-wrap gap-1.5" role="list">
                             <li v-for="item in socialItems" :key="item.key">
                                 <a
                                     :href="item.href"
-                                    class="group flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                                    class="group flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
                                     :aria-label="item.label"
                                     target="_blank"
                                     rel="noopener noreferrer"
@@ -106,7 +104,7 @@ function isExternalHref(href) {
                                     <!-- Facebook -->
                                     <svg
                                         v-if="item.key === 'facebook'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -118,7 +116,7 @@ function isExternalHref(href) {
                                     <!-- Instagram -->
                                     <svg
                                         v-else-if="item.key === 'instagram'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -130,7 +128,7 @@ function isExternalHref(href) {
                                     <!-- YouTube -->
                                     <svg
                                         v-else-if="item.key === 'youtube'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -142,7 +140,7 @@ function isExternalHref(href) {
                                     <!-- LinkedIn -->
                                     <svg
                                         v-else-if="item.key === 'linkedin'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -166,7 +164,7 @@ function isExternalHref(href) {
                                     <!-- Pinterest -->
                                     <svg
                                         v-else-if="item.key === 'pinterest'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -178,7 +176,7 @@ function isExternalHref(href) {
                                     <!-- WhatsApp -->
                                     <svg
                                         v-else-if="item.key === 'whatsapp'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -190,7 +188,7 @@ function isExternalHref(href) {
                                     <!-- Telegram -->
                                     <svg
                                         v-else-if="item.key === 'telegram'"
-                                        class="h-[18px] w-[18px]"
+                                        class="h-4 w-4"
                                         fill="currentColor"
                                         viewBox="0 0 24 24"
                                         aria-hidden="true"
@@ -204,15 +202,15 @@ function isExternalHref(href) {
                         </ul>
                     </div>
 
-                    <div v-if="footer.app_links?.length" class="mt-8 flex flex-col gap-2">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Get the app</p>
+                    <div v-if="footer.app_links?.length" class="mt-4 flex flex-col gap-1.5">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">App</p>
                         <a
                             v-for="app in footer.app_links"
                             :key="app.store"
                             :href="app.href"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-900"
+                            class="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] font-semibold text-slate-800 transition hover:border-indigo-200 hover:bg-indigo-50"
                         >
                             <svg
                                 v-if="app.store === 'apple'"
@@ -237,16 +235,16 @@ function isExternalHref(href) {
 
                 <!-- Address -->
                 <div class="lg:col-span-4">
-                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Head office</h3>
-                    <div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50/90 p-5 shadow-sm">
-                        <p class="text-sm font-semibold text-slate-900">{{ companyName }}</p>
-                        <address class="mt-3 text-sm not-italic leading-relaxed text-slate-600">
+                    <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Head office</h3>
+                    <div class="mt-2 rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
+                        <p class="text-[13px] font-semibold text-slate-900">{{ companyName }}</p>
+                        <address class="mt-2 text-xs not-italic leading-relaxed text-slate-600 sm:text-[13px]">
                             <span v-for="(line, i) in addressLines" :key="i" class="block">{{ line }}</span>
                         </address>
                         <a
                             v-if="addressLines.length"
                             :href="`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`"
-                            class="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700"
+                            class="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700"
                             target="_blank"
                             rel="noopener noreferrer"
                         >
@@ -262,9 +260,9 @@ function isExternalHref(href) {
                         </a>
                     </div>
 
-                    <div v-if="hours.weekdays || hours.weekend || hours.sunday" class="mt-8">
-                        <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Business hours</h3>
-                        <ul class="mt-4 space-y-2 text-sm leading-relaxed text-slate-600" role="list">
+                    <div v-if="hours.weekdays || hours.weekend || hours.sunday" class="mt-4">
+                        <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hours</h3>
+                        <ul class="mt-2 space-y-1 text-xs leading-relaxed text-slate-600 sm:text-[13px]" role="list">
                             <li v-if="hours.weekdays">{{ hours.weekdays }}</li>
                             <li v-if="hours.weekend">{{ hours.weekend }}</li>
                             <li v-if="hours.sunday">{{ hours.sunday }}</li>
@@ -274,14 +272,14 @@ function isExternalHref(href) {
 
                 <!-- Contact -->
                 <div class="lg:col-span-4">
-                    <h3 class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Contact</h3>
-                    <ul class="mt-4 space-y-4" role="list">
-                        <li v-if="contact.phone" class="flex gap-3">
+                    <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Contact</h3>
+                    <ul class="mt-2 space-y-3" role="list">
+                        <li v-if="contact.phone" class="flex gap-2.5">
                             <span
-                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100/80"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-50 ring-1 ring-indigo-100/80"
                                 aria-hidden="true"
                             >
-                                <svg class="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="h-3.5 w-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -291,22 +289,22 @@ function isExternalHref(href) {
                                 </svg>
                             </span>
                             <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Phone</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Phone</p>
                                 <a
                                     :href="telHref || '#'"
-                                    class="mt-0.5 block text-sm font-medium text-slate-900 hover:text-indigo-600"
+                                    class="mt-0.5 block text-xs font-medium text-slate-900 hover:text-indigo-600 sm:text-[13px]"
                                     :class="{ 'pointer-events-none opacity-50': !telHref }"
                                 >
                                     {{ contact.phone }}
                                 </a>
                             </div>
                         </li>
-                        <li v-if="contact.email || contact.support_email" class="flex gap-3">
+                        <li v-if="contact.email || contact.support_email" class="flex gap-2.5">
                             <span
-                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100/80"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-50 ring-1 ring-indigo-100/80"
                                 aria-hidden="true"
                             >
-                                <svg class="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="h-3.5 w-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -319,18 +317,18 @@ function isExternalHref(href) {
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email</p>
                                 <a
                                     :href="`mailto:${contact.support_email || contact.email}`"
-                                    class="mt-0.5 block break-all text-sm font-medium text-slate-900 hover:text-indigo-600"
+                                    class="mt-0.5 block break-all text-xs font-medium text-slate-900 hover:text-indigo-600 sm:text-[13px]"
                                 >
                                     {{ contact.support_email || contact.email }}
                                 </a>
                             </div>
                         </li>
-                        <li v-if="contact.website" class="flex gap-3">
+                        <li v-if="contact.website" class="flex gap-2.5">
                             <span
-                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100/80"
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-indigo-50 ring-1 ring-indigo-100/80"
                                 aria-hidden="true"
                             >
-                                <svg class="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="h-3.5 w-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path
                                         stroke-linecap="round"
                                         stroke-linejoin="round"
@@ -343,7 +341,7 @@ function isExternalHref(href) {
                                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Website</p>
                                 <a
                                     :href="contact.website"
-                                    class="mt-0.5 block break-all text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                    class="mt-0.5 block break-all text-xs font-medium text-indigo-600 hover:text-indigo-700 sm:text-[13px]"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
@@ -358,18 +356,18 @@ function isExternalHref(href) {
             <!-- Link columns -->
             <div
                 v-if="footer.columns?.length"
-                class="grid grid-cols-2 gap-10 border-t border-slate-200 py-12 sm:grid-cols-2 md:grid-cols-4"
+                class="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-slate-200 py-6 sm:grid-cols-2 md:grid-cols-4 md:gap-8"
             >
                 <div v-for="col in footer.columns" :key="col.heading">
-                    <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">
+                    <h3 class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                         {{ col.heading }}
                     </h3>
-                    <ul class="mt-4 space-y-2.5" role="list">
+                    <ul class="mt-2.5 space-y-1.5" role="list">
                         <li v-for="link in col.links" :key="link.label">
                             <a
                                 v-if="isExternalHref(link.href)"
                                 :href="link.href"
-                                class="text-sm text-slate-600 transition hover:text-indigo-600"
+                                class="text-xs text-slate-600 transition hover:text-indigo-600 sm:text-[13px]"
                                 target="_blank"
                                 rel="noopener noreferrer"
                             >
@@ -378,7 +376,7 @@ function isExternalHref(href) {
                             <Link
                                 v-else
                                 :href="link.href"
-                                class="text-sm text-slate-600 transition hover:text-indigo-600"
+                                class="text-xs text-slate-600 transition hover:text-indigo-600 sm:text-[13px]"
                             >
                                 {{ link.label }}
                             </Link>
@@ -389,17 +387,17 @@ function isExternalHref(href) {
         </div>
 
         <!-- Bottom bar -->
-        <div class="border-t border-slate-200 bg-slate-50/80">
-            <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 sm:flex-row sm:px-6 lg:px-8">
-                <p class="text-center text-xs text-slate-500 sm:text-left">
+        <div class="border-t border-slate-200/90 bg-slate-50/70">
+            <div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-3.5 sm:flex-row sm:px-6 lg:px-8">
+                <p class="text-center text-[11px] text-slate-500 sm:text-left sm:text-xs">
                     {{ copyrightLine }}
                 </p>
-                <nav v-if="legalLinks.length" class="flex flex-wrap items-center justify-center gap-x-5 gap-y-2" aria-label="Legal">
+                <nav v-if="legalLinks.length" class="flex flex-wrap items-center justify-center gap-x-4 gap-y-1" aria-label="Legal">
                     <a
                         v-for="link in legalLinks"
                         :key="link.label"
                         :href="link.href"
-                        class="text-xs text-slate-500 transition hover:text-slate-800"
+                        class="text-[11px] text-slate-500 transition hover:text-slate-800 sm:text-xs"
                         target="_blank"
                         rel="noopener noreferrer"
                     >

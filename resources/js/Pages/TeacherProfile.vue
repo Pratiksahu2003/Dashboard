@@ -689,14 +689,6 @@ onMounted(loadTeacher);
       <div class="pointer-events-none absolute -right-20 -top-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl -z-10"></div>
       <div class="pointer-events-none absolute -left-16 top-32 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl -z-10"></div>
 
-      <Link
-        href="/teachers"
-        class="group mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-indigo-200 hover:text-indigo-700"
-      >
-        <svg class="h-4 w-4 transition group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-        All teachers
-      </Link>
-
       <!-- Hero Card -->
       <div class="relative mb-8 overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-8 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:p-10">
         <div class="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-indigo-400/10 blur-2xl"></div>
