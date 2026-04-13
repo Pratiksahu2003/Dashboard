@@ -60,12 +60,39 @@ const priorityOptions = ['low', 'medium', 'high', 'urgent'];
 const totalLabel = computed(() => `${meta.value.total || 0} lead${Number(meta.value.total || 0) === 1 ? '' : 's'}`);
 const selectedLeadId = computed(() => Number(selectedLead.value?.id || 0) || null);
 
+/** HTTP status from axios errors or from `api.js` interceptor rejections (`code` / `status`). */
+function getErrorStatus(error) {
+    if (!error) return null;
+    const direct = error.code ?? error.status;
+    if (direct != null && direct !== '') {
+        const n = Number(direct);
+        return Number.isFinite(n) ? n : null;
+    }
+    const ax = error.response?.status;
+    if (ax != null) {
+        const n = Number(ax);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
+/** Lead API returned 401/403 — session invalid for API; same global redirect as other pages. */
+function redirectToLoginIfUnauthorized(error) {
+    const n = getErrorStatus(error);
+    if ((n === 401 || n === 403) && typeof document !== 'undefined') {
+        document.dispatchEvent(new CustomEvent('app:unauthorized'));
+        return true;
+    }
+    return false;
+}
+
 const parseErrorMessage = error => {
-    const data = error?.response?.data;
-    if (data?.errors && typeof data.errors === 'object') {
-        const firstKey = Object.keys(data.errors)[0];
-        if (firstKey && Array.isArray(data.errors[firstKey]) && data.errors[firstKey][0]) {
-            return data.errors[firstKey][0];
+    const data = error?.response?.data ?? error?.responsePayload;
+    const fieldErrors = error?.errors ?? data?.errors;
+    if (fieldErrors && typeof fieldErrors === 'object') {
+        const firstKey = Object.keys(fieldErrors)[0];
+        if (firstKey && Array.isArray(fieldErrors[firstKey]) && fieldErrors[firstKey][0]) {
+            return fieldErrors[firstKey][0];
         }
     }
     return data?.message || error?.message || 'Request failed.';
@@ -144,6 +171,7 @@ const loadLeads = async () => {
             };
         syncQueryState();
     } catch (error) {
+        if (redirectToLoginIfUnauthorized(error)) return;
         showError(parseErrorMessage(error), 'Leads');
     } finally {
         isLoading.value = false;
@@ -157,6 +185,7 @@ const selectLead = async leadId => {
         selectedLead.value = unwrapLeadRecord(response);
         syncQueryState();
     } catch (error) {
+        if (redirectToLoginIfUnauthorized(error)) return;
         showError(parseErrorMessage(error), 'Lead Details');
     }
 };
@@ -190,7 +219,8 @@ const lookupUsersForOwner = async () => {
     try {
         const rows = await searchUsers({ q, limit: 8 });
         ownerLookupResults.value = Array.isArray(rows) ? rows : [];
-    } catch {
+    } catch (e) {
+        if (redirectToLoginIfUnauthorized(e)) return;
         ownerLookupResults.value = [];
     } finally {
         isOwnerLookupLoading.value = false;
@@ -207,7 +237,8 @@ const lookupUsersForAssignee = async () => {
     try {
         const rows = await searchUsers({ q, limit: 8 });
         assignedLookupResults.value = Array.isArray(rows) ? rows : [];
-    } catch {
+    } catch (e) {
+        if (redirectToLoginIfUnauthorized(e)) return;
         assignedLookupResults.value = [];
     } finally {
         isAssignedLookupLoading.value = false;
@@ -287,6 +318,7 @@ const submitLead = async () => {
         await loadLeads();
         if (created?.id) await selectLead(created.id);
     } catch (error) {
+        if (redirectToLoginIfUnauthorized(error)) return;
         showError(parseErrorMessage(error), 'Create Lead');
     } finally {
         isCreating.value = false;

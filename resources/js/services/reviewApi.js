@@ -20,6 +20,7 @@ function normaliseError(e) {
     if (e instanceof Error) return e;
     const err = new Error(e?.message || 'Request failed');
     err.status = e?.code ?? null;
+    if (e?.errors) err.errors = e.errors;
     return err;
 }
 
@@ -79,6 +80,96 @@ export async function listTeacherReviews(reviewableUserId, opts = {}) {
                 per_page: inner.per_page ?? per_page,
             },
         };
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}
+
+/**
+ * @param {number} reviewableUserId
+ * @returns {Promise<{ can_review?: boolean, has_reviewed?: boolean, existing_review?: object }>}
+ */
+export async function checkReviewEligibility(reviewableUserId) {
+    const id = Number(reviewableUserId);
+    if (!Number.isFinite(id) || id <= 0) {
+        const err = new Error('Invalid user id');
+        err.status = 400;
+        throw err;
+    }
+    try {
+        const body = await api.get('/reviews/check', {
+            baseURL: getApiV2BaseUrl(),
+            params: { reviewable_type: 'user', reviewable_id: id },
+        });
+        return body?.data ?? {};
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}
+
+/**
+ * @param {number} reviewableUserId
+ * @param {{ rating: number, title?: string, comment?: string, tags?: string[] }} payload
+ */
+export async function submitTeacherReview(reviewableUserId, payload) {
+    const id = Number(reviewableUserId);
+    if (!Number.isFinite(id) || id <= 0) {
+        const err = new Error('Invalid user id');
+        err.status = 400;
+        throw err;
+    }
+    try {
+        const body = await api.post(
+            '/reviews',
+            {
+                reviewable_type: 'user',
+                reviewable_id: id,
+                rating: payload.rating,
+                ...(payload.title != null && String(payload.title).trim() !== ''
+                    ? { title: String(payload.title).trim().slice(0, 255) }
+                    : {}),
+                ...(payload.comment != null && String(payload.comment).trim() !== ''
+                    ? { comment: String(payload.comment).trim().slice(0, 5000) }
+                    : {}),
+                ...(Array.isArray(payload.tags) && payload.tags.length ? { tags: payload.tags } : {}),
+            },
+            { baseURL: getApiV2BaseUrl() },
+        );
+        return body?.data ?? null;
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}
+
+/**
+ * @param {number} reviewId
+ * @param {{ rating?: number, title?: string, comment?: string, tags?: string[] }} payload
+ */
+export async function updateTeacherReview(reviewId, payload) {
+    const rid = Number(reviewId);
+    if (!Number.isFinite(rid) || rid <= 0) {
+        const err = new Error('Invalid review id');
+        err.status = 400;
+        throw err;
+    }
+    const bodyPayload = {};
+    if (payload.rating != null) bodyPayload.rating = payload.rating;
+    if (payload.title !== undefined) {
+        bodyPayload.title = payload.title == null || String(payload.title).trim() === ''
+            ? ''
+            : String(payload.title).trim().slice(0, 255);
+    }
+    if (payload.comment !== undefined) {
+        bodyPayload.comment = payload.comment == null || String(payload.comment).trim() === ''
+            ? ''
+            : String(payload.comment).trim().slice(0, 5000);
+    }
+    if (Array.isArray(payload.tags)) bodyPayload.tags = payload.tags;
+    try {
+        const body = await api.patch(`/reviews/${rid}`, bodyPayload, {
+            baseURL: getApiV2BaseUrl(),
+        });
+        return body?.data ?? null;
     } catch (e) {
         throw normaliseError(e);
     }
