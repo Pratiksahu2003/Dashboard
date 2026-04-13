@@ -1,8 +1,8 @@
 <template>
   <div
-    class="rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.08)] backdrop-blur-sm lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto"
+    class="flex min-h-0 flex-col rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.08)] backdrop-blur-sm lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)]"
   >
-    <div class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-4">
+    <div class="flex shrink-0 items-center gap-2 border-b border-slate-100 pb-4">
       <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25">
         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
@@ -14,7 +14,7 @@
       </div>
     </div>
 
-    <div class="mb-5 flex gap-2">
+    <div class="flex shrink-0 gap-2 border-b border-slate-100 py-4">
       <button
         type="button"
         class="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2.5 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
@@ -33,14 +33,15 @@
       </button>
     </div>
 
-    <div v-if="loading" data-testid="institute-filter-skeleton" class="space-y-4">
+    <div class="filter-panel-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pt-4 -mx-1 px-1">
+    <div v-if="loading" data-testid="institute-filter-skeleton" class="space-y-4 pb-2">
       <div v-for="i in 6" :key="i" class="animate-pulse">
         <div class="mb-2 h-3 w-1/3 rounded-lg bg-slate-200"></div>
         <div class="h-10 w-full rounded-xl bg-slate-100"></div>
       </div>
     </div>
 
-    <div v-else class="space-y-4">
+    <div v-else class="space-y-4 pb-2">
       <div>
         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</label>
         <input
@@ -276,6 +277,7 @@
           </label>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </template>
