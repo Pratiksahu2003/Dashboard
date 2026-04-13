@@ -7,7 +7,7 @@ import FilterPanel from '@/Components/FilterPanel.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
 import { listTeachers, getOptions, teacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
 
-const page = usePage();
+const inertiaPage = usePage();
 
 // ─── Reactive state ───────────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ const optionsError = ref(null);
 /** Modal: create lead for a tutor from the listing (docs/LeadCreateApi.md). */
 const leadModalTeacher = ref(null);
 
-const authUser = computed(() => page.props?.auth?.user ?? null);
+const authUser = computed(() => inertiaPage.props?.auth?.user ?? null);
 const authUserIdNumber = computed(() => {
   const id = authUser.value?.id;
   const n = Number(id);
