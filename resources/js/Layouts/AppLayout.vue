@@ -542,7 +542,9 @@ const loadActivePlans = async () => {
                     </div>
                 </header>
 
-                <main class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6 lg:p-8">
+                <main
+                    class="flex min-h-0 flex-1 flex-col overflow-y-auto p-4 sm:p-6 lg:p-8 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+                >
                     <slot />
                 </main>
             </div>

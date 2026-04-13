@@ -51,42 +51,68 @@ function profilePathForReviewable(reviewable) {
 
 const listState = ref('idle');
 const listError = ref(null);
+const pageLoading = ref(false);
 const items = ref([]);
 const pagination = ref({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
 const statusFilter = ref('all');
 const sortFilter = ref('latest');
 const perPage = ref(10);
+const scrollRoot = ref(null);
+
+const hasPrevPage = computed(() => (pagination.value.current_page || 1) > 1);
+const hasNextPage = computed(
+    () => (pagination.value.current_page || 1) < (pagination.value.last_page || 1),
+);
+/** Show numeric page buttons when there are few pages; otherwise rely on prev/next + label. */
+const showPageNumberButtons = computed(() => (pagination.value.last_page || 1) <= 12);
+const allPageNumbers = computed(() => {
+    const last = Math.max(1, Number(pagination.value.last_page) || 1);
+    return Array.from({ length: last }, (_, i) => i + 1);
+});
 
 const loadList = async (pageNum = 1) => {
-    listState.value = pageNum === 1 ? 'loading' : 'appending';
+    const n = Number(pageNum) > 0 ? Number(pageNum) : 1;
+    if (n === 1) {
+        listState.value = 'loading';
+    } else {
+        pageLoading.value = true;
+    }
     listError.value = null;
     try {
         const res = await listMyReviews({
-            page: pageNum,
+            page: n,
             per_page: perPage.value,
             sort: sortFilter.value,
             status: statusFilter.value,
         });
-        if (pageNum === 1) {
-            items.value = res.items;
-        } else {
-            items.value = [...items.value, ...res.items];
-        }
+        items.value = res.items;
         pagination.value = res.pagination;
         listState.value = 'ok';
+        if (typeof window !== 'undefined' && scrollRoot.value) {
+            scrollRoot.value.scrollTop = 0;
+        }
     } catch (e) {
         if (redirectToLoginIfSessionStale(e, { always: true })) return;
-        listError.value = e?.message || 'Could not load your reviews.';
-        listState.value = 'error';
+        if (n === 1) {
+            listError.value = e?.message || 'Could not load your reviews.';
+            listState.value = 'error';
+        } else {
+            alertError(e?.message || 'Could not load this page.', 'Reviews');
+        }
+    } finally {
+        pageLoading.value = false;
     }
 };
 
-const loadMore = () => {
-    if (listState.value === 'appending') return;
-    const p = pagination.value;
-    if (p.current_page >= p.last_page) return;
-    loadList(p.current_page + 1);
-};
+function goPrevPage() {
+    if (!hasPrevPage.value || pageLoading.value) return;
+    loadList((pagination.value.current_page || 1) - 1);
+}
+
+function goNextPage() {
+    if (!hasNextPage.value || pageLoading.value) return;
+    loadList((pagination.value.current_page || 1) + 1);
+}
 
 watch([statusFilter, sortFilter, perPage], () => {
     loadList(1);
@@ -323,7 +349,8 @@ onUnmounted(() => {
         <template #breadcrumb>My reviews</template>
 
         <div
-            class="h-full overflow-y-auto bg-gradient-to-b from-slate-100/90 via-white to-indigo-50/35 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.5)_transparent]"
+            ref="scrollRoot"
+            class="h-full overflow-y-auto bg-gradient-to-b from-slate-100/90 via-white to-indigo-50/35 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
         >
             <div class="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
                 <header class="relative">
@@ -349,10 +376,10 @@ onUnmounted(() => {
                         </div>
                         <button
                             type="button"
-                            class="relative shrink-0 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-indigo-500/30 transition hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-500/40"
+                            class="relative isolate shrink-0 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-3.5 text-sm font-black text-white antialiased shadow-md shadow-slate-900/20 transition hover:from-indigo-500 hover:to-violet-500"
                             @click="openCreate"
                         >
-                            + New review
+                            <span class="relative z-10">+ New review</span>
                         </button>
                     </div>
                 </header>
@@ -587,7 +614,7 @@ onUnmounted(() => {
                                 </Link>
                                 <button
                                     type="button"
-                                    class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-black text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500"
+                                    class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-black text-white antialiased shadow-md shadow-slate-900/20 transition hover:from-indigo-500 hover:to-violet-500"
                                     @click="openCreate"
                                 >
                                     New review
@@ -596,19 +623,54 @@ onUnmounted(() => {
                         </div>
                     </div>
 
-                    <div
-                        v-if="items.length && pagination.last_page > pagination.current_page"
-                        class="mt-10 flex justify-center pb-4"
+                    <nav
+                        v-if="items.length && (pagination.last_page || 1) > 1"
+                        class="mt-10 flex flex-col items-center gap-3 pb-6"
+                        aria-label="Review list pagination"
                     >
-                        <button
-                            type="button"
-                            class="rounded-2xl border border-slate-200 bg-white px-8 py-3 text-sm font-black text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/50 disabled:opacity-50"
-                            :disabled="listState === 'appending'"
-                            @click="loadMore"
-                        >
-                            {{ listState === 'appending' ? 'Loading…' : 'Load more' }}
-                        </button>
-                    </div>
+                        <p v-if="pageLoading" class="text-xs font-bold text-slate-500">Loading page…</p>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <button
+                                type="button"
+                                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 disabled:cursor-not-allowed disabled:opacity-45"
+                                :disabled="!hasPrevPage || pageLoading"
+                                @click="goPrevPage"
+                            >
+                                Previous
+                            </button>
+                            <template v-if="showPageNumberButtons">
+                                <button
+                                    v-for="p in allPageNumbers"
+                                    :key="`review-page-${p}`"
+                                    type="button"
+                                    class="min-w-[2.5rem] rounded-xl border px-3 py-2.5 text-sm font-black shadow-sm transition disabled:cursor-not-allowed"
+                                    :class="
+                                        p === pagination.current_page
+                                            ? 'border-indigo-500 bg-indigo-600 text-white shadow-indigo-500/25'
+                                            : 'border-slate-200 bg-white text-slate-800 hover:border-indigo-200 hover:bg-indigo-50/50'
+                                    "
+                                    :disabled="pageLoading"
+                                    @click="loadList(p)"
+                                >
+                                    {{ p }}
+                                </button>
+                            </template>
+                            <span
+                                v-else
+                                class="rounded-xl border border-slate-100 bg-slate-50/90 px-4 py-2.5 text-sm font-black tabular-nums text-slate-700"
+                            >
+                                Page {{ pagination.current_page }} / {{ pagination.last_page }}
+                            </span>
+                            <button
+                                type="button"
+                                class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-800 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50/60 disabled:cursor-not-allowed disabled:opacity-45"
+                                :disabled="!hasNextPage || pageLoading"
+                                @click="goNextPage"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </nav>
                 </template>
             </div>
         </div>
@@ -682,7 +744,7 @@ onUnmounted(() => {
                         <div class="mt-5 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
                             <button
                                 type="submit"
-                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
+                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white antialiased shadow-md shadow-slate-900/20 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
                                 :disabled="editSubmitting"
                             >
                                 {{ editSubmitting ? 'Saving…' : 'Save changes' }}
@@ -784,7 +846,7 @@ onUnmounted(() => {
                         <div class="mt-5 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
                             <button
                                 type="button"
-                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
+                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white antialiased shadow-md shadow-slate-900/20 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
                                 :disabled="createCheckLoading"
                                 @click="continueCreate"
                             >
@@ -856,7 +918,7 @@ onUnmounted(() => {
                         <div class="mt-5 flex flex-wrap gap-3 border-t border-slate-100 pt-4">
                             <button
                                 type="submit"
-                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
+                                class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white antialiased shadow-md shadow-slate-900/20 transition hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50"
                                 :disabled="createSubmitting"
                             >
                                 {{ createSubmitting ? 'Submitting…' : 'Submit review' }}
