@@ -43,41 +43,6 @@ Route::post('/broadcasting/auth',  BroadcastingAuthProxyController::class);
 
 /*
 |--------------------------------------------------------------------------
-| Teacher Directory (Public)
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
-
-Route::get('/teachers/{id}/{slug}', [TeacherController::class, 'show'])
-    ->whereNumber('id')
-    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]*')
-    ->name('teacher-profile');
-
-// Legacy `/teachers/{slug}/{id}` — 301 redirect to canonical `{id}/{slug}`
-Route::get('/teachers/{legacySlug}/{legacyId}', function (string $legacySlug, int $legacyId) {
-    return redirect()->route('teacher-profile', ['id' => $legacyId, 'slug' => $legacySlug], 301);
-})->whereNumber('legacyId')->where('legacySlug', '[a-zA-Z][a-zA-Z0-9\-]*');
-
-Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
-
-/*
-|--------------------------------------------------------------------------
-| Institute Directory (Public)
-|--------------------------------------------------------------------------
-*/
-
-Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes');
-
-Route::get('/institutes/{id}/{slug}', [InstituteController::class, 'show'])
-    ->whereNumber('id')
-    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\\-]*')
-    ->name('institute-profile');
-
-Route::get('/institutes/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
-
-/*
-|--------------------------------------------------------------------------
 | Protected Routes (Auth Required)
 |--------------------------------------------------------------------------
 */
@@ -127,6 +92,31 @@ Route::middleware('auth')->group(function () {
 
     // Contact
     Route::get('/contact', ContactController::class)->name('contact');
+
+    // Teacher Directory
+    Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
+
+    Route::get('/teachers/{id}/{slug}', [TeacherController::class, 'show'])
+        ->whereNumber('id')
+        ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]*')
+        ->name('teacher-profile');
+
+    // Legacy `/teachers/{slug}/{id}` — 301 redirect to canonical `{id}/{slug}`
+    Route::get('/teachers/{legacySlug}/{legacyId}', function (string $legacySlug, int $legacyId) {
+        return redirect()->route('teacher-profile', ['id' => $legacyId, 'slug' => $legacySlug], 301);
+    })->whereNumber('legacyId')->where('legacySlug', '[a-zA-Z][a-zA-Z0-9\-]*');
+
+    Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
+
+    // Institute Directory
+    Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes');
+
+    Route::get('/institutes/{id}/{slug}', [InstituteController::class, 'show'])
+        ->whereNumber('id')
+        ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\\-]*')
+        ->name('institute-profile');
+
+    Route::get('/institutes/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
 });
 
 require __DIR__.'/auth.php';
