@@ -57,17 +57,37 @@ function closeAvatarLightbox() {
   avatarLightboxOpen.value = false;
 }
 
+const portfolioLightboxUrl = ref('');
+
+function openPortfolioLightbox(url) {
+  const u = typeof url === 'string' ? url.trim() : '';
+  if (!u) return;
+  portfolioLightboxUrl.value = u;
+}
+
+function closePortfolioLightbox() {
+  portfolioLightboxUrl.value = '';
+}
+
 const reviewModalOpen = ref(false);
 const leadModalOpen = ref(false);
 
 const bodyScrollLocked = computed(
-  () => avatarLightboxOpen.value || reviewModalOpen.value || leadModalOpen.value,
+  () =>
+    avatarLightboxOpen.value
+    || !!portfolioLightboxUrl.value
+    || reviewModalOpen.value
+    || leadModalOpen.value,
 );
 
 function onOverlayEscape(e) {
   if (e.key !== 'Escape') return;
   if (avatarLightboxOpen.value) {
     closeAvatarLightbox();
+    return;
+  }
+  if (portfolioLightboxUrl.value) {
+    closePortfolioLightbox();
     return;
   }
   if (reviewModalOpen.value) {
@@ -614,7 +634,7 @@ onMounted(loadTeacher);
     </div>
 
     <!-- Profile -->
-    <div v-else-if="teacher" class="relative max-w-6xl mx-auto px-1">
+    <div v-else-if="teacher" class="relative mx-auto max-w-7xl px-1">
       <div class="pointer-events-none absolute -right-20 -top-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl -z-10"></div>
       <div class="pointer-events-none absolute -left-16 top-32 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl -z-10"></div>
 
@@ -709,8 +729,12 @@ onMounted(loadTeacher);
         </div>
       </div>
 
-      <!-- Teaching + profile details (full width) -->
-      <div class="mb-8 space-y-6">
+      <div
+        class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+      >
+        <!-- Main column: scrolls; aside stays sticky on large screens -->
+        <div class="min-w-0 space-y-8">
+          <div class="space-y-6">
           <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex items-center gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
@@ -774,10 +798,33 @@ onMounted(loadTeacher);
               <div v-if="completionPct != null" class="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Profile completion</span><p class="text-slate-900 font-semibold">{{ completionPct }}%</p></div>
             </div>
           </div>
-      </div>
+          </div>
 
-      <!-- Reviews (API V2 — docs/ReviewApiV2.md) -->
-      <div class="mb-8 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <!-- Portfolio -->
+          <div v-if="portfolio" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+            <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Portfolio</h2>
+            <h3 class="mb-3 font-semibold text-slate-800">{{ portfolio.title }}</h3>
+            <div v-if="portfolio.description" class="prose prose-sm max-w-none text-slate-700 prose-headings:text-slate-900" v-html="portfolio.description"></div>
+            <div v-if="portfolio.images?.length" class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+              <button
+                v-for="(img, i) in portfolio.images"
+                :key="i"
+                type="button"
+                class="group relative block w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-100 text-left shadow-md transition hover:border-indigo-200 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                @click="openPortfolioLightbox(img.url)"
+              >
+                <img
+                  :src="img.url"
+                  :alt="portfolio.title ? `${portfolio.title} — image ${i + 1}` : `Portfolio image ${i + 1}`"
+                  class="h-32 w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                />
+                <span class="sr-only">View full screen</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Reviews (API V2 — docs/ReviewApiV2.md) -->
+          <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
         <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Reviews</h2>
@@ -989,63 +1036,6 @@ onMounted(loadTeacher);
         </template>
       </div>
 
-      <!-- Contact CTA (below reviews): opens lead modal -->
-      <div class="mb-8">
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-8">
-          <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
-          <h3 class="relative text-lg font-bold sm:text-xl">Contact</h3>
-          <p class="relative mt-2 text-sm text-indigo-100/95 leading-relaxed">Reach out to {{ name.split(' ')[0] || 'this teacher' }} for classes.</p>
-          <div v-if="phonePrimary || phoneSecondary" class="relative mb-5 mt-5 space-y-3 rounded-2xl bg-white/10 p-4 text-sm backdrop-blur-sm">
-            <p v-if="phonePrimary" class="text-white"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">Primary</span>{{ phonePrimary }}</p>
-            <p v-if="phoneSecondary" class="text-white"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">Secondary</span>{{ phoneSecondary }}</p>
-          </div>
-          <p v-else class="relative mt-4 text-sm text-indigo-100/90">Phone numbers may not be shown on the public profile.</p>
-          <button
-            v-if="isLoggedIn"
-            type="button"
-            class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-700"
-            @click="openLeadModal"
-          >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-            Contact Now
-          </button>
-          <Link
-            v-else
-            href="/login"
-            class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-700"
-          >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-            Sign in to contact
-          </Link>
-        </div>
-      </div>
-
-      <!-- Social & web (moved below reviews) -->
-      <div
-        v-if="socialLinks.length || discordUsername"
-        class="mb-8 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-      >
-        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3">Social &amp; web</span>
-        <ul class="flex flex-col gap-2">
-          <li v-for="([label, url], i) in socialLinks" :key="i">
-            <a :href="url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-violet-600 transition break-all">{{ label }}</a>
-          </li>
-          <li v-if="discordUsername">
-            <span class="text-sm font-semibold text-slate-700">Discord: {{ discordUsername }}</span>
-          </li>
-        </ul>
-      </div>
-
-      <!-- Portfolio -->
-      <div v-if="portfolio" class="mb-8 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
-        <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Portfolio</h2>
-        <h3 class="mb-3 font-semibold text-slate-800">{{ portfolio.title }}</h3>
-        <div v-if="portfolio.description" class="prose prose-sm max-w-none text-slate-700 prose-headings:text-slate-900" v-html="portfolio.description"></div>
-        <div v-if="portfolio.images?.length" class="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-          <img v-for="(img, i) in portfolio.images" :key="i" :src="img.url" class="h-32 w-full rounded-2xl border border-slate-200/80 object-cover shadow-md transition hover:shadow-lg" />
-        </div>
-      </div>
-
       <!-- Related Teachers -->
       <div v-if="relatedTeachers.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
         <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
@@ -1059,6 +1049,57 @@ onMounted(loadTeacher);
             @contact="navigateToTeacher"
           />
         </div>
+      </div>
+        </div>
+
+        <!-- Sticky sidebar: Contact + Social (right on lg, after hero on small screens) -->
+        <aside
+          class="w-full shrink-0 space-y-6 lg:sticky lg:top-24 lg:z-10 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+          aria-label="Contact and social links"
+        >
+          <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">
+            <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
+            <h3 class="relative text-lg font-bold sm:text-xl">Contact</h3>
+            <p class="relative mt-2 text-sm text-indigo-100/95 leading-relaxed">Reach out to {{ name.split(' ')[0] || 'this teacher' }} for classes.</p>
+            <div v-if="phonePrimary || phoneSecondary" class="relative mb-5 mt-5 space-y-3 rounded-2xl bg-white/10 p-4 text-sm backdrop-blur-sm">
+              <p v-if="phonePrimary" class="text-white"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">Primary</span>{{ phonePrimary }}</p>
+              <p v-if="phoneSecondary" class="text-white"><span class="mb-0.5 block text-[10px] font-bold uppercase tracking-wider text-indigo-200">Secondary</span>{{ phoneSecondary }}</p>
+            </div>
+            <p v-else class="relative mt-4 text-sm text-indigo-100/90">Phone numbers may not be shown on the public profile.</p>
+            <button
+              v-if="isLoggedIn"
+              type="button"
+              class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-700"
+              @click="openLeadModal"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              Contact Now
+            </button>
+            <Link
+              v-else
+              href="/login"
+              class="relative mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-indigo-700"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+              Sign in to contact
+            </Link>
+          </div>
+
+          <div
+            v-if="socialLinks.length || discordUsername"
+            class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-7"
+          >
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-3">Social &amp; web</span>
+            <ul class="flex flex-col gap-2">
+              <li v-for="([label, url], i) in socialLinks" :key="i">
+                <a :href="url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-600 hover:text-violet-600 transition break-all">{{ label }}</a>
+              </li>
+              <li v-if="discordUsername">
+                <span class="text-sm font-semibold text-slate-700">Discord: {{ discordUsername }}</span>
+              </li>
+            </ul>
+          </div>
+        </aside>
       </div>
 
       <Teleport to="body">
@@ -1208,6 +1249,31 @@ onMounted(loadTeacher);
           <img
             :src="avatarUrl"
             :alt="name"
+            class="max-h-[min(92vh,900px)] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-white/10"
+          />
+        </div>
+      </Teleport>
+
+      <Teleport to="body">
+        <div
+          v-if="portfolioLightboxUrl"
+          class="fixed inset-0 z-[200] flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Portfolio image full screen"
+          @click.self="closePortfolioLightbox"
+        >
+          <button
+            type="button"
+            class="absolute right-4 top-4 z-10 rounded-full bg-white/15 p-2.5 text-white outline-none ring-1 ring-white/20 transition hover:bg-white/25 focus-visible:ring-2 focus-visible:ring-white"
+            aria-label="Close full screen image"
+            @click="closePortfolioLightbox"
+          >
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <img
+            :src="portfolioLightboxUrl"
+            alt=""
             class="max-h-[min(92vh,900px)] max-w-full rounded-lg object-contain shadow-2xl ring-1 ring-white/10"
           />
         </div>
