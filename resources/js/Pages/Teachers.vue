@@ -4,7 +4,7 @@ import { router, Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import FilterPanel from '@/Components/FilterPanel.vue';
-import { listTeachers, getOptions } from '@/services/teacherApi';
+import { listTeachers, getOptions, teacherProfilePath } from '@/services/teacherApi';
 
 // ─── Reactive state ───────────────────────────────────────────────────────────
 

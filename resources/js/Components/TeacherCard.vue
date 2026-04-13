@@ -140,19 +140,23 @@
           <div
             class="flex flex-row sm:flex-col gap-3 sm:items-end sm:text-right sm:min-w-[10rem] border-t sm:border-t-0 border-slate-100 pt-4 sm:pt-0 sm:pl-2"
           >
-            <div v-if="hourlyRateDisplay" class="flex-1 sm:flex-none text-left sm:text-right" data-testid="hourly-rate">
-              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
-                {{ hourlyRateDisplay.kind === 'monthly_range' ? 'Monthly' : 'Hourly' }}
+            <div
+              v-if="hasAnyRate"
+              class="flex-1 sm:flex-none text-left sm:text-right space-y-3"
+              data-testid="teacher-rates"
+            >
+              <div v-if="hourlyRateLine" data-testid="hourly-rate">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hourly</div>
+                <div class="text-lg font-bold leading-tight text-indigo-600 sm:text-xl tabular-nums">
+                  {{ hourlyRateLine }}
+                </div>
               </div>
-              <div class="text-lg font-bold leading-tight text-indigo-600 sm:text-xl">
-                <template v-if="hourlyRateDisplay.kind === 'hourly_fixed'">
-                  <span class="tabular-nums">Rs. {{ hourlyRateDisplay.value }}</span>
-                </template>
-                <template v-else>
-                  {{ hourlyRateDisplay.value }}
-                </template>
+              <div v-if="monthlyRateLine" data-testid="monthly-rate">
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Monthly</div>
+                <div class="text-lg font-bold leading-tight text-indigo-600 sm:text-xl">
+                  {{ monthlyRateLine }}
+                </div>
               </div>
-              <div v-if="hourlyRateDisplay.kind === 'hourly_fixed'" class="text-xs font-medium text-slate-400">per hour</div>
             </div>
             <div v-else class="flex-1 sm:flex-none text-left sm:text-right text-sm text-slate-400 italic">
               Rate on request
@@ -236,28 +240,40 @@ const DEFAULT_CARD_BIO =
 
 const displayBio = computed(() => bioSnippet.value || DEFAULT_CARD_BIO);
 
-const hourlyRateDisplay = computed(() => {
+function formatInrAmount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value ?? '');
+  return n.toLocaleString('en-IN');
+}
+
+/** Hourly: fixed amount or range label (API often sends range only). */
+const hourlyRateLine = computed(() => {
   const t = props.teacher;
-  const fixed = t.hourly_rate;
+  const fixed = t.hourly_rate ?? t.teaching?.hourly_rate;
   if (fixed != null && fixed !== '') {
-    return { kind: 'hourly_fixed', value: fixed };
+    return `\u20B9${formatInrAmount(fixed)} / hr`;
   }
-  const hourlyRange =
+  return (
     t.hourly_rate_range?.label
     ?? t.teaching?.hourly_rate_range?.label
-    ?? null;
-  if (hourlyRange) {
-    return { kind: 'hourly_range', value: hourlyRange };
+    ?? null
+  );
+});
+
+const monthlyRateLine = computed(() => {
+  const t = props.teacher;
+  const fixed = t.monthly_rate ?? t.teaching?.monthly_rate;
+  if (fixed != null && fixed !== '') {
+    return `\u20B9${formatInrAmount(fixed)} / mo`;
   }
-  const monthlyRange =
+  return (
     t.monthly_rate_range?.label
     ?? t.teaching?.monthly_rate_range?.label
-    ?? null;
-  if (monthlyRange) {
-    return { kind: 'monthly_range', value: monthlyRange };
-  }
-  return null;
+    ?? null
+  );
 });
+
+const hasAnyRate = computed(() => !!(hourlyRateLine.value || monthlyRateLine.value));
 
 const visibleSubjects = computed(() => (props.teacher.subjects ?? []).slice(0, 4));
 

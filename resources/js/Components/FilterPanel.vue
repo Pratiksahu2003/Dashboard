@@ -41,24 +41,69 @@
         />
       </div>
 
-      <!-- Subject -->
-      <div>
+      <!-- Subject (searchable) -->
+      <div ref="subjectDropdownRef" class="relative">
         <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Subject</label>
-        <select
-          :value="filters.subject_id"
-          class="field-input"
-          data-testid="filter-subject"
-          @change="update('subject_id', $event.target.value ? Number($event.target.value) : null)"
+        <button
+          type="button"
+          class="field-input flex w-full items-center justify-between gap-2 text-left"
+          data-testid="filter-subject-trigger"
+          aria-haspopup="listbox"
+          :aria-expanded="subjectMenuOpen"
+          @click.stop="toggleSubjectMenu"
         >
-          <option value="">All Subjects</option>
-          <option
-            v-for="subject in options?.subjects ?? []"
-            :key="subject.id"
-            :value="subject.id"
-          >
-            {{ subject.name }}
-          </option>
-        </select>
+          <span class="min-w-0 truncate font-medium text-slate-800">{{ selectedSubjectLabel }}</span>
+          <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div
+          v-show="subjectMenuOpen"
+          class="absolute left-0 right-0 z-30 mt-1 flex max-h-64 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+          data-testid="filter-subject-dropdown"
+          role="listbox"
+          @click.stop
+        >
+          <div class="border-b border-slate-100 p-2">
+            <input
+              v-model="subjectSearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Search subjects..."
+              class="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              data-testid="filter-subject-search"
+              @keydown.escape.prevent="subjectMenuOpen = false"
+            />
+          </div>
+          <ul class="max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
+            <li
+              role="option"
+              :aria-selected="filters.subject_id == null"
+              class="cursor-pointer px-3 py-2 text-slate-700 hover:bg-indigo-50"
+              data-testid="filter-subject-all"
+              @mousedown.prevent="selectSubjectId(null)"
+            >
+              All subjects
+            </li>
+            <li
+              v-for="subject in filteredSubjects"
+              :key="subject.id"
+              role="option"
+              :aria-selected="Number(filters.subject_id) === Number(subject.id)"
+              class="cursor-pointer px-3 py-2 text-slate-800 hover:bg-indigo-50"
+              :data-testid="`filter-subject-option-${subject.id}`"
+              @mousedown.prevent="selectSubjectId(Number(subject.id))"
+            >
+              {{ subject.name }}
+            </li>
+            <li
+              v-if="subjectSearch.trim() && filteredSubjects.length === 0"
+              class="px-3 py-4 text-center text-xs text-slate-500"
+            >
+              No subjects match “{{ subjectSearch.trim() }}”
+            </li>
+          </ul>
+        </div>
       </div>
 
       <!-- Teaching Mode -->
@@ -165,7 +210,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 
 const props = defineProps({
   options: {
@@ -192,6 +237,54 @@ const filters = computed({
 function update(key, value) {
   emit('update:modelValue', { ...props.modelValue, [key]: value });
 }
+
+const subjectDropdownRef = ref(null);
+const subjectMenuOpen = ref(false);
+const subjectSearch = ref('');
+
+const filteredSubjects = computed(() => {
+  const list = props.options?.subjects ?? [];
+  const q = subjectSearch.value.trim().toLowerCase();
+  if (!q) return list;
+  return list.filter((s) => String(s.name ?? '').toLowerCase().includes(q));
+});
+
+const selectedSubjectLabel = computed(() => {
+  const id = props.modelValue.subject_id;
+  if (id == null || id === '') return 'All subjects';
+  const match = (props.options?.subjects ?? []).find((s) => Number(s.id) === Number(id));
+  return match?.name ?? 'All subjects';
+});
+
+function toggleSubjectMenu() {
+  subjectMenuOpen.value = !subjectMenuOpen.value;
+  if (subjectMenuOpen.value) subjectSearch.value = '';
+}
+
+function selectSubjectId(id) {
+  update('subject_id', id);
+  subjectMenuOpen.value = false;
+  subjectSearch.value = '';
+}
+
+function onDocumentClick(e) {
+  const el = subjectDropdownRef.value;
+  if (el && !el.contains(e.target)) subjectMenuOpen.value = false;
+}
+
+function onDocumentKeydown(e) {
+  if (e.key === 'Escape' && subjectMenuOpen.value) subjectMenuOpen.value = false;
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick);
+  document.addEventListener('keydown', onDocumentKeydown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick);
+  document.removeEventListener('keydown', onDocumentKeydown);
+});
 </script>
 
 <style scoped>

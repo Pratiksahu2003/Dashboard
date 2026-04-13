@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { Link, router, Head } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
-import { getTeacher } from '@/services/teacherApi';
+import { getTeacher, teacherProfilePath } from '@/services/teacherApi';
 
 const props = defineProps({
   id: { type: Number, required: true },
