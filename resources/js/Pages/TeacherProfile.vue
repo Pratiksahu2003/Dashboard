@@ -837,6 +837,7 @@ onMounted(loadTeacher);
             layout="row"
             :teacher="related"
             @click="navigateToTeacher"
+            @contact="navigateToTeacher"
           />
         </div>
       </div>

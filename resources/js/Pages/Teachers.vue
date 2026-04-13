@@ -1,10 +1,13 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { router, Head } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { router, Head, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import FilterPanel from '@/Components/FilterPanel.vue';
-import { listTeachers, getOptions, teacherProfilePath } from '@/services/teacherApi';
+import CreateLeadForm from '@/Components/CreateLeadForm.vue';
+import { listTeachers, getOptions, teacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
+
+const page = usePage();
 
 // ─── Reactive state ───────────────────────────────────────────────────────────
 
@@ -26,6 +29,73 @@ const loading = ref(false);
 const optionsLoading = ref(false);
 const error = ref(null);
 const optionsError = ref(null);
+
+/** Modal: create lead for a tutor from the listing (docs/LeadCreateApi.md). */
+const leadModalTeacher = ref(null);
+
+const authUser = computed(() => page.props?.auth?.user ?? null);
+const authUserIdNumber = computed(() => {
+  const id = authUser.value?.id;
+  const n = Number(id);
+  return Number.isFinite(n) && n > 0 ? n : null;
+});
+const viewerLeadName = computed(() => {
+  const u = authUser.value;
+  if (!u) return '';
+  const fn = u.first_name ?? '';
+  const ln = u.last_name ?? '';
+  const joined = `${fn} ${ln}`.trim();
+  if (joined) return joined;
+  return String(u.name ?? '').trim();
+});
+const viewerLeadEmail = computed(() => String(authUser.value?.email ?? '').trim());
+
+const leadModalOwnerId = computed(() => {
+  if (!leadModalTeacher.value) return null;
+  const resolved = resolveTeacherUserId(leadModalTeacher.value);
+  if (resolved != null) return resolved;
+  const n = Number(leadModalTeacher.value.id);
+  return Number.isFinite(n) && n > 0 ? n : null;
+});
+const leadModalTeacherName = computed(() => String(leadModalTeacher.value?.name ?? ''));
+const leadModalLocation = computed(() => {
+  const t = leadModalTeacher.value;
+  if (!t) return '';
+  return [t.city, t.state].filter(Boolean).join(', ');
+});
+const leadModalSubject = computed(() => {
+  const t = leadModalTeacher.value;
+  const first = t?.subjects?.[0];
+  return first?.name ? String(first.name) : '';
+});
+
+function openLeadModal(teacher) {
+  leadModalTeacher.value = teacher;
+}
+
+function closeLeadModal() {
+  leadModalTeacher.value = null;
+}
+
+function onLeadModalKeydown(e) {
+  if (e.key === 'Escape') closeLeadModal();
+}
+
+watch(leadModalTeacher, (t) => {
+  if (typeof document === 'undefined') return;
+  document.body.style.overflow = t ? 'hidden' : '';
+  if (t) {
+    document.addEventListener('keydown', onLeadModalKeydown);
+  } else {
+    document.removeEventListener('keydown', onLeadModalKeydown);
+  }
+});
+
+onUnmounted(() => {
+  if (typeof document === 'undefined') return;
+  document.removeEventListener('keydown', onLeadModalKeydown);
+  document.body.style.overflow = '';
+});
 
 // ─── fetchTeachers ────────────────────────────────────────────────────────────
 
@@ -310,6 +380,7 @@ const teachersMetaDescription = computed(() => {
               :data-testid="`teacher-card-${teacher.id}`"
               layout="row"
               @click="onTeacherClick"
+              @contact="openLeadModal"
             />
           </div>
 
@@ -353,5 +424,58 @@ const teachersMetaDescription = computed(() => {
         </div>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="leadModalTeacher"
+        class="fixed inset-0 z-[180] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-[2px] sm:items-center sm:p-4"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Request contact with tutor"
+        @click.self="closeLeadModal"
+      >
+        <div
+          class="flex max-h-[min(92vh,880px)] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl ring-1 ring-slate-200/80 sm:max-h-[90vh] sm:rounded-3xl"
+          @click.stop
+        >
+          <div class="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 py-3 sm:px-5">
+            <p class="min-w-0 truncate text-sm font-semibold text-slate-900">
+              Lead · {{ leadModalTeacherName || 'Tutor' }}
+            </p>
+            <button
+              type="button"
+              class="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+              aria-label="Close"
+              @click="closeLeadModal"
+            >
+              <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+            <p
+              v-if="!leadModalOwnerId"
+              class="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900"
+            >
+              This tutor cannot receive a lead from the listing right now. Try opening their full profile instead.
+            </p>
+            <CreateLeadForm
+              v-else
+              :key="leadModalOwnerId"
+              :owner-user-id="leadModalOwnerId"
+              :auth-user-id="authUserIdNumber"
+              :teacher-name="leadModalTeacherName"
+              :viewer-name="viewerLeadName"
+              :viewer-email="viewerLeadEmail"
+              :default-location="leadModalLocation"
+              :default-subject="leadModalSubject"
+              class="!shadow-none border-0 !ring-0"
+              @created="closeLeadModal"
+            />
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </AppLayout>
 </template>
