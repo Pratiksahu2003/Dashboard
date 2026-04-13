@@ -35,7 +35,7 @@ Route::post('/broadcasting/auth', BroadcastingAuthProxyController::class);
 
 // Public teacher directory (uses public API; must not require auth)
 Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
-Route::get('/teachers/{slug}-{id}', [TeacherController::class, 'show'])->where(['id' => '[0-9]+'])->name('teacher-profile');
+Route::get('/teachers/{id}', [TeacherController::class, 'show'])->whereNumber('id')->name('teacher-profile');
 
 // Protected routes (authentication required)
 Route::middleware('auth')->group(function () {

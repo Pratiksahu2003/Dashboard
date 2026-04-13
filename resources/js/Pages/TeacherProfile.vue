@@ -7,7 +7,6 @@ import { getTeacher, teacherProfilePath } from '@/services/teacherApi';
 
 const props = defineProps({
   id: { type: Number, required: true },
-  slug: { type: String, default: '' },
 });
 
 const teacher = ref(null);

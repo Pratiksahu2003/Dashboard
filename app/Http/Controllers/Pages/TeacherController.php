@@ -12,8 +12,8 @@ class TeacherController
         return Inertia::render('Teachers');
     }
 
-    public function show(string $slug, int $id): Response
+    public function show(int $id): Response
     {
-        return Inertia::render('TeacherProfile', ['id' => $id, 'slug' => $slug]);
+        return Inertia::render('TeacherProfile', ['id' => $id]);
     }
 }

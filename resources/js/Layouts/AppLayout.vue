@@ -157,6 +157,9 @@ const isItemActive = item => {
     if (item.href === 'support-tickets') {
         return currentRoute.value === 'support-tickets' || currentRoute.value === 'support-ticket-details' || currentRoute.value === 'support-tickets-create';
     }
+    if (item.href === 'teachers') {
+        return currentRoute.value === 'teachers' || currentRoute.value === 'teacher-profile';
+    }
     return currentRoute.value === item.href;
 };
 

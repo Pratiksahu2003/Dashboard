@@ -22,20 +22,11 @@ export function resolveTeacherUserId(teacher) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export function slugifyTeacherName(name) {
-    const s = String(name ?? 'teacher')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-    return s || 'teacher';
-}
-
-/** Path for Inertia page `/teachers/{slug}-{id}` (API show uses user id only). */
+/** Path for Inertia page `/teachers/{id}` (matches public API teacher id / user id). */
 export function teacherProfilePath(teacher) {
     const id = resolveTeacherUserId(teacher);
     if (!id) return null;
-    const slug = slugifyTeacherName(teacher.name ?? teacher.user?.name ?? teacher.display_name);
-    return `/teachers/${slug}-${id}`;
+    return `/teachers/${id}`;
 }
 
 /** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */
