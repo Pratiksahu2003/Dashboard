@@ -248,7 +248,6 @@ const teachersMetaDescription = computed(() => {
                 @change="onSortChange"
               >
               <option value="created_at">Newest</option>
-              <option value="rating">Top Rated</option>
               <option value="price_low">Price: Low to High</option>
               <option value="price_high">Price: High to Low</option>
               <option value="name">Name A-Z</option>

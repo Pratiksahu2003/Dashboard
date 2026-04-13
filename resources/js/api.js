@@ -155,12 +155,12 @@ api.interceptors.response.use(
             }
         }
 
-        if (res?.status === 401 && !shouldSkipUnauthorizedRedirect(config)) {
+        if (res?.status === 401 && !config?.skipAuthRedirect && !shouldSkipUnauthorizedRedirect(config)) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, 'Your session expired. Please sign in again.');
             document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }
 
-        if (res?.status === 403 && !preserveOn403() && !shouldSkipUnauthorizedRedirect(config)) {
+        if (res?.status === 403 && !config?.skipAuthRedirect && !preserveOn403() && !shouldSkipUnauthorizedRedirect(config)) {
             storage?.setItem(AUTH_REDIRECT_REASON_KEY, sanitizeString(res?.data?.message || 'Access denied. Please sign in again.'));
             document?.dispatchEvent(new CustomEvent('app:unauthorized'));
         }

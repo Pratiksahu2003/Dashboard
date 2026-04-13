@@ -22,11 +22,36 @@ export function resolveTeacherUserId(teacher) {
     return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-/** Path for Inertia page `/teachers/{id}` (matches public API teacher id / user id). */
+/** URL segment from a display name (lowercase, hyphenated, ASCII). */
+export function slugifyTeacherName(name) {
+    const s = String(name ?? '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    return s || 'teacher';
+}
+
+/**
+ * SEO slug for `/teachers/{slug}/{id}`. Strips a trailing `-{id}` from API `slug` when present.
+ */
+export function teacherSeoSlug(teacher) {
+    if (!teacher || typeof teacher !== 'object') return 'teacher';
+    const raw = teacher.slug;
+    if (typeof raw === 'string' && raw.trim()) {
+        const trimmed = raw.replace(/-\d+$/, '').replace(/^-|-$/g, '');
+        if (trimmed) return trimmed;
+    }
+    return slugifyTeacherName(
+        teacher.name ?? teacher.user?.name ?? teacher.display_name ?? teacher.profile?.display_name,
+    );
+}
+
+/** Canonical Inertia path `/teachers/{slug}/{id}` (public API uses numeric user id). */
 export function teacherProfilePath(teacher) {
     const id = resolveTeacherUserId(teacher);
     if (!id) return null;
-    return `/teachers/${id}`;
+    const slug = teacherSeoSlug(teacher);
+    return `/teachers/${slug}/${id}`;
 }
 
 /** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */

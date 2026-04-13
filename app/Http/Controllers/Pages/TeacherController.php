@@ -12,8 +12,21 @@ class TeacherController
         return Inertia::render('Teachers');
     }
 
-    public function show(int $id): Response
+    /** SEO-friendly path `/teachers/{slug}/{id}` (slug is cosmetic; profile is loaded by id). */
+    public function show(string $slug, int $id): Response
     {
-        return Inertia::render('TeacherProfile', ['id' => $id]);
+        return Inertia::render('TeacherProfile', [
+            'id' => $id,
+            'slug' => $slug,
+        ]);
+    }
+
+    /** Old `/teachers/{id}` links: SPA will replace the URL with the canonical slugged path after load. */
+    public function showLegacy(int $id): Response
+    {
+        return Inertia::render('TeacherProfile', [
+            'id' => $id,
+            'slug' => null,
+        ]);
     }
 }
