@@ -1,12 +1,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { Link, router, Head, usePage } from '@inertiajs/vue3';
-import AppLayout from '@/Layouts/AppLayout.vue';
+import PublicLayout from '@/Layouts/PublicLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
 import { useAlerts } from '@/composables/useAlerts';
-import { getTeacher, teacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
+import { getTeacher, publicTeacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
 import {
   getTeacherReviewStats,
   listTeacherReviews,
@@ -19,95 +19,55 @@ const page = usePage();
 const { success: alertSuccess, error: alertError } = useAlerts();
 
 const props = defineProps({
-  id: { type: Number, required: true },
-  /** From `/teachers/{id}/{slug}`; null when served from legacy `/teachers/{id}`. */
+  id:   { type: Number, required: true },
   slug: { type: String, default: null },
 });
 
-const teacher = ref(null);
-const loading = ref(false);
-const error = ref(null);
-const errorCode = ref(null);
+const teacher    = ref(null);
+const loading    = ref(false);
+const error      = ref(null);
+const errorCode  = ref(null);
 const avatarError = ref(false);
 
-const t = computed(() => teacher.value);
-const profile = computed(() => t.value?.profile ?? {});
+const t        = computed(() => teacher.value);
+const profile  = computed(() => t.value?.profile ?? {});
 const teaching = computed(() => t.value?.teaching ?? profile.value?.teaching ?? {});
-const name = computed(
-  () =>
-    t.value?.user?.name
-    ?? profile.value?.display_name
-    ?? [profile.value?.first_name, profile.value?.last_name].filter(Boolean).join(' ')
-    ?? '',
+const name     = computed(() =>
+  t.value?.user?.name
+  ?? profile.value?.display_name
+  ?? [profile.value?.first_name, profile.value?.last_name].filter(Boolean).join(' ')
+  ?? '',
 );
-const initials = computed(() => name.value.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?');
-const avatarUrl = computed(
-  () =>
-    profile.value?.profile_image_url
-    ?? t.value?.profile_image_url
-    ?? null,
-);
+const initials  = computed(() => name.value.split(' ').filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '?');
+const avatarUrl = computed(() => profile.value?.profile_image_url ?? t.value?.profile_image_url ?? null);
 
-const avatarLightboxOpen = ref(false);
-
-function openAvatarLightbox() {
-  if (avatarUrl.value && !avatarError.value) avatarLightboxOpen.value = true;
-}
-
-function closeAvatarLightbox() {
-  avatarLightboxOpen.value = false;
-}
-
+const avatarLightboxOpen   = ref(false);
 const portfolioLightboxUrl = ref('');
+const reviewModalOpen      = ref(false);
+const leadModalOpen        = ref(false);
 
-function openPortfolioLightbox(url) {
-  const u = typeof url === 'string' ? url.trim() : '';
-  if (!u) return;
-  portfolioLightboxUrl.value = u;
-}
+function openAvatarLightbox()       { if (avatarUrl.value && !avatarError.value) avatarLightboxOpen.value = true; }
+function closeAvatarLightbox()      { avatarLightboxOpen.value = false; }
+function openPortfolioLightbox(url) { const u = typeof url === 'string' ? url.trim() : ''; if (u) portfolioLightboxUrl.value = u; }
+function closePortfolioLightbox()   { portfolioLightboxUrl.value = ''; }
 
-function closePortfolioLightbox() {
-  portfolioLightboxUrl.value = '';
-}
-
-const reviewModalOpen = ref(false);
-const leadModalOpen = ref(false);
-
-const bodyScrollLocked = computed(
-  () =>
-    avatarLightboxOpen.value
-    || !!portfolioLightboxUrl.value
-    || reviewModalOpen.value
-    || leadModalOpen.value,
+const bodyScrollLocked = computed(() =>
+  avatarLightboxOpen.value || !!portfolioLightboxUrl.value || reviewModalOpen.value || leadModalOpen.value,
 );
 
 function onOverlayEscape(e) {
   if (e.key !== 'Escape') return;
-  if (avatarLightboxOpen.value) {
-    closeAvatarLightbox();
-    return;
-  }
-  if (portfolioLightboxUrl.value) {
-    closePortfolioLightbox();
-    return;
-  }
-  if (reviewModalOpen.value) {
-    reviewModalOpen.value = false;
-    return;
-  }
-  if (leadModalOpen.value) {
-    leadModalOpen.value = false;
-  }
+  if (avatarLightboxOpen.value)   { closeAvatarLightbox(); return; }
+  if (portfolioLightboxUrl.value) { closePortfolioLightbox(); return; }
+  if (reviewModalOpen.value)      { reviewModalOpen.value = false; return; }
+  if (leadModalOpen.value)        { leadModalOpen.value = false; }
 }
 
-watch(bodyScrollLocked, (locked) => {
+watch(bodyScrollLocked, locked => {
   if (typeof document === 'undefined') return;
   document.body.style.overflow = locked ? 'hidden' : '';
-  if (locked) {
-    document.addEventListener('keydown', onOverlayEscape);
-  } else {
-    document.removeEventListener('keydown', onOverlayEscape);
-  }
+  locked ? document.addEventListener('keydown', onOverlayEscape)
+         : document.removeEventListener('keydown', onOverlayEscape);
 });
 
 onUnmounted(() => {
@@ -116,175 +76,119 @@ onUnmounted(() => {
   document.body.style.overflow = '';
 });
 
-/** Plain bio text; null if empty — UI can show a default line */
 const bioPlain = computed(() => {
   const raw = profile.value?.bio;
   if (raw == null || String(raw).trim() === '') return null;
   return String(raw).replace(/\r\n/g, '\n').trim();
 });
+const DEFAULT_BIO = 'Professional educator on SuGanta offering personalized support. Explore subjects, qualifications, rates, and contact options on this page.';
+const profileBioDisplay = computed(() => bioPlain.value || DEFAULT_BIO);
 
-const DEFAULT_PROFILE_BIO =
-  'Professional educator on SuGanta offering personalized support. Explore subjects, qualifications, rates, and contact options on this page.';
-
-const profileBioDisplay = computed(() => bioPlain.value || DEFAULT_PROFILE_BIO);
-const location = computed(() => t.value?.location ?? profile.value?.location ?? {});
-const city = computed(() => location.value?.city ?? '');
-const state = computed(() => location.value?.state ?? '');
-const area = computed(() => location.value?.area ?? '');
-const pincode = computed(() => location.value?.pincode ?? '');
+const location     = computed(() => t.value?.location ?? profile.value?.location ?? {});
+const city         = computed(() => location.value?.city ?? '');
+const state        = computed(() => location.value?.state ?? '');
+const area         = computed(() => location.value?.area ?? '');
+const pincode      = computed(() => location.value?.pincode ?? '');
 const addressLine1 = computed(() => location.value?.address_line_1 ?? '');
 const addressLine2 = computed(() => location.value?.address_line_2 ?? '');
 const countryLabel = computed(() => location.value?.country?.label ?? '');
-const cityState = computed(() => [city.value, state.value].filter(Boolean).join(', '));
-const fullAddressLines = computed(() => {
-  const lines = [
-    [addressLine1.value, addressLine2.value].filter(Boolean).join(', '),
-    [area.value, city.value, state.value].filter(Boolean).join(', '),
-    [pincode.value, countryLabel.value].filter(Boolean).join(' ').trim(),
-  ].filter(Boolean);
-  return lines;
-});
+const cityState    = computed(() => [city.value, state.value].filter(Boolean).join(', '));
+const fullAddressLines = computed(() => [
+  [addressLine1.value, addressLine2.value].filter(Boolean).join(', '),
+  [area.value, city.value, state.value].filter(Boolean).join(', '),
+  [pincode.value, countryLabel.value].filter(Boolean).join(' ').trim(),
+].filter(Boolean));
 
-const qualification = computed(() => teaching.value?.qualification?.label ?? '');
-const qualificationText = computed(() => {
-  const v = teaching.value?.qualification_text;
-  if (v == null || v === '') return '';
-  const s = String(v).trim();
-  if (/^\d+$/.test(s)) return '';
-  return s;
-});
-const experience = computed(() => teaching.value?.teaching_experience_years?.label ?? '');
-const hourlyRateFixed = computed(() => teaching.value?.hourly_rate ?? null);
-const monthlyRateFixed = computed(() => teaching.value?.monthly_rate ?? null);
-const hourlyRateRange = computed(() => teaching.value?.hourly_rate_range?.label ?? '');
-const monthlyRateRange = computed(() => teaching.value?.monthly_rate_range?.label ?? '');
-const teachingMode = computed(() => teaching.value?.teaching_mode?.label ?? '');
-const availability = computed(() => teaching.value?.availability_status?.label ?? '');
+const qualification      = computed(() => teaching.value?.qualification?.label ?? '');
+const qualificationText  = computed(() => { const v = teaching.value?.qualification_text; if (!v) return ''; const s = String(v).trim(); return /^\d+$/.test(s) ? '' : s; });
+const experience         = computed(() => teaching.value?.teaching_experience_years?.label ?? '');
+const hourlyRateFixed    = computed(() => teaching.value?.hourly_rate ?? null);
+const monthlyRateFixed   = computed(() => teaching.value?.monthly_rate ?? null);
+const hourlyRateRange    = computed(() => teaching.value?.hourly_rate_range?.label ?? '');
+const monthlyRateRange   = computed(() => teaching.value?.monthly_rate_range?.label ?? '');
+const teachingMode       = computed(() => teaching.value?.teaching_mode?.label ?? '');
+const availability       = computed(() => teaching.value?.availability_status?.label ?? '');
 const teachingPhilosophy = computed(() => teaching.value?.teaching_philosophy ?? '');
-const institutionName = computed(() => teaching.value?.institution_name ?? '');
-const fieldOfStudy = computed(() => {
-  const v = teaching.value?.field_of_study;
-  if (v == null || v === '') return '';
-  const s = String(v).trim();
-  if (/^\d+$/.test(s)) return '';
-  return s;
-});
-const graduationYear = computed(() => teaching.value?.graduation_year ?? null);
-const specialization = computed(() => teaching.value?.specialization ?? '');
-const travelRadius = computed(() => teaching.value?.travel_radius_km?.label ?? '');
-const languages = computed(() => {
-  const list = teaching.value?.languages;
-  if (!Array.isArray(list) || !list.length) return [];
-  return list.map((x) => (typeof x === 'string' ? x : x?.label ?? x?.name ?? '')).filter(Boolean);
-});
+const institutionName    = computed(() => teaching.value?.institution_name ?? '');
+const fieldOfStudy       = computed(() => { const v = teaching.value?.field_of_study; if (!v) return ''; const s = String(v).trim(); return /^\d+$/.test(s) ? '' : s; });
+const graduationYear     = computed(() => teaching.value?.graduation_year ?? null);
+const specialization     = computed(() => teaching.value?.specialization ?? '');
+const travelRadius       = computed(() => teaching.value?.travel_radius_km?.label ?? '');
+const languages          = computed(() => { const l = teaching.value?.languages; if (!Array.isArray(l) || !l.length) return []; return l.map(x => typeof x === 'string' ? x : x?.label ?? x?.name ?? '').filter(Boolean); });
 
-const genderLabel = computed(() => profile.value?.gender?.label ?? '');
-const nationalityLabel = computed(() => {
-  const n = profile.value?.nationality;
-  if (n == null || n === '') return '';
-  if (typeof n === 'object') return n.label ?? '';
-  return String(n);
-});
-const highestQual = computed(() => profile.value?.highest_qualification?.label ?? '');
-const dateOfBirth = computed(() => profile.value?.date_of_birth ?? '');
-const phonePrimary = computed(() => profile.value?.phone_primary ?? '');
-const phoneSecondary = computed(() => profile.value?.phone_secondary ?? '');
-const social = computed(() => t.value?.social ?? profile.value?.social ?? {});
-const discordUsername = computed(() => {
-  const d = social.value?.discord_username;
-  return d && String(d).trim() ? String(d).trim() : '';
-});
-
-const socialLinks = computed(() => {
+const genderLabel      = computed(() => profile.value?.gender?.label ?? '');
+const nationalityLabel = computed(() => { const n = profile.value?.nationality; if (!n) return ''; return typeof n === 'object' ? (n.label ?? '') : String(n); });
+const highestQual      = computed(() => profile.value?.highest_qualification?.label ?? '');
+const dateOfBirth      = computed(() => profile.value?.date_of_birth ?? '');
+const phonePrimary     = computed(() => profile.value?.phone_primary ?? '');
+const phoneSecondary   = computed(() => profile.value?.phone_secondary ?? '');
+const social           = computed(() => t.value?.social ?? profile.value?.social ?? {});
+const discordUsername  = computed(() => { const d = social.value?.discord_username; return d && String(d).trim() ? String(d).trim() : ''; });
+const socialLinks      = computed(() => {
   const s = social.value;
   const tg = s.telegram_username ? String(s.telegram_username).replace(/^@/, '').trim() : '';
-  const pairs = [
-    ['Instagram', s.instagram_url],
-    ['LinkedIn', s.linkedin_url],
-    ['Facebook', s.facebook_url],
-    ['YouTube', s.youtube_url],
-    ['TikTok', s.tiktok_url],
-    ['Twitter / X', s.twitter_url],
-    ['Telegram', tg ? `https://t.me/${tg}` : null],
-    ['GitHub', s.github_url],
-    ['Portfolio', s.portfolio_url],
-    ['Blog', s.blog_url],
-  ];
-  return pairs.filter(([, url]) => url && String(url).trim());
+  return [
+    ['Instagram', s.instagram_url], ['LinkedIn', s.linkedin_url], ['Facebook', s.facebook_url],
+    ['YouTube', s.youtube_url], ['TikTok', s.tiktok_url], ['Twitter / X', s.twitter_url],
+    ['Telegram', tg ? `https://t.me/${tg}` : null], ['GitHub', s.github_url],
+    ['Portfolio', s.portfolio_url], ['Blog', s.blog_url],
+  ].filter(([, url]) => url && String(url).trim());
 });
 
-const completionPct = computed(() =>
-  t.value?.completion_percentage ?? t.value?.profile_completion_percentage ?? profile.value?.profile_completion_percentage ?? null
-);
-
-const subjects = computed(() => t.value?.subjects ?? teaching.value?.subjects ?? []);
-const relatedTeachers = computed(() => t.value?.related_teachers ?? []);
-const publicRating = computed(() => Number(t.value?.rating) || 0);
+const completionPct      = computed(() => t.value?.completion_percentage ?? t.value?.profile_completion_percentage ?? profile.value?.profile_completion_percentage ?? null);
+const subjects           = computed(() => t.value?.subjects ?? teaching.value?.subjects ?? []);
+const relatedTeachers    = computed(() => t.value?.related_teachers ?? []);
+const publicRating       = computed(() => Number(t.value?.rating) || 0);
 const publicTotalReviews = computed(() => Number(t.value?.total_reviews) || 0);
+const portfolio          = computed(() => t.value?.portfolio ?? profile.value?.portfolio ?? null);
+const profileEmail       = computed(() => profile.value?.email ?? '');
+const profileWebsite     = computed(() => profile.value?.website ?? '');
 
-/** Review API V2 — @see docs/ReviewApiV2.md (requires Sanctum session for full data). */
-const reviewsFetchState = ref('idle');
-const reviewStats = ref(null);
-const reviewList = ref([]);
-const reviewPagination = ref({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
-const reviewsLoading = ref(false);
-const reviewsError = ref(null);
-
-/** Logged-in user: write / edit review (Review API V2). */
-const reviewEligibility = ref(null);
+const reviewsFetchState  = ref('idle');
+const reviewStats        = ref(null);
+const reviewList         = ref([]);
+const reviewPagination   = ref({ current_page: 1, last_page: 1, total: 0, per_page: 10 });
+const reviewsLoading     = ref(false);
+const reviewsError       = ref(null);
+const reviewEligibility  = ref(null);
 const reviewCheckLoading = ref(false);
-const reviewCheckError = ref(null);
-const reviewRating = ref(5);
-const reviewTitle = ref('');
-const reviewComment = ref('');
-const reviewSubmitting = ref(false);
-
-/** At most one client-side canonical URL replace per payload load (avoids Inertia remount/replace loops). */
+const reviewCheckError   = ref(null);
+const reviewRating       = ref(5);
+const reviewTitle        = ref('');
+const reviewComment      = ref('');
+const reviewSubmitting   = ref(false);
 const slugRedirectAttempted = ref(false);
 
-const isLoggedIn = computed(() => page.props?.auth?.user != null);
+const isLoggedIn       = computed(() => page.props?.auth?.user != null);
+const authUser         = computed(() => page.props?.auth?.user ?? null);
+const authUserIdNumber = computed(() => { const n = Number(authUser.value?.id); return Number.isFinite(n) && n > 0 ? n : null; });
+const leadOwnerUserId  = computed(() => resolveTeacherUserId(teacher.value) ?? props.id);
+const viewerLeadName   = computed(() => { const u = authUser.value; if (!u) return ''; return (`${u.first_name ?? ''} ${u.last_name ?? ''}`).trim() || String(u.name ?? '').trim(); });
+const viewerLeadEmail  = computed(() => String(authUser.value?.email ?? '').trim());
+const viewerLeadPhone  = computed(() => String(authUser.value?.phone ?? '').trim());
+const defaultLeadSubject = computed(() => { const f = subjects.value[0]; return f?.name ? String(f.name) : ''; });
+const isSelfProfile    = computed(() => authUserIdNumber.value != null && leadOwnerUserId.value != null && Number(authUserIdNumber.value) === Number(leadOwnerUserId.value));
 
-/**
- * Force login via global handler. Use `always: true` for mutations (e.g. submit review) even if
- * Inertia `auth.user` was empty; use default on public review GETs so guests are not redirected.
- */
 function normalizePathname(path) {
   if (!path) return '';
-  try {
-    return decodeURI(String(path)).replace(/\/+$/, '').toLowerCase();
-  } catch {
-    return String(path).replace(/\/+$/, '').toLowerCase();
-  }
+  try { return decodeURI(String(path)).replace(/\/+$/, '').toLowerCase(); }
+  catch { return String(path).replace(/\/+$/, '').toLowerCase(); }
 }
+function pathsMatch(a, b) { return normalizePathname(a) === normalizePathname(b); }
 
-function pathsMatch(a, b) {
-  return normalizePathname(a) === normalizePathname(b);
-}
-
-/**
- * Same idea as institutes: avoid slug-only `router.replace` when `/teacher/{id}/…` already matches.
- */
-function shouldSkipCanonicalTeacherReplace(row) {
+function shouldSkipCanonicalReplace(row) {
   if (typeof window === 'undefined' || !row) return true;
   const wantId = resolveTeacherUserId(row);
   if (!wantId) return false;
-  const cur = window.location.pathname || '';
-  const m = cur.match(/^\/teacher\/(\d+)(?:\/[^/]*)?\/?$/i);
-  if (!m) return false;
-  return Number(m[1]) === Number(wantId);
+  const m = (window.location.pathname || '').match(/^\/teachers\/[^/]+-(\d+)\/?$/i);
+  return m ? Number(m[1]) === Number(wantId) : false;
 }
 
 function redirectToLoginIfSessionStale(errOrCode, options = {}) {
-  const always = options.always === true;
-  let code;
-  if (typeof errOrCode === 'object' && errOrCode !== null) {
-    code = errOrCode?.code ?? errOrCode?.status;
-  } else {
-    code = errOrCode;
-  }
+  const code = typeof errOrCode === 'object' && errOrCode !== null ? (errOrCode?.code ?? errOrCode?.status) : errOrCode;
   const n = Number(code);
   if ((n === 401 || n === 403) && typeof document !== 'undefined') {
-    if (always || isLoggedIn.value) {
+    if (options.always === true || isLoggedIn.value) {
       document.dispatchEvent(new CustomEvent('app:unauthorized'));
       return true;
     }
@@ -292,252 +196,104 @@ function redirectToLoginIfSessionStale(errOrCode, options = {}) {
   return false;
 }
 
-const authUser = computed(() => page.props?.auth?.user ?? null);
-const authUserIdNumber = computed(() => {
-  const id = authUser.value?.id;
-  const n = Number(id);
-  return Number.isFinite(n) && n > 0 ? n : null;
-});
-/** Tutor user id for `lead_owner_id` (see docs/LeadCreateApi.md). */
-const leadOwnerUserId = computed(() => resolveTeacherUserId(teacher.value) ?? props.id);
-const viewerLeadName = computed(() => {
-  const u = authUser.value;
-  if (!u) return '';
-  const fn = u.first_name ?? '';
-  const ln = u.last_name ?? '';
-  const joined = `${fn} ${ln}`.trim();
-  if (joined) return joined;
-  return String(u.name ?? '').trim();
-});
-const viewerLeadEmail = computed(() => String(authUser.value?.email ?? '').trim());
-const viewerLeadPhone = computed(() => String(authUser.value?.phone ?? '').trim());
-const defaultLeadSubject = computed(() => {
-  const first = subjects.value[0];
-  return first?.name ? String(first.name) : '';
-});
-
-const isSelfProfile = computed(
-  () =>
-    authUserIdNumber.value != null
-    && leadOwnerUserId.value != null
-    && Number(authUserIdNumber.value) === Number(leadOwnerUserId.value),
-);
-
 function parseReviewApiError(err) {
   const errors = err?.errors;
-  if (errors && typeof errors === 'object') {
-    const k = Object.keys(errors)[0];
-    if (k && Array.isArray(errors[k]) && errors[k][0]) return errors[k][0];
-  }
+  if (errors && typeof errors === 'object') { const k = Object.keys(errors)[0]; if (k && Array.isArray(errors[k]) && errors[k][0]) return errors[k][0]; }
   return err?.message || 'Could not save your review.';
 }
 
 async function loadReviewEligibility() {
-  reviewEligibility.value = null;
-  reviewCheckError.value = null;
+  reviewEligibility.value = null; reviewCheckError.value = null;
   if (!teacher.value || !isLoggedIn.value) return;
-  if (isSelfProfile.value) {
-    reviewEligibility.value = { can_review: false, has_reviewed: false, is_self: true };
-    return;
-  }
+  if (isSelfProfile.value) { reviewEligibility.value = { can_review: false, has_reviewed: false, is_self: true }; return; }
   reviewCheckLoading.value = true;
   try {
     reviewEligibility.value = await checkReviewEligibility(props.id);
-    if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) {
-      reviewRating.value = 5;
-      reviewTitle.value = '';
-      reviewComment.value = '';
-    }
+    if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) { reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = ''; }
   } catch (e) {
-    if (redirectToLoginIfSessionStale(e, { always: true })) {
-      reviewEligibility.value = null;
-      return;
-    }
+    if (redirectToLoginIfSessionStale(e, { always: true })) { reviewEligibility.value = null; return; }
     reviewCheckError.value = e?.message ?? 'Could not verify review eligibility.';
     reviewEligibility.value = null;
-  } finally {
-    reviewCheckLoading.value = false;
-  }
+  } finally { reviewCheckLoading.value = false; }
 }
 
 function beginEditReview() {
   const ex = reviewEligibility.value?.existing_review;
   if (!ex) return;
   reviewRating.value = Math.min(5, Math.max(1, Number(ex.rating) || 5));
-  reviewTitle.value = ex.title ?? '';
-  reviewComment.value = ex.comment ?? '';
+  reviewTitle.value = ex.title ?? ''; reviewComment.value = ex.comment ?? '';
   reviewModalOpen.value = true;
 }
-
 function openNewReviewModal() {
   const el = reviewEligibility.value;
   if (!el?.can_review || el.has_reviewed) return;
-  reviewRating.value = 5;
-  reviewTitle.value = '';
-  reviewComment.value = '';
+  reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = '';
   reviewModalOpen.value = true;
 }
-
-function closeReviewModal() {
-  reviewModalOpen.value = false;
-}
+function closeReviewModal() { reviewModalOpen.value = false; }
 
 async function submitReviewForm() {
   if (!authUserIdNumber.value || isSelfProfile.value) return;
   const r = Number(reviewRating.value);
-  if (!Number.isFinite(r) || r < 1 || r > 5) {
-    alertError('Please choose a rating from 1 to 5.', 'Review');
-    return;
-  }
+  if (!Number.isFinite(r) || r < 1 || r > 5) { alertError('Please choose a rating from 1 to 5.', 'Review'); return; }
   const el = reviewEligibility.value;
   const existing = el?.existing_review;
   const usePatch = !!(existing?.id && el?.has_reviewed);
   reviewSubmitting.value = true;
   try {
     if (usePatch) {
-      await updateTeacherReview(existing.id, {
-        rating: r,
-        title: reviewTitle.value.trim(),
-        comment: reviewComment.value.trim(),
-      });
+      await updateTeacherReview(existing.id, { rating: r, title: reviewTitle.value.trim(), comment: reviewComment.value.trim() });
       alertSuccess('Review updated.', 'Review');
     } else {
-      await submitTeacherReview(props.id, {
-        rating: r,
-        title: reviewTitle.value.trim(),
-        comment: reviewComment.value.trim(),
-      });
+      await submitTeacherReview(props.id, { rating: r, title: reviewTitle.value.trim(), comment: reviewComment.value.trim() });
       alertSuccess('Thanks! Your review was submitted.', 'Review');
     }
-    reviewModalOpen.value = false;
-    reviewRating.value = 5;
-    reviewTitle.value = '';
-    reviewComment.value = '';
-    await loadReviewData();
-    await loadReviewEligibility();
+    reviewModalOpen.value = false; reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = '';
+    await loadReviewData(); await loadReviewEligibility();
   } catch (err) {
     if (redirectToLoginIfSessionStale(err, { always: true })) return;
     alertError(parseReviewApiError(err), 'Review');
-  } finally {
-    reviewSubmitting.value = false;
-  }
+  } finally { reviewSubmitting.value = false; }
 }
 
-function openLeadModal() {
-  if (!isLoggedIn.value) return;
-  leadModalOpen.value = true;
-}
+function openLeadModal()  { if (!isLoggedIn.value) return; leadModalOpen.value = true; }
+function closeLeadModal() { leadModalOpen.value = false; }
+function onLeadCreatedFromProfile() { closeLeadModal(); }
 
-function closeLeadModal() {
-  leadModalOpen.value = false;
-}
+const displayAverageRating = computed(() => reviewsFetchState.value === 'ok' && reviewStats.value?.average_rating != null ? Number(reviewStats.value.average_rating) : publicRating.value);
+const displayTotalReviews  = computed(() => reviewsFetchState.value === 'ok' && reviewStats.value?.total_reviews != null ? Number(reviewStats.value.total_reviews) : publicTotalReviews.value);
+const showRatingBadge      = computed(() => displayAverageRating.value > 0 || displayTotalReviews.value > 0);
+const displayRatingLabel   = computed(() => { const n = displayAverageRating.value; if (!Number.isFinite(n) || n <= 0) return displayTotalReviews.value > 0 ? '—' : '0'; return n.toFixed(1).replace(/\.0$/, ''); });
+const distributionRows     = computed(() => { const d = reviewStats.value?.distribution; return Array.isArray(d) ? [...d].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)) : []; });
 
-function onLeadCreatedFromProfile() {
-  closeLeadModal();
-}
-
-const displayAverageRating = computed(() => {
-  if (reviewsFetchState.value === 'ok' && reviewStats.value?.average_rating != null) {
-    return Number(reviewStats.value.average_rating);
-  }
-  return publicRating.value;
-});
-
-const displayTotalReviews = computed(() => {
-  if (reviewsFetchState.value === 'ok' && reviewStats.value?.total_reviews != null) {
-    return Number(reviewStats.value.total_reviews);
-  }
-  return publicTotalReviews.value;
-});
-
-const showRatingBadge = computed(
-  () => displayAverageRating.value > 0 || displayTotalReviews.value > 0,
-);
-
-const displayRatingLabel = computed(() => {
-  const n = displayAverageRating.value;
-  if (!Number.isFinite(n) || n <= 0) {
-    return displayTotalReviews.value > 0 ? '—' : '0';
-  }
-  return n.toFixed(1).replace(/\.0$/, '');
-});
-
-const distributionRows = computed(() => {
-  const d = reviewStats.value?.distribution;
-  return Array.isArray(d) ? [...d].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)) : [];
-});
-const portfolio = computed(() => t.value?.portfolio ?? profile.value?.portfolio ?? null);
-const profileEmail = computed(() => profile.value?.email ?? '');
-const profileWebsite = computed(() => profile.value?.website ?? '');
-
-function formatInrAmount(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return String(value ?? '');
-  return n.toLocaleString('en-IN');
-}
-
-const heroHourlyLine = computed(() => {
-  if (hourlyRateFixed.value != null && hourlyRateFixed.value !== '') {
-    return `\u20B9${formatInrAmount(hourlyRateFixed.value)} / hr`;
-  }
-  return hourlyRateRange.value || '';
-});
-
-const heroMonthlyLine = computed(() => {
-  if (monthlyRateFixed.value != null && monthlyRateFixed.value !== '') {
-    return `\u20B9${formatInrAmount(monthlyRateFixed.value)} / mo`;
-  }
-  return monthlyRateRange.value || '';
-});
-
-/** Prefer hourly in UI; only show monthly when hourly is absent. */
-const showHeroHourlyRate = computed(() => !!heroHourlyLine.value);
+function formatInrAmount(v) { const n = Number(v); return Number.isFinite(n) ? n.toLocaleString('en-IN') : String(v ?? ''); }
+const heroHourlyLine    = computed(() => hourlyRateFixed.value != null && hourlyRateFixed.value !== '' ? `\u20B9${formatInrAmount(hourlyRateFixed.value)} / hr` : (hourlyRateRange.value || ''));
+const heroMonthlyLine   = computed(() => monthlyRateFixed.value != null && monthlyRateFixed.value !== '' ? `\u20B9${formatInrAmount(monthlyRateFixed.value)} / mo` : (monthlyRateRange.value || ''));
+const showHeroHourlyRate  = computed(() => !!heroHourlyLine.value);
 const showHeroMonthlyRate = computed(() => !heroHourlyLine.value && !!heroMonthlyLine.value);
-const hasHeroRates = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
+const hasHeroRates        = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
 
-const canonicalPath = computed(() => (t.value ? teacherProfilePath(t.value) : null));
-const canonicalUrl = computed(() => {
-  if (typeof window === 'undefined' || !canonicalPath.value) return '';
-  return `${window.location.origin}${canonicalPath.value}`;
-});
+const canonicalPath = computed(() => (t.value ? publicTeacherProfilePath(t.value) : null));
+const canonicalUrl  = computed(() => typeof window === 'undefined' || !canonicalPath.value ? '' : `${window.location.origin}${canonicalPath.value}`);
 
 const metaTitle = computed(() => {
   if (!name.value) return 'Teacher profile | SuGanta';
-  const loc = cityState.value ? ` in ${cityState.value}` : '';
-  const qual = qualification.value ? ` — ${qualification.value}` : '';
-  return `${name.value}${qual} | Tutor${loc} | SuGanta`;
+  return `${name.value}${qualification.value ? ` — ${qualification.value}` : ''} | Tutor${cityState.value ? ` in ${cityState.value}` : ''} | SuGanta`;
 });
-
 const metaDescription = computed(() => {
-  if (!name.value) {
-    return 'Discover qualified tutors on SuGanta. Compare subjects, experience, teaching mode, and rates, then connect in a few clicks.';
-  }
-  const subjectLine = subjects.value.length
-    ? `Teaches ${subjects.value.slice(0, 4).map((s) => s.name).join(', ')}${subjects.value.length > 4 ? '…' : ''}.`
-    : '';
-  const creds = [qualification.value, experience.value, teachingMode.value].filter(Boolean).join('. ');
-  const credLine = creds ? `${creds}.` : '';
-  const locLine = cityState.value ? `Based in ${cityState.value}.` : '';
-
-  let bioLine = '';
-  if (bioPlain.value) {
-    const oneLine = bioPlain.value.replace(/\s+/g, ' ').trim();
-    bioLine = oneLine.length > 100 ? `${oneLine.slice(0, 97)}…` : oneLine;
-  } else {
-    bioLine = `${name.value} offers tutoring on SuGanta. View the profile for qualifications, availability, rates, and contact options.`;
-  }
-
-  const pieces = [subjectLine, credLine, locLine, bioLine].filter(Boolean);
-  let desc = pieces.join(' ');
-  if (desc.length > 160) desc = `${desc.slice(0, 157)}…`;
-  return desc;
+  if (!name.value) return 'Discover qualified tutors on SuGanta. Compare subjects, experience, teaching mode, and rates, then connect in a few clicks.';
+  const parts = [
+    subjects.value.length ? `Teaches ${subjects.value.slice(0, 4).map(s => s.name).join(', ')}${subjects.value.length > 4 ? '…' : ''}.` : '',
+    [qualification.value, experience.value, teachingMode.value].filter(Boolean).join('. '),
+    cityState.value ? `Based in ${cityState.value}.` : '',
+    bioPlain.value ? bioPlain.value.replace(/\s+/g, ' ').trim().slice(0, 100) : `${name.value} offers tutoring on SuGanta.`,
+  ].filter(Boolean);
+  const desc = parts.join(' ');
+  return desc.length > 160 ? `${desc.slice(0, 157)}…` : desc;
 });
 
 async function loadTeacher() {
-  loading.value = true;
-  error.value = null;
-  errorCode.value = null;
-  slugRedirectAttempted.value = false;
+  loading.value = true; error.value = null; errorCode.value = null; slugRedirectAttempted.value = false;
   try {
     teacher.value = await getTeacher(Number(props.id));
     await loadReviewData();
@@ -545,35 +301,23 @@ async function loadTeacher() {
   } catch (e) {
     error.value = e?.message ?? 'Failed to load teacher profile';
     errorCode.value = e?.status ?? null;
-  } finally {
-    loading.value = false;
-  }
+  } finally { loading.value = false; }
 }
 
 async function loadReviewData() {
-  reviewsFetchState.value = 'loading';
-  reviewsError.value = null;
-  reviewStats.value = null;
-  reviewList.value = [];
-  reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
+  reviewsFetchState.value = 'loading'; reviewsError.value = null; reviewStats.value = null;
+  reviewList.value = []; reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
   try {
     const [stats, listPayload] = await Promise.all([
       getTeacherReviewStats(props.id),
       listTeacherReviews(props.id, { page: 1, per_page: 10, sort: 'latest' }),
     ]);
-    reviewStats.value = stats;
-    reviewList.value = listPayload.items;
-    reviewPagination.value = listPayload.pagination;
-    reviewsFetchState.value = 'ok';
+    reviewStats.value = stats; reviewList.value = listPayload.items;
+    reviewPagination.value = listPayload.pagination; reviewsFetchState.value = 'ok';
   } catch (e) {
     const code = e?.code ?? e?.status;
-    if (code === 401) {
-      if (redirectToLoginIfSessionStale(e)) return;
-      reviewsFetchState.value = 'unauthorized';
-    } else {
-      reviewsFetchState.value = 'error';
-      reviewsError.value = e?.message ?? 'Could not load reviews.';
-    }
+    if (code === 401) { if (redirectToLoginIfSessionStale(e)) return; reviewsFetchState.value = 'unauthorized'; }
+    else { reviewsFetchState.value = 'error'; reviewsError.value = e?.message ?? 'Could not load reviews.'; }
   }
 }
 
@@ -582,58 +326,36 @@ async function loadMoreReviews() {
   if (reviewsLoading.value || p.current_page >= p.last_page || reviewsFetchState.value !== 'ok') return;
   reviewsLoading.value = true;
   try {
-    const next = await listTeacherReviews(props.id, {
-      page: p.current_page + 1,
-      per_page: p.per_page,
-      sort: 'latest',
-    });
+    const next = await listTeacherReviews(props.id, { page: p.current_page + 1, per_page: p.per_page, sort: 'latest' });
     reviewList.value = [...reviewList.value, ...next.items];
     reviewPagination.value = next.pagination;
-  } catch (e) {
-    if (redirectToLoginIfSessionStale(e)) return;
-  } finally {
-    reviewsLoading.value = false;
-  }
+  } catch (e) { if (redirectToLoginIfSessionStale(e)) return; }
+  finally { reviewsLoading.value = false; }
 }
 
-function navigateToTeacher(t) {
-  const path = teacherProfilePath(t);
+function navigateToTeacher(row) {
+  const path = publicTeacherProfilePath(row);
   if (path) router.visit(path);
 }
 
-watch(
-  teacher,
-  (val) => {
-    if (!val || typeof window === 'undefined') return;
-    if (shouldSkipCanonicalTeacherReplace(val)) return;
-    const path = teacherProfilePath(val);
-    if (!path) return;
-    if (pathsMatch(window.location.pathname, path)) return;
-    if (slugRedirectAttempted.value) return;
-    slugRedirectAttempted.value = true;
-    router.replace(path, { preserveState: true, preserveScroll: true });
-  },
-  { flush: 'post' },
-);
+watch(teacher, val => {
+  if (!val || typeof window === 'undefined') return;
+  if (shouldSkipCanonicalReplace(val)) return;
+  const path = publicTeacherProfilePath(val);
+  if (!path || pathsMatch(window.location.pathname, path) || slugRedirectAttempted.value) return;
+  slugRedirectAttempted.value = true;
+  router.replace(path, { preserveState: true, preserveScroll: true });
+}, { flush: 'post' });
 
 watch(isLoggedIn, (logged, wasLogged) => {
-  if (!logged) {
-    reviewEligibility.value = null;
-    return;
-  }
-  if (wasLogged === false && teacher.value) {
-    void loadReviewEligibility();
-  }
+  if (!logged) { reviewEligibility.value = null; return; }
+  if (wasLogged === false && teacher.value) void loadReviewEligibility();
 });
 
-watch(
-  () => props.id,
-  (id, prevId) => {
-    if (prevId === undefined) return;
-    if (Number(id) === Number(prevId)) return;
-    void loadTeacher();
-  },
-);
+watch(() => props.id, (id, prevId) => {
+  if (prevId === undefined || Number(id) === Number(prevId)) return;
+  void loadTeacher();
+});
 
 onMounted(loadTeacher);
 </script>
@@ -652,7 +374,7 @@ onMounted(loadTeacher);
     <meta name="twitter:description" :content="metaDescription" />
   </Head>
 
-  <AppLayout>
+  <PublicLayout>
     <!-- Loading -->
     <div v-if="loading" class="relative max-w-6xl mx-auto animate-pulse px-1">
       <div class="h-10 bg-slate-200 rounded-2xl w-40 mb-8"></div>
@@ -1276,5 +998,5 @@ onMounted(loadTeacher);
         </div>
       </Teleport>
     </div>
-  </AppLayout>
+  </PublicLayout>
 </template>

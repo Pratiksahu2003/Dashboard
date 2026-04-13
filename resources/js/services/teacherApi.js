@@ -46,12 +46,20 @@ export function teacherSeoSlug(teacher) {
     );
 }
 
-/** Canonical Inertia path `/teachers/{id}/{slug}` (public API uses numeric user id). */
+/** Inertia path `/teacher/{id}/{slug}` (auth app directory — see routes/web.php). */
 export function teacherProfilePath(teacher) {
     const id = resolveTeacherUserId(teacher);
     if (!id) return null;
     const slug = teacherSeoSlug(teacher);
-    return `/teachers/${id}/${slug}`;
+    return `/teacher/${id}/${slug}`;
+}
+
+/** Public marketing URL `/teachers/{slug}-{id}` (no auth — teachers.show). */
+export function publicTeacherProfilePath(teacher) {
+    const id = resolveTeacherUserId(teacher);
+    if (!id) return null;
+    const slug = teacherSeoSlug(teacher);
+    return `/teachers/${slug}-${id}`;
 }
 
 /** Option maps from GET /api/v1/options use string ids → labels; some stacks may return [{ id, label }]. */

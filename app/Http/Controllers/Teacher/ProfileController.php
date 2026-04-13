@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class ProfileController extends Controller
 {
-    public function show($slug , $id)
+    public function show(string $slug, int $id): Response
     {
-  dd($slug , $id);
+        return Inertia::render('Teachers/PublicProfile', [
+            'id'   => $id,
+            'slug' => $slug,
+        ]);
     }
 }

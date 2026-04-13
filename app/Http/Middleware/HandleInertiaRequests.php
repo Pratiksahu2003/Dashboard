@@ -35,6 +35,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'authSlides' => $authSlides,
             'authSlidesVersion' => $slideVersion,
+            'publicNav' => config('public_nav'),
         ];
     }
 }
