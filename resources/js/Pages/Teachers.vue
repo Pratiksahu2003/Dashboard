@@ -233,7 +233,7 @@ const teachersMetaDescription = computed(() => {
   </Head>
 
   <AppLayout>
-    <div class="relative max-w-7xl mx-auto">
+    <div class="relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
       <!-- subtle page backdrop -->
       <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[2rem]">
         <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-200/40 blur-3xl"></div>
@@ -241,7 +241,7 @@ const teachersMetaDescription = computed(() => {
       </div>
 
       <!-- Page header -->
-      <header class="mb-8 sm:mb-10">
+      <header class="mb-8 shrink-0 sm:mb-10">
         <p class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600 mb-2">Tutors</p>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -265,15 +265,15 @@ const teachersMetaDescription = computed(() => {
       <!-- Options error -->
       <div
         v-if="optionsError"
-        class="mb-5 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm"
+        class="mb-5 shrink-0 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm"
       >
         {{ optionsError }}
       </div>
 
-      <!-- Filters + list: sidebar + single-column cards -->
-      <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+      <!-- Filters + list: independent scroll on lg (filter column vs listing column) -->
+      <div class="flex min-h-0 flex-col gap-6 lg:flex-1 lg:flex-row lg:gap-8">
         <!-- Left sidebar: FilterPanel -->
-        <aside class="w-full lg:w-72 flex-shrink-0">
+        <aside class="flex w-full shrink-0 flex-col lg:w-72 lg:min-h-0 lg:overflow-hidden">
           <FilterPanel
             v-model:modelValue="filters"
             :options="options"
@@ -284,7 +284,7 @@ const teachersMetaDescription = computed(() => {
         </aside>
 
         <!-- Right main area -->
-        <div class="flex-1 min-w-0 space-y-5">
+        <div class="min-h-0 min-w-0 flex-1 space-y-5 lg:overflow-y-auto lg:overscroll-y-contain">
           <!-- Search + Sort bar -->
           <div class="rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:p-2.5">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">

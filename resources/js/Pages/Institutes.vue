@@ -220,13 +220,13 @@ const institutesMetaDescription = computed(() => {
   </Head>
 
   <AppLayout>
-    <div class="relative mx-auto max-w-7xl">
+    <div class="relative mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col">
       <div class="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[2rem]">
         <div class="absolute -right-24 -top-24 h-72 w-72 rounded-full bg-violet-200/40 blur-3xl"></div>
         <div class="absolute -left-20 top-40 h-64 w-64 rounded-full bg-indigo-200/35 blur-3xl"></div>
       </div>
 
-      <header class="mb-8 sm:mb-10">
+      <header class="mb-8 shrink-0 sm:mb-10">
         <p class="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Directory</p>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -249,13 +249,13 @@ const institutesMetaDescription = computed(() => {
 
       <div
         v-if="optionsError"
-        class="mb-5 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm"
+        class="mb-5 shrink-0 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900 shadow-sm"
       >
         {{ optionsError }}
       </div>
 
-      <div class="flex flex-col gap-6 lg:flex-row lg:gap-8">
-        <aside class="w-full flex-shrink-0 lg:w-72">
+      <div class="flex min-h-0 flex-col gap-6 lg:flex-1 lg:flex-row lg:gap-8">
+        <aside class="flex w-full shrink-0 flex-col lg:w-72 lg:min-h-0 lg:overflow-hidden">
           <InstituteFilterPanel
             v-model="filters"
             :options="options"
@@ -265,7 +265,7 @@ const institutesMetaDescription = computed(() => {
           />
         </aside>
 
-        <div class="min-w-0 flex-1 space-y-5">
+        <div class="min-h-0 min-w-0 flex-1 space-y-5 lg:overflow-y-auto lg:overscroll-y-contain">
           <div class="rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:p-2.5">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
               <div class="flex min-w-0 flex-1 gap-2">

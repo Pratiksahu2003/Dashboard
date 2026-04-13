@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex min-h-0 flex-col rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.08)] backdrop-blur-sm lg:sticky lg:top-24 lg:max-h-[calc(100vh-6rem)]"
+    class="flex min-h-0 flex-col rounded-3xl border border-slate-200/80 bg-white/95 p-5 sm:p-6 shadow-[0_8px_30px_-8px_rgba(15,23,42,0.08)] backdrop-blur-sm lg:h-full lg:max-h-full lg:flex-1"
   >
     <div class="flex shrink-0 items-center gap-2 border-b border-slate-100 pb-4">
       <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/25">
