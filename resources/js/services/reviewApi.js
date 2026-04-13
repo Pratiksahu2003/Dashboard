@@ -262,7 +262,11 @@ export async function listMyReviews(opts = {}) {
         const body = await api.get('/reviews/my', {
             baseURL: getApiV2BaseUrl(),
             params,
-            headers: reviewFetchHeaders,
+            headers: {
+                ...reviewFetchHeaders,
+                'Cache-Control': 'no-cache, no-store, max-age=0, must-revalidate',
+                Expires: '0',
+            },
         });
         return parseReviewsListPayload(body, page, per_page);
     } catch (e) {
