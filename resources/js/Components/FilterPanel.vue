@@ -14,15 +14,30 @@
       </div>
     </div>
 
+    <div class="mb-5 flex gap-2">
+      <button
+        type="button"
+        class="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2.5 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+        data-testid="apply-filters-btn"
+        @click="$emit('apply')"
+      >
+        Apply
+      </button>
+      <button
+        type="button"
+        class="flex-1 rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300/50"
+        data-testid="clear-filters-btn"
+        @click="$emit('clear')"
+      >
+        Clear
+      </button>
+    </div>
+
     <!-- Skeleton loading state -->
     <div v-if="loading" data-testid="filter-skeleton" class="space-y-4">
       <div v-for="i in 6" :key="i" class="animate-pulse">
         <div class="h-3 bg-slate-200 rounded-lg w-1/3 mb-2"></div>
         <div class="h-10 bg-slate-100 rounded-xl w-full"></div>
-      </div>
-      <div class="flex gap-2 pt-2">
-        <div class="h-11 bg-slate-100 rounded-xl flex-1 animate-pulse"></div>
-        <div class="h-11 bg-slate-100 rounded-xl flex-1 animate-pulse"></div>
       </div>
     </div>
 
@@ -205,26 +220,6 @@
             {{ item.label }}
           </option>
         </select>
-      </div>
-
-      <!-- Action buttons -->
-      <div class="flex gap-2 pt-3">
-        <button
-          type="button"
-          class="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2.5 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-          data-testid="apply-filters-btn"
-          @click="$emit('apply')"
-        >
-          Apply
-        </button>
-        <button
-          type="button"
-          class="flex-1 rounded-xl border border-slate-200 bg-slate-50 py-2.5 px-4 text-sm font-semibold text-slate-700 transition hover:bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300/50"
-          data-testid="clear-filters-btn"
-          @click="$emit('clear')"
-        >
-          Clear
-        </button>
       </div>
     </div>
   </div>
