@@ -14,6 +14,7 @@ use App\Http\Controllers\Pages\InstituteController;
 use App\Http\Controllers\Pages\LeadController;
 use App\Http\Controllers\Pages\LeadCreateController;
 use App\Http\Controllers\Pages\MarketplaceController;
+use App\Http\Controllers\Pages\MyReviewsController;
 use App\Http\Controllers\Pages\NotesController;
 use App\Http\Controllers\Pages\NotificationsController;
 use App\Http\Controllers\Pages\PaymentsController;
@@ -70,6 +71,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', NotificationsController::class)->name('notifications');
     Route::get('/payments', PaymentsController::class)->name('payments');
     Route::get('/notes', NotesController::class)->name('notes');
+    Route::get('/my-reviews', MyReviewsController::class)->name('my-reviews');
     Route::get('/marketplace', MarketplaceController::class)->name('marketplace');
     Route::get('/subscriptions', SubscriptionsController::class)->name('subscriptions');
     Route::get('/study-requirements', StudyRequirementsController::class)->name('study-requirements');

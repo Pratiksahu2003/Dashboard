@@ -239,3 +239,74 @@ export async function updateTeacherReview(reviewId, payload) {
         throw normaliseError(e);
     }
 }
+
+/**
+ * @param {{ page?: number, per_page?: number, sort?: string, status?: string }} opts
+ * `status`: omit or `'all'` for every status; else `published` | `pending` | `rejected` | `hidden`
+ */
+export async function listMyReviews(opts = {}) {
+    const page = Number(opts.page) > 0 ? Number(opts.page) : 1;
+    const per_page = Number(opts.per_page) > 0 ? Math.min(50, Number(opts.per_page)) : 10;
+    const sort = opts.sort || 'latest';
+    const params = {
+        sort,
+        per_page,
+        page,
+        _cb: Date.now(),
+    };
+    const st = opts.status && String(opts.status).trim().toLowerCase();
+    if (st && st !== 'all') {
+        params.status = st;
+    }
+    try {
+        const body = await api.get('/reviews/my', {
+            baseURL: getApiV2BaseUrl(),
+            params,
+            headers: reviewFetchHeaders,
+        });
+        return parseReviewsListPayload(body, page, per_page);
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}
+
+/**
+ * @param {number} reviewId
+ * @returns {Promise<object|null>}
+ */
+export async function getReview(reviewId) {
+    const rid = Number(reviewId);
+    if (!Number.isFinite(rid) || rid <= 0) {
+        const err = new Error('Invalid review id');
+        err.status = 400;
+        throw err;
+    }
+    try {
+        const body = await api.get(`/reviews/${rid}`, {
+            baseURL: getApiV2BaseUrl(),
+            headers: reviewFetchHeaders,
+        });
+        return body?.data ?? null;
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}
+
+/**
+ * @param {number} reviewId
+ */
+export async function deleteTeacherReview(reviewId) {
+    const rid = Number(reviewId);
+    if (!Number.isFinite(rid) || rid <= 0) {
+        const err = new Error('Invalid review id');
+        err.status = 400;
+        throw err;
+    }
+    try {
+        await api.delete(`/reviews/${rid}`, {
+            baseURL: getApiV2BaseUrl(),
+        });
+    } catch (e) {
+        throw normaliseError(e);
+    }
+}

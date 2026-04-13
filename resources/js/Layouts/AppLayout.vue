@@ -142,6 +142,7 @@ const navItems = computed(() => {
         { id: 'google-workspace', label: 'Google Workspace', icon: 'M21.35 11.1H12v2.92h5.35c-.57 3.03-3.25 4.67-5.35 4.67a6 6 0 010-12c1.7 0 3.04.73 3.9 1.53l2.13-2.06A8.88 8.88 0 0012 3a9 9 0 100 18c5.2 0 8.63-3.65 8.63-8.8 0-.59-.06-1.03-.14-1.1z', href: 'google-workspace' },
         { id: 'chat', label: 'Chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', href: 'chat' },
         { id: 'teachers', label: 'Teachers', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', href: 'teachers' },
+        { id: 'my-reviews', label: 'My reviews', icon: 'M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.696h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.696l1.519-4.674z', href: 'my-reviews' },
         { id: 'institutes', label: 'Institutes', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', href: 'institutes' },
         { id: 'profile', label: 'Profile', icon: 'M5.121 17.804A8.962 8.962 0 0112 15c2.347 0 4.483.902 6.08 2.38M15 11a3 3 0 11-6 0 3 3 0 016 0z', href: 'profile' },
         { id: 'support-tickets', label: 'Support Tickets', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01', href: 'support-tickets' },
@@ -321,7 +322,9 @@ const loadActivePlans = async () => {
 <template>
     <div class="h-screen overflow-hidden bg-slate-100">
         <div class="flex h-full">
-            <aside class="hidden lg:flex lg:w-72 bg-white border-r border-slate-200 text-slate-900 flex-col p-5 h-full overflow-y-auto">
+            <aside
+                class="hidden lg:flex lg:w-72 bg-white border-r border-slate-200 text-slate-900 flex-col p-5 h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+            >
                 <Link :href="route('dashboard')" class="flex items-center mb-8">
                     <img src="/logo/Su250.png" alt="SuGanta" class="h-10 w-auto" />
                 </Link>
@@ -547,7 +550,9 @@ const loadActivePlans = async () => {
 
         <div v-if="sidebarOpen" class="lg:hidden fixed inset-0 z-50">
             <div class="absolute inset-0 bg-slate-950/60" @click="sidebarOpen = false"></div>
-            <aside class="absolute left-0 top-0 h-full w-72 bg-white text-slate-900 p-5 border-r border-slate-200">
+            <aside
+                class="absolute left-0 top-0 h-full w-72 overflow-y-auto border-r border-slate-200 bg-white p-5 text-slate-900 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
+            >
                 <div class="flex items-center justify-between mb-6">
                     <Link :href="route('dashboard')" class="flex items-center">
                         <img src="/logo/Su250.png" alt="SuGanta" class="h-9 w-auto" />

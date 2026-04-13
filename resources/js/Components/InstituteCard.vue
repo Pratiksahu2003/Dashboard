@@ -125,17 +125,17 @@
               </div>
             </div>
 
-            <div class="flex w-full gap-2 sm:w-auto sm:flex-col">
+            <div class="flex w-full flex-row gap-2 sm:w-auto sm:justify-end">
               <button
                 type="button"
-                class="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:w-full sm:min-w-[140px]"
+                class="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 sm:flex-initial sm:min-w-[7.5rem]"
                 @click.stop="$emit('click', institute)"
               >
                 View profile
               </button>
               <button
                 type="button"
-                class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 sm:w-full sm:min-w-[140px]"
+                class="flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 sm:flex-initial sm:min-w-[7.5rem]"
                 @click.stop="$emit('contact', institute)"
               >
                 <svg class="h-4 w-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

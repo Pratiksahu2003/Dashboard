@@ -30,6 +30,7 @@ const pageDescriptionMap = [
     { match: /^\/institutes/i, description: 'Browse verified schools and institutes on SuGanta — filter by location, type, size, and more.' },
     { match: /^\/chat/i, description: 'Chat in real-time with users, sellers, and support conversations.' },
     { match: /^\/notifications/i, description: 'Review and manage your latest account and system notifications.' },
+    { match: /^\/my-reviews/i, description: 'See, edit, or delete reviews you wrote about teachers on SuGanta.' },
 ];
 
 const ensureMetaTag = (name, content) => {
