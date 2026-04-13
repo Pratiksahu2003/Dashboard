@@ -28,7 +28,7 @@ use App\Http\Controllers\Pages\SupportTicketsExistingController;
 use App\Http\Controllers\Pages\TeacherController;
 use App\Http\Controllers\SyncSpaAuthCacheController;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\Teacher\ProfileController  as TeacherProfile;
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -40,6 +40,7 @@ Route::post('/logout',             LogoutController::class)->name('logout');
 Route::post('/auth/sync-cache',    SyncSpaAuthCacheController::class)->name('auth.sync-cache');
 Route::get('/firebase/web-config', FirebaseWebConfigController::class);
 Route::post('/broadcasting/auth',  BroadcastingAuthProxyController::class);
+
 
 /*
 |--------------------------------------------------------------------------
@@ -94,19 +95,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/contact', ContactController::class)->name('contact');
 
     // Teacher Directory
-    Route::get('/teachers', [TeacherController::class, 'index'])->name('teachers');
+    Route::get('/teacher', [TeacherController::class, 'index'])->name('teachers');
 
-    Route::get('/teachers/{id}/{slug}', [TeacherController::class, 'show'])
+    Route::get('/teacher/{id}/{slug}', [TeacherController::class, 'show'])
         ->whereNumber('id')
         ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]*')
         ->name('teacher-profile');
 
     // Legacy `/teachers/{slug}/{id}` — 301 redirect to canonical `{id}/{slug}`
-    Route::get('/teachers/{legacySlug}/{legacyId}', function (string $legacySlug, int $legacyId) {
+    Route::get('/teacher/{legacySlug}/{legacyId}', function (string $legacySlug, int $legacyId) {
         return redirect()->route('teacher-profile', ['id' => $legacyId, 'slug' => $legacySlug], 301);
     })->whereNumber('legacyId')->where('legacySlug', '[a-zA-Z][a-zA-Z0-9\-]*');
 
-    Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
+    Route::get('/teacher/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
 
     // Institute Directory
     Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes');
@@ -118,5 +119,21 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/institutes/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
 });
+
+
+/*
+|--------------------------------------------------------------------------
+| Teacher Profile  Routes
+|--------------------------------------------------------------------------
+*/
+
+// /teachers → redirect to main site
+Route::get('/teachers', fn () => redirect()->away('https://www.suganta.com/teachers'))->name('teachers.redirect');
+
+// /teachers/kishan-kumar-dubey-1257  (slug-id, id is numeric)
+Route::get('/teachers/{slug}-{id}', [TeacherProfile::class, 'show'])
+    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]+')
+    ->whereNumber('id')
+    ->name('teachers.show');
 
 require __DIR__.'/auth.php';
