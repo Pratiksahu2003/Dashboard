@@ -8,17 +8,10 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
         </svg>
       </span>
-      <div class="min-w-0 flex-1">
+      <div>
         <h2 class="text-sm font-semibold leading-tight text-slate-900">Refine results</h2>
-        <p class="text-xs text-slate-500">Institutes, schools &amp; coaching centres</p>
+        <p class="text-xs text-slate-500">Narrow down your search</p>
       </div>
-      <span
-        v-if="activeFilterCount > 0"
-        class="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold tabular-nums text-indigo-800"
-        data-testid="institute-active-filter-count"
-      >
-        {{ activeFilterCount }} active
-      </span>
     </div>
 
     <div v-if="loading" data-testid="institute-filter-skeleton" class="space-y-4">
@@ -32,243 +25,221 @@
       </div>
     </div>
 
-    <div v-else class="space-y-6">
-      <!-- Location -->
-      <section class="space-y-3">
-        <h3 class="text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-600">Location</h3>
+    <div v-else class="space-y-4">
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Location</label>
+        <input
+          type="text"
+          :value="filters.location"
+          placeholder="City or area..."
+          class="field-input"
+          data-testid="institute-filter-location"
+          @input="onLocationInput($event.target.value)"
+        />
+        <p class="mt-1 text-[11px] leading-relaxed text-slate-500">
+          Searches city or area. Separate from PIN below.
+        </p>
+      </div>
 
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Broad search</label>
-          <input
-            type="text"
-            :value="filters.location"
-            placeholder="City, area, or state in one field…"
-            class="field-input"
-            data-testid="institute-filter-location"
-            @input="onLocationInput($event.target.value)"
-          />
-          <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-            When this is filled, the API uses it instead of separate city and state below.
-          </p>
-        </div>
-
-        <div ref="cityDropdownRef" class="relative">
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">City (directory)</label>
-          <button
-            type="button"
-            class="field-input flex w-full items-center justify-between gap-2 text-left"
-            data-testid="institute-filter-city-trigger"
-            aria-haspopup="listbox"
-            :aria-expanded="cityMenuOpen"
-            :disabled="!!String(filters.location || '').trim()"
-            @click.stop="toggleCityMenu"
-          >
-            <span class="min-w-0 truncate font-medium text-slate-800">{{ selectedCityLabel }}</span>
-            <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-          <p v-if="String(filters.location || '').trim()" class="mt-1 text-[11px] text-amber-700/90">
-            Clear broad search above to use the city directory.
-          </p>
-          <div
-            v-show="cityMenuOpen"
-            class="absolute left-0 right-0 z-30 mt-1 flex max-h-64 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
-            data-testid="institute-filter-city-dropdown"
-            role="listbox"
-            @click.stop
-          >
-            <div class="border-b border-slate-100 p-2">
-              <input
-                v-model="citySearch"
-                type="search"
-                autocomplete="off"
-                placeholder="Search cities…"
-                class="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                data-testid="institute-filter-city-search"
-                @keydown.escape.prevent="cityMenuOpen = false"
-              />
-            </div>
-            <ul class="max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
-              <li
-                role="option"
-                :aria-selected="!filters.city"
-                class="cursor-pointer px-3 py-2 text-slate-700 hover:bg-indigo-50"
-                data-testid="institute-filter-city-all"
-                @mousedown.prevent="selectCity(null)"
-              >
-                Any city
-              </li>
-              <li
-                v-for="row in filteredCities"
-                :key="row.value"
-                role="option"
-                :aria-selected="filters.city === row.value"
-                class="cursor-pointer px-3 py-2 text-slate-800 hover:bg-indigo-50"
-                :data-testid="`institute-filter-city-${row.value}`"
-                @mousedown.prevent="selectCity(row.value)"
-              >
-                <span class="font-medium">{{ row.value }}</span>
-                <span v-if="row.count != null" class="ml-2 text-xs tabular-nums text-slate-400">({{ row.count }})</span>
-              </li>
-              <li
-                v-if="citySearch.trim() && filteredCities.length === 0"
-                class="px-3 py-4 text-center text-xs text-slate-500"
-              >
-                No cities match “{{ citySearch.trim() }}”
-              </li>
-            </ul>
+      <div ref="cityDropdownRef" class="relative">
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">City</label>
+        <button
+          type="button"
+          class="field-input flex w-full items-center justify-between gap-2 text-left"
+          data-testid="institute-filter-city-trigger"
+          aria-haspopup="listbox"
+          :aria-expanded="cityMenuOpen"
+          :disabled="!!String(filters.location || '').trim()"
+          @click.stop="toggleCityMenu"
+        >
+          <span class="min-w-0 truncate font-medium text-slate-800">{{ selectedCityLabel }}</span>
+          <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <p v-if="String(filters.location || '').trim()" class="mt-1 text-[11px] text-slate-500">
+          Clear location above to pick from the city list.
+        </p>
+        <div
+          v-show="cityMenuOpen"
+          class="absolute left-0 right-0 z-30 mt-1 flex max-h-64 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+          data-testid="institute-filter-city-dropdown"
+          role="listbox"
+          @click.stop
+        >
+          <div class="border-b border-slate-100 p-2">
+            <input
+              v-model="citySearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Search cities..."
+              class="w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              data-testid="institute-filter-city-search"
+              @keydown.escape.prevent="cityMenuOpen = false"
+            />
           </div>
-        </div>
-
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">State</label>
-          <input
-            type="text"
-            :value="filters.state"
-            placeholder="Ignored if broad search is set"
-            class="field-input"
-            :class="locationLocksDetail ? 'opacity-60' : ''"
-            data-testid="institute-filter-state"
-            @input="update('state', $event.target.value)"
-          />
-        </div>
-
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pincode</label>
-          <input
-            type="text"
-            :value="filters.pincode"
-            placeholder="Exact PIN / postal code"
-            maxlength="20"
-            inputmode="numeric"
-            autocomplete="postal-code"
-            class="field-input"
-            data-testid="institute-filter-pincode"
-            @input="onPincodeInput($event)"
-          />
-          <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-            Exact match on <span class="font-mono text-[10px] text-slate-600">profile.pincode</span>. Independent of broad search and city directory above.
-          </p>
-        </div>
-      </section>
-
-      <div class="border-t border-slate-100 pt-2"></div>
-
-      <!-- Institute profile -->
-      <section class="space-y-3">
-        <h3 class="text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-600">Institute</h3>
-
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Type</label>
-          <select
-            :value="filters.institute_type ?? ''"
-            class="field-input"
-            data-testid="institute-filter-type"
-            @change="update('institute_type', $event.target.value ? Number($event.target.value) : null)"
-          >
-            <option value="">Any type</option>
-            <option
-              v-for="item in options?.options?.institute_type ?? []"
-              :key="item.id"
-              :value="item.id"
+          <ul class="max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
+            <li
+              role="option"
+              :aria-selected="!filters.city"
+              class="cursor-pointer px-3 py-2 text-slate-700 hover:bg-indigo-50"
+              data-testid="institute-filter-city-all"
+              @mousedown.prevent="selectCity(null)"
             >
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Category</label>
-          <select
-            :value="filters.institute_category ?? ''"
-            class="field-input"
-            data-testid="institute-filter-category"
-            @change="update('institute_category', $event.target.value ? Number($event.target.value) : null)"
-          >
-            <option value="">Any category</option>
-            <option
-              v-for="item in options?.options?.institute_category ?? []"
-              :key="item.id"
-              :value="item.id"
+              Any city
+            </li>
+            <li
+              v-for="row in filteredCities"
+              :key="row.value"
+              role="option"
+              :aria-selected="filters.city === row.value"
+              class="cursor-pointer px-3 py-2 text-slate-800 hover:bg-indigo-50"
+              :data-testid="`institute-filter-city-${row.value}`"
+              @mousedown.prevent="selectCity(row.value)"
             >
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Established</label>
-          <select
-            :value="filters.establishment_year_range ?? ''"
-            class="field-input"
-            data-testid="institute-filter-established"
-            @change="update('establishment_year_range', $event.target.value ? Number($event.target.value) : null)"
-          >
-            <option value="">Any period</option>
-            <option
-              v-for="item in options?.options?.establishment_year_range ?? []"
-              :key="item.id"
-              :value="item.id"
+              <span class="font-medium">{{ row.value }}</span>
+              <span v-if="row.count != null" class="ml-2 text-xs tabular-nums text-slate-400">({{ row.count }})</span>
+            </li>
+            <li
+              v-if="citySearch.trim() && filteredCities.length === 0"
+              class="px-3 py-4 text-center text-xs text-slate-500"
             >
-              {{ item.label }}
-            </option>
-          </select>
+              No cities match “{{ citySearch.trim() }}”
+            </li>
+          </ul>
         </div>
-      </section>
+      </div>
 
-      <div class="border-t border-slate-100 pt-2"></div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">State</label>
+        <input
+          type="text"
+          :value="filters.state"
+          placeholder="Ignored if location is set"
+          class="field-input"
+          :class="locationLocksDetail ? 'opacity-60' : ''"
+          data-testid="institute-filter-state"
+          @input="update('state', $event.target.value)"
+        />
+      </div>
 
-      <!-- Scale -->
-      <section class="space-y-3">
-        <h3 class="text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-600">Scale</h3>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Pincode</label>
+        <input
+          type="text"
+          :value="filters.pincode ?? ''"
+          placeholder="Exact PIN / postal code"
+          maxlength="20"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          class="field-input"
+          data-testid="institute-filter-pincode"
+          @input="onPincodeInput($event)"
+        />
+        <p class="mt-1 text-[11px] leading-relaxed text-slate-500">
+          Exact match on profile pincode; sent as the <span class="font-mono text-[10px] text-slate-600">pincode</span> query parameter.
+        </p>
+      </div>
 
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Student body</label>
-          <select
-            :value="filters.total_students_range ?? ''"
-            class="field-input"
-            data-testid="institute-filter-students"
-            @change="update('total_students_range', $event.target.value ? Number($event.target.value) : null)"
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Type</label>
+        <select
+          :value="filters.institute_type ?? ''"
+          class="field-input"
+          data-testid="institute-filter-type"
+          @change="update('institute_type', $event.target.value ? Number($event.target.value) : null)"
+        >
+          <option value="">Any type</option>
+          <option
+            v-for="item in options?.options?.institute_type ?? []"
+            :key="item.id"
+            :value="item.id"
           >
-            <option value="">Any size</option>
-            <option
-              v-for="item in options?.options?.total_students_range ?? []"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
+            {{ item.label }}
+          </option>
+        </select>
+      </div>
 
-        <div>
-          <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Teaching staff</label>
-          <select
-            :value="filters.total_teachers_range ?? ''"
-            class="field-input"
-            data-testid="institute-filter-teachers-range"
-            @change="update('total_teachers_range', $event.target.value ? Number($event.target.value) : null)"
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Category</label>
+        <select
+          :value="filters.institute_category ?? ''"
+          class="field-input"
+          data-testid="institute-filter-category"
+          @change="update('institute_category', $event.target.value ? Number($event.target.value) : null)"
+        >
+          <option value="">Any category</option>
+          <option
+            v-for="item in options?.options?.institute_category ?? []"
+            :key="item.id"
+            :value="item.id"
           >
-            <option value="">Any</option>
-            <option
-              v-for="item in options?.options?.total_teachers_range ?? []"
-              :key="item.id"
-              :value="item.id"
-            >
-              {{ item.label }}
-            </option>
-          </select>
-        </div>
-      </section>
+            {{ item.label }}
+          </option>
+        </select>
+      </div>
 
-      <div class="border-t border-slate-100 pt-2"></div>
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Established</label>
+        <select
+          :value="filters.establishment_year_range ?? ''"
+          class="field-input"
+          data-testid="institute-filter-established"
+          @change="update('establishment_year_range', $event.target.value ? Number($event.target.value) : null)"
+        >
+          <option value="">Any period</option>
+          <option
+            v-for="item in options?.options?.establishment_year_range ?? []"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+      </div>
 
-      <!-- Quality -->
-      <section class="space-y-3">
-        <h3 class="text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-600">Listing quality</h3>
-        <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-3">
-          <label class="flex cursor-pointer items-center gap-3 text-sm text-slate-800">
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Student body</label>
+        <select
+          :value="filters.total_students_range ?? ''"
+          class="field-input"
+          data-testid="institute-filter-students"
+          @change="update('total_students_range', $event.target.value ? Number($event.target.value) : null)"
+        >
+          <option value="">Any size</option>
+          <option
+            v-for="item in options?.options?.total_students_range ?? []"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Teaching staff</label>
+        <select
+          :value="filters.total_teachers_range ?? ''"
+          class="field-input"
+          data-testid="institute-filter-teachers-range"
+          @change="update('total_teachers_range', $event.target.value ? Number($event.target.value) : null)"
+        >
+          <option value="">Any</option>
+          <option
+            v-for="item in options?.options?.total_teachers_range ?? []"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.label }}
+          </option>
+        </select>
+      </div>
+
+      <div>
+        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Listing</label>
+        <div class="space-y-2.5 pt-0.5">
+          <label class="flex cursor-pointer items-center gap-2.5 text-sm text-slate-800">
             <input
               type="checkbox"
               :checked="!!filters.verified"
@@ -276,12 +247,9 @@
               data-testid="institute-filter-verified"
               @change="onVerifiedChange($event.target.checked)"
             />
-            <span>
-              <span class="font-semibold">Verified only</span>
-              <span class="mt-0.5 block text-xs font-normal text-slate-500">Profile verification from SuGanta</span>
-            </span>
+            <span>Verified only</span>
           </label>
-          <label class="flex cursor-pointer items-center gap-3 text-sm text-slate-800">
+          <label class="flex cursor-pointer items-center gap-2.5 text-sm text-slate-800">
             <input
               type="checkbox"
               :checked="!!filters.featured"
@@ -289,22 +257,19 @@
               data-testid="institute-filter-featured"
               @change="onFeaturedChange($event.target.checked)"
             />
-            <span>
-              <span class="font-semibold">Featured only</span>
-              <span class="mt-0.5 block text-xs font-normal text-slate-500">Highlighted institutes</span>
-            </span>
+            <span>Featured only</span>
           </label>
         </div>
-      </section>
+      </div>
 
-      <div class="flex gap-2 pt-1">
+      <div class="flex gap-2 pt-3">
         <button
           type="button"
           class="flex-1 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 py-2.5 px-4 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:from-indigo-500 hover:to-violet-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
           data-testid="institute-apply-filters"
           @click="$emit('apply')"
         >
-          Apply filters
+          Apply
         </button>
         <button
           type="button"
@@ -312,7 +277,7 @@
           data-testid="institute-clear-filters"
           @click="$emit('clear')"
         >
-          Clear all
+          Clear
         </button>
       </div>
     </div>
@@ -360,23 +325,6 @@ const selectedCityLabel = computed(() => {
   const c = props.modelValue.city;
   if (c == null || c === '') return 'Any city';
   return String(c);
-});
-
-const activeFilterCount = computed(() => {
-  const f = props.modelValue;
-  let n = 0;
-  if (String(f.location ?? '').trim()) n++;
-  if (String(f.city ?? '').trim()) n++;
-  if (String(f.state ?? '').trim()) n++;
-  if (String(f.pincode ?? '').trim()) n++;
-  if (f.institute_type != null) n++;
-  if (f.institute_category != null) n++;
-  if (f.establishment_year_range != null) n++;
-  if (f.total_students_range != null) n++;
-  if (f.total_teachers_range != null) n++;
-  if (f.verified) n++;
-  if (f.featured) n++;
-  return n;
 });
 
 function emitPatch(partial) {
