@@ -299,6 +299,89 @@ onMounted(() => {
                 </div>
             </div>
 
+            <section
+                class="relative overflow-hidden rounded-3xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50 via-white to-violet-50 p-5 shadow-[0_12px_40px_-12px_rgba(79,70,229,0.25)] sm:p-6"
+                aria-label="Featured platform areas"
+            >
+                <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-violet-400/20 blur-3xl"></div>
+                <div class="pointer-events-none absolute -bottom-12 -left-12 h-40 w-40 rounded-full bg-indigo-400/15 blur-3xl"></div>
+                <div class="relative">
+                    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+                        <div>
+                            <p class="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600">Explore the platform</p>
+                            <h2 class="mt-1 text-lg font-black tracking-tight text-slate-900 sm:text-xl">
+                                Teachers, institutes, AI adviser, and marketplace
+                            </h2>
+                            <p class="mt-1 max-w-2xl text-sm font-semibold text-slate-600">
+                                Jump into the experiences that matter most: public directories, intelligent guidance, and resources.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <Link
+                            :href="route('teachers')"
+                            class="dash-spotlight-card dash-spotlight-card--teachers group"
+                        >
+                            <div class="dash-spotlight-icon-wrap dash-spotlight-icon-wrap--teachers">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                                </svg>
+                            </div>
+                            <h3 class="mt-3 text-base font-black text-slate-900">Teachers</h3>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                Find tutors, compare profiles, and connect with educators.
+                            </p>
+                            <span class="dash-spotlight-cta">Browse directory</span>
+                        </Link>
+                        <Link
+                            :href="route('institutes')"
+                            class="dash-spotlight-card dash-spotlight-card--institutes group"
+                        >
+                            <div class="dash-spotlight-icon-wrap dash-spotlight-icon-wrap--institutes">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                </svg>
+                            </div>
+                            <h3 class="mt-3 text-base font-black text-slate-900">Institutes</h3>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                Explore schools and coaching centres with rich profiles.
+                            </p>
+                            <span class="dash-spotlight-cta">View institutes</span>
+                        </Link>
+                        <Link
+                            :href="route('ai-adviser')"
+                            class="dash-spotlight-card dash-spotlight-card--ai group"
+                        >
+                            <div class="dash-spotlight-icon-wrap dash-spotlight-icon-wrap--ai">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                            </div>
+                            <h3 class="mt-3 text-base font-black text-slate-900">AI Adviser</h3>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                Get smart guidance tailored to your learning goals.
+                            </p>
+                            <span class="dash-spotlight-cta">Open adviser</span>
+                        </Link>
+                        <Link
+                            :href="route('marketplace')"
+                            class="dash-spotlight-card dash-spotlight-card--marketplace group"
+                        >
+                            <div class="dash-spotlight-icon-wrap dash-spotlight-icon-wrap--marketplace">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                                </svg>
+                            </div>
+                            <h3 class="mt-3 text-base font-black text-slate-900">Marketplace</h3>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                Discover resources, offers, and tools in one place.
+                            </p>
+                            <span class="dash-spotlight-cta">Go to marketplace</span>
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div
                     v-for="card in countCards"
@@ -598,6 +681,98 @@ onMounted(() => {
 .mesh-pattern {
     background-image: radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.9) 1px, transparent 0);
     background-size: 44px 44px;
+}
+
+.dash-spotlight-card {
+    position: relative;
+    display: block;
+    border-radius: 1rem;
+    border: 1px solid rgb(226 232 240);
+    background: rgba(255, 255, 255, 0.92);
+    padding: 1.1rem 1.15rem;
+    box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+}
+
+.dash-spotlight-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 40px -12px rgba(79, 70, 229, 0.22);
+}
+
+.dash-spotlight-card--teachers:hover {
+    border-color: rgb(165 180 252);
+}
+.dash-spotlight-card--institutes:hover {
+    border-color: rgb(110 231 183);
+}
+.dash-spotlight-card--ai:hover {
+    border-color: rgb(251 191 36);
+}
+.dash-spotlight-card--marketplace:hover {
+    border-color: rgb(244 114 182);
+}
+
+.dash-spotlight-icon-wrap {
+    display: flex;
+    height: 2.5rem;
+    width: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+}
+
+.dash-spotlight-icon-wrap--teachers {
+    background: rgb(224 231 255);
+    color: rgb(67 56 202);
+}
+.dash-spotlight-icon-wrap--institutes {
+    background: rgb(209 250 229);
+    color: rgb(5 150 105);
+}
+.dash-spotlight-icon-wrap--ai {
+    background: rgb(254 243 199);
+    color: rgb(180 83 9);
+}
+.dash-spotlight-icon-wrap--marketplace {
+    background: rgb(252 231 243);
+    color: rgb(190 24 93);
+}
+
+.dash-spotlight-cta {
+    margin-top: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(79 70 229);
+}
+
+.dash-spotlight-card--teachers .dash-spotlight-cta {
+    color: rgb(67 56 202);
+}
+.dash-spotlight-card--institutes .dash-spotlight-cta {
+    color: rgb(5 120 85);
+}
+.dash-spotlight-card--ai .dash-spotlight-cta {
+    color: rgb(180 83 9);
+}
+.dash-spotlight-card--marketplace .dash-spotlight-cta {
+    color: rgb(190 24 93);
+}
+
+.dash-spotlight-cta::after {
+    content: '→';
+    transition: transform 0.2s ease;
+}
+
+.group:hover .dash-spotlight-cta::after {
+    transform: translateX(3px);
 }
 
 .dashboard-calendar-layout {
