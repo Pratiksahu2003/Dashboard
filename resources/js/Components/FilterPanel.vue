@@ -34,7 +34,7 @@
     </div>
 
     <!-- Scrollable fields only (header + Apply/Clear stay visible on lg) -->
-    <div class="filter-panel-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pt-4 -mx-1 px-1">
+    <div class="filter-panel-scroll scrollbar-none min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pt-4 -mx-1 px-1">
     <!-- Skeleton loading state -->
     <div v-if="loading" data-testid="filter-skeleton" class="space-y-4 pb-2">
       <div v-for="i in 6" :key="i" class="animate-pulse">
@@ -113,7 +113,7 @@
               @keydown.escape.prevent="subjectMenuOpen = false"
             />
           </div>
-          <ul class="max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
+          <ul class="scrollbar-none max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
             <li
               role="option"
               :aria-selected="filters.subject_id == null"

@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Hide scrollbar visuals; keep overflow scrolling (wheel, touch, keyboard). */
+@layer utilities {
+    .scrollbar-none {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+    }
+}

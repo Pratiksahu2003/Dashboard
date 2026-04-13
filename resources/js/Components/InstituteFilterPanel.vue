@@ -33,7 +33,7 @@
       </button>
     </div>
 
-    <div class="filter-panel-scroll min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pt-4 -mx-1 px-1">
+    <div class="filter-panel-scroll scrollbar-none min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pt-4 -mx-1 px-1">
     <div v-if="loading" data-testid="institute-filter-skeleton" class="space-y-4 pb-2">
       <div v-for="i in 6" :key="i" class="animate-pulse">
         <div class="mb-2 h-3 w-1/3 rounded-lg bg-slate-200"></div>
@@ -94,7 +94,7 @@
               @keydown.escape.prevent="cityMenuOpen = false"
             />
           </div>
-          <ul class="max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
+          <ul class="scrollbar-none max-h-48 overflow-y-auto py-1 text-sm" role="presentation">
             <li
               role="option"
               :aria-selected="!filters.city"

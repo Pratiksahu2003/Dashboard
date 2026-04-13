@@ -284,7 +284,7 @@ const teachersMetaDescription = computed(() => {
         </aside>
 
         <!-- Right main area -->
-        <div class="min-h-0 min-w-0 flex-1 space-y-5 lg:overflow-y-auto lg:overscroll-y-contain">
+        <div class="scrollbar-none min-h-0 min-w-0 flex-1 space-y-5 lg:overflow-y-auto lg:overscroll-y-contain">
           <!-- Search + Sort bar -->
           <div class="rounded-2xl border border-slate-200/80 bg-white/90 p-2 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:p-2.5">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
@@ -456,7 +456,7 @@ const teachersMetaDescription = computed(() => {
               </svg>
             </button>
           </div>
-          <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
+          <div class="scrollbar-none min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5">
             <p
               v-if="!leadModalOwnerId"
               class="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-900"
