@@ -599,8 +599,11 @@ onMounted(loadInstitute);
         All institutes
       </Link>
 
-      <div class="relative mb-8 overflow-hidden rounded-3xl border border-slate-200/70 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)]">
-        <div class="relative h-40 sm:h-52">
+      <div
+        class="relative mb-8 min-h-[280px] overflow-hidden rounded-3xl border border-slate-200/70 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:min-h-[300px]"
+      >
+        <!-- Full-bleed background: cover or gradient, always readable via bottom scrim -->
+        <div class="absolute inset-0">
           <img
             v-if="coverUrl && !coverError"
             :src="coverUrl"
@@ -610,54 +613,107 @@ onMounted(loadInstitute);
           />
           <div
             v-else
-            class="h-full w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-900"
+            class="h-full w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-950"
           ></div>
-          <div class="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent"></div>
+          <div
+            class="absolute inset-0 bg-gradient-to-t from-slate-950/92 via-slate-900/55 to-slate-900/25"
+            aria-hidden="true"
+          ></div>
         </div>
-        <div class="relative -mt-16 flex flex-col gap-6 px-6 pb-8 sm:-mt-14 sm:flex-row sm:items-end sm:px-10">
+
+        <div
+          class="relative z-10 flex flex-col gap-6 px-5 pb-8 pt-10 sm:flex-row sm:items-end sm:gap-8 sm:px-10 sm:pb-10 sm:pt-12"
+        >
           <div class="flex shrink-0 justify-center sm:justify-start">
             <div class="relative">
-              <div class="absolute -inset-1 rounded-2xl bg-gradient-to-br from-indigo-400 to-violet-500 opacity-70 blur-md"></div>
+              <div class="absolute -inset-1 rounded-2xl bg-gradient-to-br from-white/40 to-indigo-300/30 opacity-90 blur-md"></div>
               <img
                 v-if="logoUrl && !logoError"
                 :src="logoUrl"
                 :alt="name"
-                class="relative h-28 w-28 rounded-2xl object-cover shadow-xl ring-4 ring-white sm:h-32 sm:w-32"
+                class="relative h-28 w-28 rounded-2xl object-cover shadow-2xl ring-4 ring-white/95 sm:h-32 sm:w-32"
                 @error="logoError = true"
               />
               <div
                 v-else
-                class="relative flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-2xl font-bold text-white shadow-xl ring-4 ring-white sm:h-32 sm:w-32 sm:text-3xl"
+                class="relative flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-2xl font-bold text-white shadow-2xl ring-4 ring-white/95 sm:h-32 sm:w-32 sm:text-3xl"
               >
                 {{ initials }}
               </div>
             </div>
           </div>
-          <div class="min-w-0 flex-1 pb-1 text-white drop-shadow-md sm:pb-0">
-            <div class="flex flex-wrap items-center gap-2">
-              <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">{{ name }}</h1>
-              <span v-if="data.verified" class="rounded-full bg-sky-500/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">Verified</span>
-              <span v-if="data.is_featured" class="rounded-full bg-amber-500/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">Featured</span>
-            </div>
-            <div v-if="cityState" class="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/95">
-              <span class="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 font-medium backdrop-blur-sm">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                {{ cityState }}<template v-if="area"><span class="text-white/70">·</span>{{ area }}</template>
+
+          <div class="min-w-0 flex-1 space-y-3 sm:space-y-4">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
+              <h1
+                class="text-balance text-3xl font-bold tracking-tight text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.35)] sm:text-4xl"
+              >
+                {{ name }}
+              </h1>
+              <span
+                v-if="data.verified"
+                class="rounded-full bg-sky-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-950 shadow-sm ring-1 ring-white/30"
+              >
+                Verified
+              </span>
+              <span
+                v-if="data.is_featured"
+                class="rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm ring-1 ring-white/30"
+              >
+                Featured
               </span>
             </div>
-            <div class="mt-4 flex flex-wrap gap-2">
+
+            <div v-if="cityState || area" class="flex flex-wrap gap-2">
+              <span
+                class="inline-flex max-w-full items-start gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-medium leading-snug text-slate-800 shadow-md ring-1 ring-slate-200/90"
+              >
+                <svg class="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span class="min-w-0">
+                  <span class="text-slate-900">{{ cityState }}</span>
+                  <template v-if="area">
+                    <span class="text-slate-400"> · </span>
+                    <span class="text-slate-700">{{ area }}</span>
+                  </template>
+                </span>
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
               <div
                 v-if="showRatingBadge"
-                class="inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-slate-900 shadow-sm ring-1 ring-slate-200/80"
+                class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-slate-900 shadow-md ring-1 ring-slate-200/90"
               >
-                <div class="flex">
-                  <svg v-for="i in 5" :key="i" class="h-4 w-4 sm:h-5 sm:w-5" :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                <div class="flex" aria-hidden="true">
+                  <svg
+                    v-for="i in 5"
+                    :key="i"
+                    class="h-4 w-4 sm:h-5 sm:w-5"
+                    :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                  </svg>
                 </div>
-                <span class="text-sm font-bold tabular-nums">{{ displayRatingLabel }}</span>
-                <span class="text-sm text-slate-500">({{ displayTotalReviews }} {{ displayTotalReviews === 1 ? 'review' : 'reviews' }})</span>
+                <span class="text-sm font-bold tabular-nums text-slate-900">{{ displayRatingLabel }}</span>
+                <span class="text-sm text-slate-600">({{ displayTotalReviews }} {{ displayTotalReviews === 1 ? 'review' : 'reviews' }})</span>
               </div>
-              <span v-if="instituteTypeLabel" class="rounded-full bg-white/20 px-3 py-1.5 text-sm font-semibold backdrop-blur-sm">{{ instituteTypeLabel }}</span>
-              <span v-if="instituteCategoryLabel" class="rounded-full bg-white/20 px-3 py-1.5 text-sm font-semibold backdrop-blur-sm">{{ instituteCategoryLabel }}</span>
+              <span
+                v-if="instituteTypeLabel"
+                class="inline-flex items-center rounded-lg bg-indigo-100 px-3 py-1.5 text-sm font-semibold text-indigo-950 shadow-sm ring-1 ring-indigo-200/90"
+              >
+                {{ instituteTypeLabel }}
+              </span>
+              <span
+                v-if="instituteCategoryLabel"
+                class="inline-flex items-center rounded-lg bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 shadow-sm ring-1 ring-violet-200/90"
+              >
+                {{ instituteCategoryLabel }}
+              </span>
             </div>
           </div>
         </div>

@@ -39,6 +39,27 @@
           data-testid="filter-location"
           @input="update('location', $event.target.value)"
         />
+        <p class="mt-1 text-[11px] leading-relaxed text-slate-500">
+          Searches city or area. Separate from PIN below.
+        </p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Pincode</label>
+        <input
+          type="text"
+          :value="filters.pincode ?? ''"
+          placeholder="Exact PIN / postal code"
+          maxlength="20"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          class="field-input"
+          data-testid="filter-pincode"
+          @input="onPincodeInput($event)"
+        />
+        <p class="mt-1 text-[11px] leading-relaxed text-slate-500">
+          Exact match on profile pincode; sent as the <span class="font-mono text-[10px] text-slate-600">pincode</span> query parameter.
+        </p>
       </div>
 
       <!-- Subject (searchable) -->
@@ -236,6 +257,13 @@ const filters = computed({
 
 function update(key, value) {
   emit('update:modelValue', { ...props.modelValue, [key]: value });
+}
+
+/** Query param is exact match; trim and cap length per profile field limits. */
+function onPincodeInput(e) {
+  const raw = e?.target?.value ?? '';
+  const v = String(raw).trim().replace(/\s+/g, '').slice(0, 20);
+  update('pincode', v);
 }
 
 const subjectDropdownRef = ref(null);

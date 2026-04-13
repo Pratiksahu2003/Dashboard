@@ -16,6 +16,7 @@ const pagination = ref({ current_page: 1, per_page: 12, total: 0, last_page: 1 }
 const options = ref({});
 const filters = ref({
   location: '',
+  pincode: '',
   subject_id: null,
   teaching_mode: null,
   availability: null,
@@ -153,6 +154,7 @@ function onApplyFilters() {
 function onClearFilters() {
   filters.value = {
     location: '',
+    pincode: '',
     subject_id: null,
     teaching_mode: null,
     availability: null,
