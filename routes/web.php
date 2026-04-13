@@ -10,6 +10,7 @@ use App\Http\Controllers\Pages\DashboardController;
 use App\Http\Controllers\Pages\GoogleWorkspaceController;
 use App\Http\Controllers\Pages\GoogleWorkspacePagesController;
 use App\Http\Controllers\Pages\HomeController;
+use App\Http\Controllers\Pages\InstituteController;
 use App\Http\Controllers\Pages\LeadController;
 use App\Http\Controllers\Pages\LeadCreateController;
 use App\Http\Controllers\Pages\MarketplaceController;
@@ -45,6 +46,14 @@ Route::get('/teachers/{legacySlug}/{legacyId}', function (string $legacySlug, in
     return redirect()->route('teacher-profile', ['id' => $legacyId, 'slug' => $legacySlug], 301);
 })->whereNumber('legacyId')->where('legacySlug', '[a-zA-Z][a-zA-Z0-9\-]*');
 Route::get('/teachers/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
+
+// Public institute directory (uses public API; must not require auth)
+Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes');
+Route::get('/institutes/{id}/{slug}', [InstituteController::class, 'show'])
+    ->whereNumber('id')
+    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\\-]*')
+    ->name('institute-profile');
+Route::get('/institutes/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
 
 // Protected routes (authentication required)
 Route::middleware('auth')->group(function () {

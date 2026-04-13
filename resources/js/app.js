@@ -27,6 +27,7 @@ const pageDescriptionMap = [
     { match: /^\/marketplace/i, description: 'Discover marketplace listings, purchase soft copies, contact sellers, and manage your listings.' },
     { match: /^\/portfolio/i, description: 'Create and manage your portfolio with media, categories, tags, and publication controls.' },
     { match: /^\/profile/i, description: 'Manage your personal profile and account settings on SuGanta.' },
+    { match: /^\/institutes/i, description: 'Browse verified schools and institutes on SuGanta — filter by location, type, size, and more.' },
     { match: /^\/chat/i, description: 'Chat in real-time with users, sellers, and support conversations.' },
     { match: /^\/notifications/i, description: 'Review and manage your latest account and system notifications.' },
 ];
