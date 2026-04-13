@@ -239,12 +239,28 @@ const reviewTitle = ref('');
 const reviewComment = ref('');
 const reviewSubmitting = ref(false);
 
+/** At most one client-side canonical URL replace per payload load (avoids Inertia remount/replace loops). */
+const slugRedirectAttempted = ref(false);
+
 const isLoggedIn = computed(() => page.props?.auth?.user != null);
 
 /**
  * Force login via global handler. Use `always: true` for mutations (e.g. submit review) even if
  * Inertia `auth.user` was empty; use default on public review GETs so guests are not redirected.
  */
+function normalizePathname(path) {
+  if (!path) return '';
+  try {
+    return decodeURI(String(path)).replace(/\/+$/, '').toLowerCase();
+  } catch {
+    return String(path).replace(/\/+$/, '').toLowerCase();
+  }
+}
+
+function pathsMatch(a, b) {
+  return normalizePathname(a) === normalizePathname(b);
+}
+
 function redirectToLoginIfSessionStale(errOrCode, options = {}) {
   const always = options.always === true;
   let code;
@@ -508,9 +524,11 @@ async function loadTeacher() {
   loading.value = true;
   error.value = null;
   errorCode.value = null;
+  slugRedirectAttempted.value = false;
   try {
     teacher.value = await getTeacher(Number(props.id));
-    loadReviewData();
+    await loadReviewData();
+    await loadReviewEligibility();
   } catch (e) {
     error.value = e?.message ?? 'Failed to load teacher profile';
     errorCode.value = e?.status ?? null;
@@ -575,15 +593,33 @@ watch(
   (val) => {
     if (!val || typeof window === 'undefined') return;
     const path = teacherProfilePath(val);
-    if (!path || window.location.pathname === path) return;
+    if (!path) return;
+    if (pathsMatch(window.location.pathname, path)) return;
+    if (slugRedirectAttempted.value) return;
+    slugRedirectAttempted.value = true;
     router.replace(path, { preserveState: true, preserveScroll: true });
   },
   { flush: 'post' },
 );
 
-watch([teacher, isLoggedIn], () => {
-  loadReviewEligibility();
+watch(isLoggedIn, (logged, wasLogged) => {
+  if (!logged) {
+    reviewEligibility.value = null;
+    return;
+  }
+  if (wasLogged === false && teacher.value) {
+    void loadReviewEligibility();
+  }
 });
+
+watch(
+  () => props.id,
+  (id, prevId) => {
+    if (prevId === undefined) return;
+    if (Number(id) === Number(prevId)) return;
+    void loadTeacher();
+  },
+);
 
 onMounted(loadTeacher);
 </script>
