@@ -47,5 +47,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
+            $status = $response->getStatusCode();
+            $errorStatuses = [404, 403, 500, 503, 419, 429];
+
+            if (in_array($status, $errorStatuses) && !request()->expectsJson()) {
+                return \Inertia\Inertia::render('Error', ['status' => $status])
+                    ->toResponse(request())
+                    ->setStatusCode($status);
+            }
+
+            return $response;
+        });
     })->create();
