@@ -75,23 +75,34 @@ function normalizeAboutText(raw) {
   return String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 }
 
-/** Full about copy: institute description plus profile/user bio when the API returns both. */
-const aboutPlain = computed(() => {
-  const desc = normalizeAboutText(profile.value?.description ?? profile.value?.institute_description);
-  const bio = normalizeAboutText(profile.value?.bio ?? user.value?.bio);
-  if (!desc && !bio) return null;
-  if (desc && !bio) return desc;
-  if (!desc && bio) return bio;
-  if (desc === bio) return desc;
-  if (bio.includes(desc)) return bio;
-  if (desc.includes(bio)) return desc;
-  return `${desc}\n\n${bio}`;
+const descriptionPlain = computed(() => {
+  const v = normalizeAboutText(profile.value?.description ?? profile.value?.institute_description);
+  return v || null;
+});
+
+const bioPlain = computed(() => {
+  const v = normalizeAboutText(profile.value?.bio ?? user.value?.bio);
+  return v || null;
+});
+
+/** Show Bio in its own section when present and not identical to the description (avoids duplicate blocks). */
+const showBioSection = computed(() => {
+  const b = bioPlain.value;
+  if (!b) return false;
+  const d = descriptionPlain.value;
+  if (!d) return true;
+  return b !== d;
 });
 
 const DEFAULT_ABOUT =
   'This institute lists programs and contact details on SuGanta. Explore courses, facilities, and reach out from this page.';
 
-const aboutDisplay = computed(() => aboutPlain.value || DEFAULT_ABOUT);
+const metaAboutSnippet = computed(() => {
+  const d = descriptionPlain.value;
+  const b = bioPlain.value;
+  if (d && b && b !== d) return `${d}\n${b}`;
+  return d || b || '';
+});
 
 const specializations = computed(() =>
   Array.isArray(profile.value?.specializations) ? profile.value.specializations : [],
@@ -467,8 +478,9 @@ const metaDescription = computed(() => {
   if (!name.value) {
     return 'Discover schools and institutes on SuGanta — programs, facilities, and contact options.';
   }
-  const one = aboutPlain.value
-    ? aboutPlain.value.replace(/\s+/g, ' ').trim().slice(0, 140)
+  const raw = metaAboutSnippet.value;
+  const one = raw
+    ? raw.replace(/\s+/g, ' ').trim().slice(0, 140)
     : `${name.value} is listed on SuGanta with programs and contact details.`;
   return one.length > 160 ? `${one.slice(0, 157)}…` : one;
 });
@@ -770,11 +782,36 @@ onMounted(loadInstitute);
         class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       >
         <div class="min-w-0 space-y-8">
-          <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <div
+            v-if="descriptionPlain"
+            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
+            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Description</h2>
+            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
+              {{ descriptionPlain }}
+            </p>
+          </div>
+
+          <div
+            v-if="showBioSection"
+            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-100/50 blur-3xl"></div>
+            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Bio</h2>
+            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
+              {{ bioPlain }}
+            </p>
+          </div>
+
+          <div
+            v-if="!descriptionPlain && !bioPlain"
+            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
             <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
             <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
-            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] sm:text-lg" :class="aboutPlain ? 'text-slate-700' : 'text-slate-500'">
-              {{ aboutDisplay }}
+            <p class="relative max-w-3xl text-base leading-[1.7] text-slate-500 sm:text-lg">
+              {{ DEFAULT_ABOUT }}
             </p>
           </div>
 
