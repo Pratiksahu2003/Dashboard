@@ -1530,7 +1530,6 @@ onMounted(loadInstitute);
               </div>
             </template>
           </div>
-        </div>
 
 
 
@@ -1551,6 +1550,7 @@ onMounted(loadInstitute);
               />
             </div>
           </div>
+        </div>
 
         <aside class="w-full shrink-0 space-y-6 self-start lg:sticky lg:top-[calc(env(safe-area-inset-top,0px)+5.25rem)] lg:z-10 lg:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-5.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="Contact and links">
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">

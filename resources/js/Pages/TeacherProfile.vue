@@ -1240,7 +1240,6 @@ onMounted(loadTeacher);
           </div>
         </template>
       </div>
-        </div>
 
 
 
@@ -1261,6 +1260,7 @@ onMounted(loadTeacher);
               />
             </div>
           </div>
+        </div>
 
         <!-- Sticky sidebar: scrollport is AppLayout main — top aligns to main viewport, not document -->
         <aside

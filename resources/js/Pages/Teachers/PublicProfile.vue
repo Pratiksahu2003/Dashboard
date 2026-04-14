@@ -1065,7 +1065,6 @@ onMounted(loadTeacher);
           </div>
         </template>
       </div>
-        </div>
 
 
 
@@ -1086,6 +1085,7 @@ onMounted(loadTeacher);
               />
             </div>
           </div>
+        </div>
 
         <!-- Sticky sidebar: Contact + Social (right on lg; sticks below public header while page scrolls) -->
         <aside
