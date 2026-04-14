@@ -40,7 +40,8 @@ class SecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data:",
             "connect-src 'self' " . rtrim(config('services.suganta.api_origin', 'https://api.suganta.com'), '/') . " wss: ws:",
-            "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+            // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
+            'frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com',
             "worker-src 'self' blob:",
             "manifest-src 'self'",
             "base-uri 'self'",

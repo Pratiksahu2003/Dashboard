@@ -104,16 +104,18 @@ const showAddress = computed(() => !!props.address?.trim());
     </h2>
 
     <div class="flex flex-col gap-4 lg:relative lg:min-h-[420px]">
+      <!-- Explicit height: mobile WebKit often collapses absolute-fill iframes inside min-h-only parents -->
       <div
-        class="relative order-1 min-h-[280px] w-full overflow-hidden rounded-xl bg-slate-200 shadow-md ring-1 ring-slate-200/80 sm:min-h-[360px] lg:order-none lg:min-h-[420px]"
+        class="relative order-1 h-[280px] w-full overflow-hidden rounded-xl bg-slate-200 shadow-md ring-1 ring-slate-200/80 sm:h-[340px] lg:order-none lg:h-[420px] lg:min-h-[420px]"
       >
         <iframe
           :src="embedUrl"
-          class="absolute inset-0 h-full w-full border-0"
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
+          class="absolute inset-0 block h-full w-full border-0"
+          loading="eager"
+          referrerpolicy="strict-origin-when-cross-origin"
           title="Map location"
           allowfullscreen
+          allow="fullscreen; geolocation"
         />
       </div>
 
