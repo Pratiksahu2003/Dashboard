@@ -7,6 +7,7 @@ import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
 import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
+import ProfileHeroBanner from '@/Components/Profile/ProfileHeroBanner.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getInstitute, instituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
 import {
@@ -30,7 +31,6 @@ const loading = ref(false);
 const error = ref(null);
 const errorCode = ref(null);
 const logoError = ref(false);
-const coverError = ref(false);
 
 const data = computed(() => payload.value);
 const user = computed(() => data.value?.user ?? {});
@@ -752,23 +752,7 @@ onMounted(loadInstitute);
 
       <!-- Split hero: dark banner + white body (reference layout) -->
       <div class="relative mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.2)] sm:rounded-3xl">
-        <div class="relative h-[7.5rem] overflow-hidden sm:h-36">
-          <img
-            v-if="coverUrl && !coverError"
-            :src="coverUrl"
-            alt=""
-            class="absolute inset-0 h-full w-full object-cover opacity-40"
-            @error="coverError = true"
-          />
-          <div
-            class="absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900"
-            :class="coverUrl && !coverError ? 'opacity-85' : ''"
-          />
-          <div
-            class="absolute inset-0 opacity-[0.22] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.2)_1px,transparent_0)] [background-size:14px_14px] sm:[background-size:16px_16px]"
-            aria-hidden="true"
-          />
-        </div>
+        <ProfileHeroBanner />
 
         <div class="relative px-4 pb-0 sm:px-8">
           <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
