@@ -1,6 +1,55 @@
 /** Default Open Graph / Twitter image when profile media is missing. */
 export const DEFAULT_PUBLIC_OG_IMAGE = 'https://app.suganta.com/logo/Su250.png';
 
+/** Google-style snippet length (meta name=description). */
+export const SERP_DESCRIPTION_MAX = 160;
+
+/** Richer share cards (og:description, twitter:description) — many platforms show ~200 chars. */
+export const OG_DESCRIPTION_MAX = 200;
+
+/**
+ * Collapse whitespace and trim; optionally clamp with ellipsis for share/meta text.
+ * @param {string | null | undefined} text
+ * @param {number} maxLen
+ */
+export function clampShareText(text, maxLen) {
+  const s = String(text ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!maxLen || s.length <= maxLen) return s;
+  if (maxLen < 2) return '…';
+  return `${s.slice(0, maxLen - 1)}…`;
+}
+
+/**
+ * Absolute origin for canonical / og:url when `window` is missing (e.g. prerender).
+ * @param {string} siteUrl from config, e.g. https://www.suganta.com
+ */
+export function originFromSiteUrl(siteUrl) {
+  if (siteUrl == null || typeof siteUrl !== 'string') return '';
+  try {
+    return new URL(siteUrl.trim()).origin.replace(/\/$/, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Guess image MIME for og:image:type (helps some crawlers cache correctly).
+ * @param {string | null | undefined} url
+ * @returns {string} e.g. image/jpeg, or '' if unknown
+ */
+export function ogImageMimeFromUrl(url) {
+  if (url == null || typeof url !== 'string') return '';
+  const path = url.split('?')[0].split('#')[0].toLowerCase();
+  if (path.endsWith('.png')) return 'image/png';
+  if (path.endsWith('.webp')) return 'image/webp';
+  if (path.endsWith('.gif')) return 'image/gif';
+  if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+  if (path.endsWith('.svg')) return 'image/svg+xml';
+  return '';
+}
+
 /**
  * @param {string | null | undefined} url
  * @param {string} [origin] window.location.origin

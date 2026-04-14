@@ -9,7 +9,16 @@ import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getInstitute, publicInstituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
-import { absoluteOgImage, twitterSiteHandle, buildInstituteJsonLd } from '@/utils/publicProfileSeo';
+import {
+  absoluteOgImage,
+  twitterSiteHandle,
+  buildInstituteJsonLd,
+  SERP_DESCRIPTION_MAX,
+  OG_DESCRIPTION_MAX,
+  clampShareText,
+  originFromSiteUrl,
+  ogImageMimeFromUrl,
+} from '@/utils/publicProfileSeo';
 import {
   getTeacherReviewStats,
   listTeacherReviews,
@@ -570,6 +579,13 @@ const siteUrl = computed(() => {
 
 const twitterSiteMeta = computed(() => twitterSiteHandle(company.value?.social?.twitter));
 
+const pageAbsoluteOrigin = computed(() => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return String(window.location.origin).replace(/\/$/, '');
+  }
+  return originFromSiteUrl(siteUrl.value);
+});
+
 const canonicalPath = computed(() => {
   if (data.value) return publicInstituteProfilePath(data.value);
   if (props.slug) return `/institutes/${props.slug}-${props.id}`;
@@ -577,14 +593,19 @@ const canonicalPath = computed(() => {
 });
 
 const canonicalUrl = computed(() => {
-  if (typeof window === 'undefined' || !canonicalPath.value) return '';
-  return `${window.location.origin}${canonicalPath.value}`;
+  const path = canonicalPath.value;
+  const origin = pageAbsoluteOrigin.value;
+  if (!path || !origin) return '';
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 });
 
+/** Cover first — better aspect ratio for link previews; logo as fallback. */
 const ogImageUrl = computed(() => {
-  const primary = logoUrl.value || coverUrl.value;
-  return absoluteOgImage(primary, typeof window !== 'undefined' ? window.location.origin : '');
+  const primary = coverUrl.value || logoUrl.value;
+  return absoluteOgImage(primary, pageAbsoluteOrigin.value || (typeof window !== 'undefined' ? window.location.origin : ''));
 });
+
+const ogImageMime = computed(() => ogImageMimeFromUrl(ogImageUrl.value));
 
 /** Rich alt text for Open Graph / Twitter cards (accessibility + share context). */
 const ogImageAlt = computed(() => {
@@ -609,15 +630,35 @@ const metaTitle = computed(() => {
   return `${name.value}${type}${loc} | SuGanta`;
 });
 
-const metaDescription = computed(() => {
+const metaDescriptionBase = computed(() => {
   if (!name.value) {
     return 'Discover schools and institutes on SuGanta — programs, facilities, and contact options.';
   }
-  const raw = metaAboutSnippet.value;
-  const one = raw
-    ? raw.replace(/\s+/g, ' ').trim().slice(0, 140)
-    : `${name.value} is listed on SuGanta with programs and contact details.`;
-  return one.length > 160 ? `${one.slice(0, 157)}…` : one;
+  const raw = metaAboutSnippet.value.replace(/\s+/g, ' ').trim();
+  const courses = coursesOffered.value.length
+    ? `Courses: ${coursesOffered.value.slice(0, 8).join(', ')}${coursesOffered.value.length > 8 ? '…' : ''}.`
+    : '';
+  const core = raw || `${name.value} is listed on SuGanta with programs and contact details.`;
+  const bits = [
+    core,
+    instituteCategoryLabel.value ? `Category: ${instituteCategoryLabel.value}.` : '',
+    establishmentLabel.value ? `Est. ${establishmentLabel.value}.` : '',
+    cityState.value ? `Located in ${cityState.value}.` : '',
+    courses,
+    showRatingBadge.value && displayTotalReviews.value > 0
+      ? `Rated ${displayRatingLabel.value}★ (${displayTotalReviews.value} reviews).`
+      : '',
+  ].filter(Boolean);
+  return bits.join(' ');
+});
+
+const metaDescription = computed(() => clampShareText(metaDescriptionBase.value, SERP_DESCRIPTION_MAX));
+
+const ogDescription = computed(() => clampShareText(metaDescriptionBase.value, OG_DESCRIPTION_MAX));
+
+const twitterRatingLine = computed(() => {
+  if (!showRatingBadge.value || displayTotalReviews.value <= 0) return '';
+  return `${displayRatingLabel.value}★ out of 5 · ${displayTotalReviews.value} review${displayTotalReviews.value === 1 ? '' : 's'}`;
 });
 
 const metaKeywords = computed(() => {
@@ -680,7 +721,7 @@ const instituteJsonLdString = computed(() => {
     siteName: siteName.value,
     orgName: name.value,
     pageTitle: metaTitle.value,
-    pageDescription: metaDescription.value,
+    pageDescription: ogDescription.value,
     imageUrl: coverAbs || logoAbs,
     logoUrl: logoAbs,
     description: descriptionPlain.value || bioPlain.value || metaDescription.value,
@@ -836,6 +877,7 @@ onMounted(loadInstitute);
     <meta name="description" :content="metaDescription" />
     <meta name="keywords" :content="metaKeywords" />
     <meta name="robots" :content="robotsContent" />
+    <meta v-if="name" name="author" :content="name" />
     <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
 
     <meta property="og:type" content="website" />
@@ -843,17 +885,20 @@ onMounted(loadInstitute);
     <meta property="og:locale" content="en_IN" />
     <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
-    <meta property="og:description" :content="metaDescription" />
+    <meta property="og:description" :content="ogDescription" />
     <meta property="og:image" :content="ogImageUrl" />
     <meta property="og:image:secure_url" :content="ogImageUrl" />
+    <meta v-if="ogImageMime" property="og:image:type" :content="ogImageMime" />
     <meta property="og:image:alt" :content="ogImageAlt" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
-    <meta name="twitter:description" :content="metaDescription" />
+    <meta name="twitter:description" :content="ogDescription" />
     <meta name="twitter:image" :content="ogImageUrl" />
     <meta name="twitter:image:alt" :content="ogImageAlt" />
+    <meta v-if="twitterRatingLine" name="twitter:label1" content="Rating" />
+    <meta v-if="twitterRatingLine" name="twitter:data1" :content="twitterRatingLine" />
 
     <script v-if="instituteJsonLdString" type="application/ld+json" v-text="instituteJsonLdString" />
   </Head>

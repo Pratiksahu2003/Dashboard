@@ -9,7 +9,16 @@ import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getTeacher, publicTeacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
-import { absoluteOgImage, twitterSiteHandle, buildTeacherJsonLd } from '@/utils/publicProfileSeo';
+import {
+  absoluteOgImage,
+  twitterSiteHandle,
+  buildTeacherJsonLd,
+  SERP_DESCRIPTION_MAX,
+  OG_DESCRIPTION_MAX,
+  clampShareText,
+  originFromSiteUrl,
+  ogImageMimeFromUrl,
+} from '@/utils/publicProfileSeo';
 import {
   getTeacherReviewStats,
   listTeacherReviews,
@@ -334,17 +343,31 @@ const siteUrl = computed(() => {
 
 const twitterSiteMeta = computed(() => twitterSiteHandle(company.value?.social?.twitter));
 
+const pageAbsoluteOrigin = computed(() => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return String(window.location.origin).replace(/\/$/, '');
+  }
+  return originFromSiteUrl(siteUrl.value);
+});
+
 const canonicalPath = computed(() => {
   if (t.value) return publicTeacherProfilePath(t.value);
   if (props.slug) return `/teachers/${props.slug}-${props.id}`;
   return null;
 });
 
-const canonicalUrl = computed(() =>
-  typeof window === 'undefined' || !canonicalPath.value ? '' : `${window.location.origin}${canonicalPath.value}`,
+const canonicalUrl = computed(() => {
+  const path = canonicalPath.value;
+  const origin = pageAbsoluteOrigin.value;
+  if (!path || !origin) return '';
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+});
+
+const ogImageUrl = computed(() =>
+  absoluteOgImage(avatarUrl.value, pageAbsoluteOrigin.value || (typeof window !== 'undefined' ? window.location.origin : '')),
 );
 
-const ogImageUrl = computed(() => absoluteOgImage(avatarUrl.value, typeof window !== 'undefined' ? window.location.origin : ''));
+const ogImageMime = computed(() => ogImageMimeFromUrl(ogImageUrl.value));
 
 /** Rich alt text for Open Graph / Twitter cards (accessibility + share context). */
 const ogImageAlt = computed(() => {
@@ -388,16 +411,46 @@ const metaTitle = computed(() => {
   if (!name.value) return 'Teacher profile | SuGanta';
   return `${name.value}${qualification.value ? ` — ${qualification.value}` : ''} | Tutor${cityState.value ? ` in ${cityState.value}` : ''} | SuGanta`;
 });
-const metaDescription = computed(() => {
-  if (!name.value) return 'Discover qualified tutors on SuGanta. Compare subjects, experience, teaching mode, and rates, then connect in a few clicks.';
+
+/** Longer plain-text basis for SERP + Open Graph descriptions. */
+const metaDescriptionBase = computed(() => {
+  if (!name.value) {
+    return 'Discover qualified tutors on SuGanta. Compare subjects, experience, teaching mode, and rates, then connect in a few clicks.';
+  }
+  const bioBit = bioPlain.value ? bioPlain.value.replace(/\s+/g, ' ').trim() : '';
   const parts = [
-    subjects.value.length ? `Teaches ${subjects.value.slice(0, 4).map(s => s.name).join(', ')}${subjects.value.length > 4 ? '…' : ''}.` : '',
+    subjects.value.length
+      ? `Teaches ${subjects.value.slice(0, 6).map((s) => s.name).join(', ')}${subjects.value.length > 6 ? '…' : ''}.`
+      : '',
     [qualification.value, experience.value, teachingMode.value].filter(Boolean).join('. '),
+    hasHeroRates.value
+      ? [showHeroHourlyRate.value ? `Hourly: ${heroHourlyLine.value}` : '', showHeroMonthlyRate.value ? `Monthly: ${heroMonthlyLine.value}` : '']
+          .filter(Boolean)
+          .join(' · ')
+      : '',
     cityState.value ? `Based in ${cityState.value}.` : '',
-    bioPlain.value ? bioPlain.value.replace(/\s+/g, ' ').trim().slice(0, 100) : `${name.value} offers tutoring on SuGanta.`,
+    bioBit || `${name.value} offers tutoring on SuGanta.`,
   ].filter(Boolean);
-  const desc = parts.join(' ');
-  return desc.length > 160 ? `${desc.slice(0, 157)}…` : desc;
+  return parts.join(' ');
+});
+
+const metaDescription = computed(() => clampShareText(metaDescriptionBase.value, SERP_DESCRIPTION_MAX));
+
+const ogDescription = computed(() => clampShareText(metaDescriptionBase.value, OG_DESCRIPTION_MAX));
+
+const profileOgNameParts = computed(() => {
+  const parts = String(name.value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return { first: '', last: '' };
+  if (parts.length === 1) return { first: parts[0], last: '' };
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+});
+
+const twitterRatingLine = computed(() => {
+  if (!showRatingBadge.value || displayTotalReviews.value <= 0) return '';
+  return `${displayRatingLabel.value}★ out of 5 · ${displayTotalReviews.value} review${displayTotalReviews.value === 1 ? '' : 's'}`;
 });
 
 const teacherJsonLdString = computed(() => {
@@ -409,7 +462,7 @@ const teacherJsonLdString = computed(() => {
     siteName: siteName.value,
     personName: name.value,
     pageTitle: metaTitle.value,
-    pageDescription: metaDescription.value,
+    pageDescription: ogDescription.value,
     imageUrl: ogImageUrl.value,
     jobTitle: [qualification.value, teachingMode.value].filter(Boolean).join(' · ') || 'Tutor',
     description: bioPlain.value || metaDescription.value,
@@ -511,9 +564,10 @@ onMounted(loadTeacher);
 <template>
   <Head>
     <title>{{ metaTitle }}</title>
-    <meta name="description" :content="metaDescription" />
+       <meta name="description" :content="metaDescription" />
     <meta name="keywords" :content="metaKeywords" />
     <meta name="robots" :content="robotsContent" />
+    <meta v-if="name" name="author" :content="name" />
     <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
 
     <meta property="og:type" content="profile" />
@@ -521,17 +575,23 @@ onMounted(loadTeacher);
     <meta property="og:locale" content="en_IN" />
     <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
-    <meta property="og:description" :content="metaDescription" />
+    <meta property="og:description" :content="ogDescription" />
     <meta property="og:image" :content="ogImageUrl" />
     <meta property="og:image:secure_url" :content="ogImageUrl" />
+    <meta v-if="ogImageMime" property="og:image:type" :content="ogImageMime" />
     <meta property="og:image:alt" :content="ogImageAlt" />
+
+    <meta v-if="profileOgNameParts.first" property="profile:first_name" :content="profileOgNameParts.first" />
+    <meta v-if="profileOgNameParts.last" property="profile:last_name" :content="profileOgNameParts.last" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
-    <meta name="twitter:description" :content="metaDescription" />
+    <meta name="twitter:description" :content="ogDescription" />
     <meta name="twitter:image" :content="ogImageUrl" />
     <meta name="twitter:image:alt" :content="ogImageAlt" />
+    <meta v-if="twitterRatingLine" name="twitter:label1" content="Rating" />
+    <meta v-if="twitterRatingLine" name="twitter:data1" :content="twitterRatingLine" />
 
     <script v-if="teacherJsonLdString" type="application/ld+json" v-text="teacherJsonLdString" />
   </Head>
