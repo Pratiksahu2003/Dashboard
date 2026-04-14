@@ -5,6 +5,8 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import TeacherCard from '@/Components/TeacherCard.vue';
 import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
+import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
+import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getTeacher, teacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
 import {
@@ -144,6 +146,48 @@ const fullAddressLines = computed(() => {
   ].filter(Boolean);
   return lines;
 });
+
+const mapLatitude = computed(() => {
+  const loc = location.value;
+  const p = profile.value;
+  return loc?.latitude ?? loc?.lat ?? p?.latitude ?? p?.lat ?? null;
+});
+
+const mapLongitude = computed(() => {
+  const loc = location.value;
+  const p = profile.value;
+  return loc?.longitude ?? loc?.lng ?? p?.longitude ?? p?.lng ?? null;
+});
+
+const hasMapCoords = computed(() => {
+  const la = Number(mapLatitude.value);
+  const lo = Number(mapLongitude.value);
+  return (
+    Number.isFinite(la)
+    && Number.isFinite(lo)
+    && la >= -90
+    && la <= 90
+    && lo >= -180
+    && lo <= 180
+  );
+});
+
+/** Geocoding fallback: structured address lines, then area/city/state. */
+const teacherPlaceQuery = computed(() => {
+  const joined = fullAddressLines.value.join(', ').trim();
+  if (joined.length >= 3) return joined;
+  return [area.value, city.value, state.value, pincode.value, countryLabel.value].filter(Boolean).join(', ').trim();
+});
+
+const teacherShowDirectionsMap = computed(
+  () => !!String(name.value || '').trim() && (hasMapCoords.value || teacherPlaceQuery.value.length >= 3),
+);
+
+const teacherDirectionsAddress = computed(() => fullAddressLines.value.join(', '));
+
+const teacherDirectionsPhone = computed(() =>
+  String(phonePrimary.value || phoneSecondary.value || '').trim(),
+);
 
 const qualification = computed(() => teaching.value?.qualification?.label ?? '');
 const qualificationText = computed(() => {
@@ -635,6 +679,19 @@ watch(
   },
 );
 
+const teacherNavTab = ref('overview');
+
+function teacherScrollTo(sectionId, tab) {
+  teacherNavTab.value = tab;
+  if (typeof document === 'undefined') return;
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+const hasTeacherPortfolio = computed(() => !!portfolio.value);
+
+/** Hero category pill (qualification, teaching mode, or fallback). */
+const teacherHeroCategory = computed(() => qualification.value || teachingMode.value || 'Tutor');
+
 onMounted(loadTeacher);
 </script>
 
@@ -685,122 +742,217 @@ onMounted(loadTeacher);
     </div>
 
     <!-- Profile -->
-    <div v-else-if="teacher" class="relative mx-auto max-w-7xl px-1">
-      <div class="pointer-events-none absolute -right-20 -top-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl -z-10"></div>
-      <div class="pointer-events-none absolute -left-16 top-32 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl -z-10"></div>
+    <div v-else-if="teacher" class="relative mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
+      <div class="pointer-events-none absolute -right-20 -top-10 -z-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl"></div>
+      <div class="pointer-events-none absolute -left-16 top-32 -z-10 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl"></div>
 
-      <!-- Hero Card -->
-      <div class="relative mb-8 overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-8 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:p-10">
-        <div class="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-indigo-400/10 blur-2xl"></div>
-        <div class="relative flex flex-col gap-8 md:flex-row md:items-start">
-          <!-- Avatar -->
-          <div class="flex shrink-0 justify-center md:justify-start">
-            <div class="relative">
-              <div class="absolute -inset-1 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 opacity-60 blur-md"></div>
-              <button
-                v-if="avatarUrl && !avatarError"
-                type="button"
-                class="relative rounded-full ring-4 ring-white shadow-xl shadow-slate-900/15 transition hover:ring-indigo-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-500/50"
-                title="View full size"
-                @click="openAvatarLightbox"
-              >
-                <img :src="avatarUrl" :alt="name" class="h-36 w-36 rounded-full object-cover" @error="avatarError = true" />
-              </button>
-              <div v-else class="relative flex h-36 w-36 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-3xl font-bold text-white shadow-xl shadow-indigo-500/30 ring-4 ring-white">{{ initials }}</div>
-              <span v-if="teacher.verified" class="absolute -bottom-1 left-1/2 z-10 -translate-x-1/2 rounded-full border-2 border-white bg-sky-500 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md">Verified</span>
-            </div>
-          </div>
+      <!-- Split hero: dark banner + white body (same pattern as institute profile) -->
+      <div class="relative mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.2)] sm:rounded-3xl">
+        <div class="relative h-[7.5rem] overflow-hidden sm:h-36">
+          <div class="absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900" />
+          <div
+            class="absolute inset-0 opacity-[0.22] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.2)_1px,transparent_0)] [background-size:14px_14px] sm:[background-size:16px_16px]"
+            aria-hidden="true"
+          />
+        </div>
 
-          <!-- Info -->
-          <div class="min-w-0 flex-1">
-            <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h1 class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{{ name }}</h1>
-                <div v-if="cityState" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-600">
-                  <span class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/80">
-                    <svg class="h-4 w-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                    {{ cityState }}<template v-if="area"><span class="text-slate-400">·</span>{{ area }}</template>
+        <div class="relative px-4 pb-0 sm:px-8">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+              <div class="-mt-12 shrink-0 sm:-mt-14">
+                <div class="relative mx-auto w-fit sm:mx-0">
+                  <button
+                    v-if="avatarUrl && !avatarError"
+                    type="button"
+                    class="relative block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                    title="View full size"
+                    @click="openAvatarLightbox"
+                  >
+                    <img
+                      :src="avatarUrl"
+                      :alt="name"
+                      class="h-24 w-24 rounded-full border-[3px] border-white object-cover shadow-xl ring-1 ring-slate-200/80 sm:h-[6.75rem] sm:w-[6.75rem]"
+                      @error="avatarError = true"
+                    />
+                  </button>
+                  <div
+                    v-else
+                    class="flex h-24 w-24 items-center justify-center rounded-full border-[3px] border-white bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-bold text-white shadow-xl ring-1 ring-slate-200/80 sm:h-[6.75rem] sm:w-[6.75rem] sm:text-2xl"
+                  >
+                    {{ initials }}
+                  </div>
+                  <span
+                    v-if="teacher.verified"
+                    class="absolute bottom-0.5 right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-white shadow-md"
+                    title="Verified"
+                  >
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
                   </span>
                 </div>
               </div>
-              <div
-                v-if="hasHeroRates"
-                class="w-full rounded-2xl border border-indigo-200/50 bg-gradient-to-br from-white via-white to-indigo-50/50 px-4 py-4 shadow-[0_12px_40px_-20px_rgba(79,70,229,0.35)] ring-1 ring-indigo-100/60 backdrop-blur-sm sm:w-auto sm:min-w-[13.5rem] sm:shrink-0 sm:px-5 sm:py-4"
-              >
-                <p
-                  v-if="showBothHeroRates"
-                  class="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600/90 sm:text-right"
-                >
-                  Rates
-                </p>
-                <div
-                  class="grid gap-4"
-                  :class="showBothHeroRates ? 'sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-indigo-100/90' : ''"
-                >
-                  <div
-                    v-if="showHeroHourlyRate"
-                    class="min-w-0 text-center sm:text-right"
-                    :class="showBothHeroRates ? 'border-b border-indigo-100/80 pb-4 sm:border-b-0 sm:pb-0 sm:pr-5' : ''"
+
+              <div class="min-w-0 pb-1 text-center sm:pb-5 sm:text-left">
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <h1 class="text-balance text-lg font-bold uppercase leading-snug tracking-tight text-slate-900 sm:text-xl md:text-2xl">
+                    {{ name }}
+                  </h1>
+                  <span
+                    v-if="teacher.is_featured"
+                    class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80"
                   >
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
-                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-indigo-600 sm:text-xl md:text-2xl">
-                      {{ heroHourlyLine }}
-                    </div>
-                  </div>
-                  <div
-                    v-if="showHeroMonthlyRate"
-                    class="min-w-0 text-center sm:text-right"
-                    :class="showBothHeroRates ? 'sm:pl-5' : ''"
+                    Featured
+                  </span>
+                </div>
+
+                <div class="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm text-slate-600 sm:justify-start">
+                  <span
+                    class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-900 ring-1 ring-indigo-100 sm:text-sm"
                   >
-                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
-                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-violet-700 sm:text-xl md:text-2xl">
-                      {{ heroMonthlyLine }}
+                    <svg class="h-3.5 w-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    {{ teacherHeroCategory }}
+                  </span>
+                  <span v-if="teacherHeroCategory && experience" class="hidden text-slate-300 sm:inline" aria-hidden="true">·</span>
+                  <span v-if="experience" class="inline-flex items-center gap-1.5 text-xs sm:text-sm">
+                    <svg class="h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {{ experience }}
+                  </span>
+                  <span v-if="experience && (cityState || area)" class="hidden text-slate-300 sm:inline" aria-hidden="true">·</span>
+                  <span v-if="cityState || area" class="inline-flex max-w-full items-center gap-1.5 text-xs sm:text-sm">
+                    <svg class="h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="min-w-0">
+                      <template v-if="cityState">{{ cityState }}</template>
+                      <template v-if="cityState && area"><span class="text-slate-400">, </span></template>
+                      <template v-if="area">{{ area }}</template>
+                    </span>
+                  </span>
+                </div>
+
+                <div v-if="showRatingBadge" class="mt-2 flex justify-center sm:justify-start">
+                  <div class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs ring-1 ring-slate-200/90 sm:text-sm">
+                    <div class="flex" aria-hidden="true">
+                      <svg
+                        v-for="i in 5"
+                        :key="i"
+                        class="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                        :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
                     </div>
+                    <span class="font-bold tabular-nums text-slate-900">{{ displayRatingLabel }}</span>
+                    <span class="text-slate-500">({{ displayTotalReviews }})</span>
                   </div>
+                </div>
+
+                <div v-if="teachingMode || availability" class="mt-2 flex flex-wrap justify-center gap-2 sm:justify-start">
+                  <span v-if="teachingMode" class="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-semibold text-violet-900 ring-1 ring-violet-100 sm:text-xs">{{ teachingMode }}</span>
+                  <span v-if="availability" class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900 ring-1 ring-emerald-100 sm:text-xs">{{ availability }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Stats (ratings: V2 stats when available, else public teacher payload) -->
-            <div class="mb-8 flex flex-wrap gap-2">
-              <div
-                v-if="showRatingBadge"
-                class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/80"
+            <div class="flex shrink-0 flex-col gap-2 pb-4 sm:flex-row sm:items-center sm:pb-5 lg:flex-col lg:items-stretch">
+              <button
+                v-if="isLoggedIn"
+                type="button"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto lg:w-full"
+                @click="openLeadModal"
               >
-                <div class="flex">
-                  <svg v-for="i in 5" :key="i" class="h-4 w-4 sm:h-5 sm:w-5" :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
-                </div>
-                <span class="text-sm font-bold text-slate-900 tabular-nums">{{ displayRatingLabel }}</span>
-                <span class="text-sm text-slate-500">({{ displayTotalReviews }} {{ displayTotalReviews === 1 ? 'review' : 'reviews' }})</span>
-              </div>
-              <span v-if="experience" class="rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-800">{{ experience }}</span>
-              <span v-if="teachingMode" class="rounded-full bg-violet-100/80 px-3 py-1.5 text-sm font-semibold text-violet-900">{{ teachingMode }}</span>
-              <span v-if="availability" class="rounded-full bg-emerald-100/80 px-3 py-1.5 text-sm font-semibold text-emerald-900">{{ availability }}</span>
-            </div>
-
-            <!-- Bio -->
-            <div class="mb-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/95 to-slate-50/40 p-5 shadow-inner shadow-slate-900/5 ring-1 ring-slate-100/80 sm:p-6">
-              <h2 class="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600/80">About</h2>
-              <p
-                class="text-[15px] leading-relaxed whitespace-pre-line sm:text-base"
-                :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
-              >{{ profileBioDisplay }}</p>
-            </div>
-
-            <!-- Subjects -->
-            <div v-if="subjects.length" class="flex flex-wrap gap-2">
-              <span v-for="subject in subjects" :key="subject.id" class="rounded-xl border border-indigo-100/80 bg-indigo-50/90 px-3 py-1.5 text-sm font-semibold text-indigo-900">{{ subject.name }}</span>
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Contact now
+              </button>
+              <Link
+                v-else
+                href="/login"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto lg:w-full"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Contact now
+              </Link>
             </div>
           </div>
+
+          <nav
+            class="sticky top-0 z-20 -mx-4 flex flex-wrap border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
+            aria-label="Profile sections"
+          >
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'overview' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-overview', 'overview')"
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'about' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-about', 'about')"
+            >
+              About me
+            </button>
+            <button
+              v-if="hasTeacherPortfolio"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'portfolio' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-portfolio', 'portfolio')"
+            >
+              Portfolio
+            </button>
+            <button
+              v-if="relatedTeachers.length"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'similar' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-similar', 'similar')"
+            >
+              Similar tutors
+            </button>
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+          </nav>
         </div>
       </div>
+
+      <Link
+        href="/teachers"
+        class="group mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-indigo-700"
+      >
+        <svg class="h-4 w-4 transition group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        All teachers
+      </Link>
+
+      <WhyChooseUsSection v-if="name" :profile-name="name" variant="teacher" />
 
       <div
         class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       >
         <!-- Main column: scrolls; aside stays sticky on large screens -->
         <div class="min-w-0 space-y-8">
-          <div class="space-y-6">
+          <div id="teacher-section-overview" class="scroll-mt-28 space-y-6">
           <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex items-center gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
@@ -838,13 +990,25 @@ onMounted(loadTeacher);
             </div>
           </div>
 
-          <div v-if="fullAddressLines.length || profileEmail || profileWebsite || genderLabel || dateOfBirth || nationalityLabel || completionPct != null" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <div v-if="fullAddressLines.length || profileEmail || profileWebsite || genderLabel || dateOfBirth || nationalityLabel || completionPct != null || teacherShowDirectionsMap" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex items-center gap-3">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
                 <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </span>
               <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Profile &amp; location</h2>
             </div>
+
+            <GetDirectionsMapSection
+              v-if="teacherShowDirectionsMap"
+              :profile-name="name"
+              :latitude="mapLatitude"
+              :longitude="mapLongitude"
+              :place-query="teacherPlaceQuery"
+              :phone="teacherDirectionsPhone"
+              :contact-person="name"
+              :address="teacherDirectionsAddress"
+            />
+
             <div v-if="fullAddressLines.length" class="mb-6 rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-100">
               <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Address</span>
               <p v-for="(line, i) in fullAddressLines" :key="i" class="text-slate-800 font-medium leading-relaxed">{{ line }}</p>
@@ -866,8 +1030,37 @@ onMounted(loadTeacher);
           </div>
           </div>
 
+          <div id="teacher-section-about" class="scroll-mt-28 space-y-6">
+            <div class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+              <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
+              <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About me</h2>
+              <p
+                class="relative max-w-3xl whitespace-pre-line text-base leading-[1.7] sm:text-lg"
+                :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
+              >
+                {{ profileBioDisplay }}
+              </p>
+            </div>
+            <div v-if="subjects.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+              <h2 class="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Subjects</h2>
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="subject in subjects"
+                  :key="subject.id"
+                  class="rounded-xl border border-indigo-100/80 bg-indigo-50/90 px-3 py-1.5 text-sm font-semibold text-indigo-900"
+                >
+                  {{ subject.name }}
+                </span>
+              </div>
+            </div>
+          </div>
+
           <!-- Portfolio -->
-          <div v-if="portfolio" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <div
+            v-if="portfolio"
+            id="teacher-section-portfolio"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
             <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Portfolio</h2>
             <h3 class="mb-3 font-semibold text-slate-800">{{ portfolio.title }}</h3>
             <div v-if="portfolio.description" class="prose prose-sm max-w-none text-slate-700 prose-headings:text-slate-900" v-html="portfolio.description"></div>
@@ -889,8 +1082,26 @@ onMounted(loadTeacher);
             </div>
           </div>
 
+          <div
+            v-if="relatedTeachers.length"
+            id="teacher-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
+            <div class="flex flex-col gap-4">
+              <TeacherCard
+                v-for="related in relatedTeachers"
+                :key="related.id"
+                layout="row"
+                :teacher="related"
+                @click="navigateToTeacher"
+                @contact="navigateToTeacher"
+              />
+            </div>
+          </div>
+
           <!-- Reviews (API V2 — docs/ReviewApiV2.md) -->
-          <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <div id="teacher-section-reviews" class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
         <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Reviews</h2>
@@ -1047,26 +1258,11 @@ onMounted(loadTeacher);
           </div>
         </template>
       </div>
-
-      <!-- Related Teachers -->
-      <div v-if="relatedTeachers.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
-        <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
-        <div class="flex flex-col gap-4">
-          <TeacherCard
-            v-for="related in relatedTeachers"
-            :key="related.id"
-            layout="row"
-            :teacher="related"
-            @click="navigateToTeacher"
-            @contact="navigateToTeacher"
-          />
-        </div>
-      </div>
         </div>
 
         <!-- Sticky sidebar: scrollport is AppLayout main — top aligns to main viewport, not document -->
         <aside
-          class="w-full shrink-0 space-y-4 self-start lg:sticky lg:top-0 lg:z-10 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+          class="w-full shrink-0 space-y-4 self-start lg:sticky lg:top-0 lg:z-10 lg:max-h-screen lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
           aria-label="Contact and social links"
         >
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">

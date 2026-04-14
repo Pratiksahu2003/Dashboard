@@ -29,6 +29,7 @@ use App\Http\Controllers\Pages\TeacherController;
 use App\Http\Controllers\SyncSpaAuthCacheController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Teacher\ProfileController  as TeacherProfile;
+use App\Http\Controllers\Institutes\ProfileController  as InstituteProfile;
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -110,14 +111,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/teacher/{id}', [TeacherController::class, 'showLegacy'])->whereNumber('id');
 
     // Institute Directory
-    Route::get('/institutes', [InstituteController::class, 'index'])->name('institutes');
+    Route::get('/institute', [InstituteController::class, 'index'])->name('institutes');
 
-    Route::get('/institutes/{id}/{slug}', [InstituteController::class, 'show'])
+    Route::get('/institute/{id}/{slug}', [InstituteController::class, 'show'])
         ->whereNumber('id')
         ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\\-]*')
         ->name('institute-profile');
 
-    Route::get('/institutes/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
+    Route::get('/institute/{id}', [InstituteController::class, 'showLegacy'])->whereNumber('id');
 });
 
 
@@ -135,5 +136,15 @@ Route::get('/teachers/{slug}-{id}', [TeacherProfile::class, 'show'])
     ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]+')
     ->whereNumber('id')
     ->name('teachers.show');
+
+
+    // /institutes → redirect to main site
+Route::get('/institutes', fn () => redirect()->away('https://www.suganta.com/institutes'))->name('institutes.redirect');
+
+// /teachers/kishan-kumar-dubey-1257  (slug-id, id is numeric)
+Route::get('/institutes/{slug}-{id}', [InstituteProfile::class, 'show'])
+    ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]+')
+    ->whereNumber('id')
+    ->name('institutes.show');
 
 require __DIR__.'/auth.php';

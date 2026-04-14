@@ -5,6 +5,8 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import InstituteCard from '@/Components/InstituteCard.vue';
 import PublicReviewCard from '@/Components/PublicReviewCard.vue';
 import CreateLeadForm from '@/Components/CreateLeadForm.vue';
+import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
+import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getInstitute, instituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
 import {
@@ -127,6 +129,64 @@ const phonePrimary = computed(() => profile.value?.phone_primary ?? '');
 const whatsapp = computed(() => profile.value?.whatsapp ?? '');
 const website = computed(() => profile.value?.website ?? '');
 const address = computed(() => profile.value?.address ?? '');
+
+/** API may use latitude/longitude on profile, lat/lng aliases, or nested location. */
+const instituteMapLat = computed(() => {
+  const p = profile.value;
+  const loc = p?.location;
+  return p?.latitude ?? p?.lat ?? loc?.latitude ?? loc?.lat ?? null;
+});
+
+const instituteMapLng = computed(() => {
+  const p = profile.value;
+  const loc = p?.location;
+  return p?.longitude ?? p?.lng ?? loc?.longitude ?? loc?.lng ?? null;
+});
+
+const instituteHasMapCoords = computed(() => {
+  const la = Number(instituteMapLat.value);
+  const lo = Number(instituteMapLng.value);
+  return (
+    Number.isFinite(la)
+    && Number.isFinite(lo)
+    && la >= -90
+    && la <= 90
+    && lo >= -180
+    && lo <= 180
+  );
+});
+
+/** Text search for embed when GPS is missing (address, area, city, state, PIN). */
+const institutePlaceQuery = computed(() =>
+  [address.value, area.value, city.value, state.value, pincode.value].filter(Boolean).join(', ').trim(),
+);
+
+const instituteShowDirectionsMap = computed(
+  () => !!String(name.value || '').trim()
+    && (instituteHasMapCoords.value || institutePlaceQuery.value.length >= 3),
+);
+
+const instituteMapsExternalUrl = computed(() => {
+  if (instituteHasMapCoords.value) {
+    return `https://www.google.com/maps?q=${Number(instituteMapLat.value)},${Number(instituteMapLng.value)}`;
+  }
+  if (institutePlaceQuery.value.length >= 3) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(institutePlaceQuery.value)}`;
+  }
+  return '';
+});
+
+const instituteDirectionsPhone = computed(() =>
+  String(principalPhone.value || phonePrimary.value || '').trim(),
+);
+
+const instituteDirectionsAddress = computed(() => {
+  const a = String(address.value || '').trim();
+  const p = String(pincode.value || '').trim();
+  if (a && p) return `${a} — ${p}`;
+  if (a) return a;
+  return p ? `PIN: ${p}` : '';
+});
 
 /** Institute show API may nest portfolio under `profile.portfolio` (or top-level `portfolio`). */
 const portfolioRecord = computed(() => {
@@ -618,6 +678,28 @@ watch(
   },
 );
 
+const instituteNavTab = ref('overview');
+
+function instituteScrollTo(sectionId, tab) {
+  instituteNavTab.value = tab;
+  if (typeof document === 'undefined') return;
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Shown next to calendar icon in hero (e.g. "2021–Present"). */
+const instituteYearsBadge = computed(() => {
+  const e = establishmentLabel.value;
+  if (!e) return '';
+  const s = String(e).trim();
+  const m = s.match(/\b(19|20)\d{2}\b/);
+  if (m) return `${m[0]}–Present`;
+  return s;
+});
+
+const instituteCategoryHero = computed(() =>
+  instituteCategoryLabel.value || instituteTypeLabel.value || '',
+);
+
 onMounted(loadInstitute);
 </script>
 
@@ -664,169 +746,240 @@ onMounted(loadInstitute);
       <button type="button" class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-500 hover:to-violet-500" @click="loadInstitute">Try again</button>
     </div>
 
-    <div v-else-if="data" class="relative mx-auto max-w-7xl px-1">
+    <div v-else-if="data" class="relative mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
       <div class="pointer-events-none absolute -right-20 -top-10 -z-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl"></div>
-      <div class="pointer-events-none absolute -left-16 top-32 -z-10 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl"></div>
+      <div class="pointer-events-none absolute -left-16 top-40 -z-10 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl"></div>
+
+      <!-- Split hero: dark banner + white body (reference layout) -->
+      <div class="relative mb-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-28px_rgba(15,23,42,0.2)] sm:rounded-3xl">
+        <div class="relative h-[7.5rem] overflow-hidden sm:h-36">
+          <img
+            v-if="coverUrl && !coverError"
+            :src="coverUrl"
+            alt=""
+            class="absolute inset-0 h-full w-full object-cover opacity-40"
+            @error="coverError = true"
+          />
+          <div
+            class="absolute inset-0 bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900"
+            :class="coverUrl && !coverError ? 'opacity-85' : ''"
+          />
+          <div
+            class="absolute inset-0 opacity-[0.22] [background-image:radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.2)_1px,transparent_0)] [background-size:14px_14px] sm:[background-size:16px_16px]"
+            aria-hidden="true"
+          />
+        </div>
+
+        <div class="relative px-4 pb-0 sm:px-8">
+          <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-end sm:gap-6">
+              <div class="-mt-12 shrink-0 sm:-mt-14">
+                <div class="relative mx-auto w-fit sm:mx-0">
+                  <img
+                    v-if="logoUrl && !logoError"
+                    :src="logoUrl"
+                    :alt="name"
+                    class="h-24 w-24 rounded-full border-[3px] border-white object-cover shadow-xl ring-1 ring-slate-200/80 sm:h-[6.75rem] sm:w-[6.75rem]"
+                    @error="logoError = true"
+                  />
+                  <div
+                    v-else
+                    class="flex h-24 w-24 items-center justify-center rounded-full border-[3px] border-white bg-gradient-to-br from-indigo-600 to-violet-700 text-xl font-bold text-white shadow-xl ring-1 ring-slate-200/80 sm:h-[6.75rem] sm:w-[6.75rem] sm:text-2xl"
+                  >
+                    {{ initials }}
+                  </div>
+                  <span
+                    v-if="data.verified"
+                    class="absolute bottom-0.5 right-0.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-white shadow-md"
+                    title="Verified"
+                  >
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+
+              <div class="min-w-0 pb-1 text-center sm:pb-5 sm:text-left">
+                <div class="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                  <h1 class="text-balance text-lg font-bold uppercase leading-snug tracking-tight text-slate-900 sm:text-xl md:text-2xl">
+                    {{ name }}
+                  </h1>
+                  <span
+                    v-if="data.is_featured"
+                    class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80"
+                  >
+                    Featured
+                  </span>
+                </div>
+
+                <div class="mt-2.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm text-slate-600 sm:justify-start">
+                  <span
+                    v-if="instituteCategoryHero"
+                    class="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-900 ring-1 ring-indigo-100 sm:text-sm"
+                  >
+                    <svg class="h-3.5 w-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    {{ instituteCategoryHero }}
+                  </span>
+                  <span v-if="instituteCategoryHero && (instituteYearsBadge || cityState)" class="hidden text-slate-300 sm:inline" aria-hidden="true">·</span>
+                  <span v-if="instituteYearsBadge" class="inline-flex items-center gap-1.5 text-xs sm:text-sm">
+                    <svg class="h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    {{ instituteYearsBadge }}
+                  </span>
+                  <span v-if="instituteYearsBadge && cityState" class="hidden text-slate-300 sm:inline" aria-hidden="true">·</span>
+                  <span v-if="cityState" class="inline-flex max-w-full items-center gap-1.5 text-xs sm:text-sm">
+                    <svg class="h-3.5 w-3.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="min-w-0">{{ cityState }}<template v-if="area"><span class="text-slate-400">, </span>{{ area }}</template></span>
+                  </span>
+                </div>
+
+                <div v-if="showRatingBadge" class="mt-2 flex justify-center sm:justify-start">
+                  <div class="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs ring-1 ring-slate-200/90 sm:text-sm">
+                    <div class="flex" aria-hidden="true">
+                      <svg
+                        v-for="i in 5"
+                        :key="i"
+                        class="h-3.5 w-3.5 sm:h-4 sm:w-4"
+                        :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </div>
+                    <span class="font-bold tabular-nums text-slate-900">{{ displayRatingLabel }}</span>
+                    <span class="text-slate-500">({{ displayTotalReviews }})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex shrink-0 flex-col gap-2 pb-4 sm:flex-row sm:items-center sm:pb-5 lg:flex-col lg:items-stretch">
+              <button
+                v-if="isLoggedIn"
+                type="button"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto lg:w-full"
+                @click="openLeadModal"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Contact now
+              </button>
+              <Link
+                v-else
+                href="/login"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto lg:w-full"
+              >
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                Contact now
+              </Link>
+            </div>
+          </div>
+
+          <!-- Sticky section tabs (reference: underline active) -->
+          <nav
+            class="sticky top-0 z-20 -mx-4 flex flex-wrap border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
+            aria-label="Profile sections"
+          >
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'overview' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-overview', 'overview')"
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'about' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-about', 'about')"
+            >
+              About me
+            </button>
+            <button
+              v-if="hasPortfolioContent"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'portfolio' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-portfolio', 'portfolio')"
+            >
+              Portfolio
+            </button>
+            <button
+              v-if="relatedInstitutes.length"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'similar' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-similar', 'similar')"
+            >
+              Similar institutes
+            </button>
+            <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+          </nav>
+        </div>
+      </div>
 
       <Link
         href="/institutes"
-        class="group mb-8 inline-flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/90 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm transition hover:border-indigo-200 hover:text-indigo-700"
+        class="group mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-600 transition hover:text-indigo-700"
       >
         <svg class="h-4 w-4 transition group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         All institutes
       </Link>
 
-      <div
-        class="relative mb-8 min-h-[280px] overflow-hidden rounded-3xl border border-slate-200/70 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:min-h-[300px]"
-      >
-        <!-- Full-bleed background: cover or gradient, always readable via bottom scrim -->
-        <div class="absolute inset-0">
-          <img
-            v-if="coverUrl && !coverError"
-            :src="coverUrl"
-            alt=""
-            class="h-full w-full object-cover"
-            @error="coverError = true"
-          />
+      <WhyChooseUsSection v-if="name" :profile-name="name" variant="institute" />
+
+      <div id="institute-section-overview" class="scroll-mt-28">
+        <div
+          v-if="establishmentLabel || counts.total_students || counts.total_teachers || counts.total_branches != null"
+          class="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4"
+        >
           <div
-            v-else
-            class="h-full w-full bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-950"
-          ></div>
+            v-if="establishmentLabel"
+            class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+          >
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Established</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ establishmentLabel }}</p>
+          </div>
           <div
-            class="absolute inset-0 bg-gradient-to-t from-slate-950/92 via-slate-900/55 to-slate-900/25"
-            aria-hidden="true"
-          ></div>
-        </div>
-
-        <div
-          class="relative z-10 flex flex-col gap-6 px-5 pb-8 pt-10 sm:flex-row sm:items-end sm:gap-8 sm:px-10 sm:pb-10 sm:pt-12"
-        >
-          <div class="flex shrink-0 justify-center sm:justify-start">
-            <div class="relative">
-              <div class="absolute -inset-1 rounded-2xl bg-gradient-to-br from-white/40 to-indigo-300/30 opacity-90 blur-md"></div>
-              <img
-                v-if="logoUrl && !logoError"
-                :src="logoUrl"
-                :alt="name"
-                class="relative h-28 w-28 rounded-2xl object-cover shadow-2xl ring-4 ring-white/95 sm:h-32 sm:w-32"
-                @error="logoError = true"
-              />
-              <div
-                v-else
-                class="relative flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-2xl font-bold text-white shadow-2xl ring-4 ring-white/95 sm:h-32 sm:w-32 sm:text-3xl"
-              >
-                {{ initials }}
-              </div>
-            </div>
+            v-if="counts.total_students"
+            class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+          >
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Students</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_students }}</p>
           </div>
-
-          <div class="min-w-0 flex-1 space-y-3 sm:space-y-4">
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
-              <h1
-                class="text-balance text-3xl font-bold tracking-tight text-white [text-shadow:0_2px_24px_rgba(0,0,0,0.35)] sm:text-4xl"
-              >
-                {{ name }}
-              </h1>
-              <span
-                v-if="data.verified"
-                class="rounded-full bg-sky-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-950 shadow-sm ring-1 ring-white/30"
-              >
-                Verified
-              </span>
-              <span
-                v-if="data.is_featured"
-                class="rounded-full bg-amber-400 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow-sm ring-1 ring-white/30"
-              >
-                Featured
-              </span>
-            </div>
-
-            <div v-if="cityState || area" class="flex flex-wrap gap-2">
-              <span
-                class="inline-flex max-w-full items-start gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-medium leading-snug text-slate-800 shadow-md ring-1 ring-slate-200/90"
-              >
-                <svg class="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                <span class="min-w-0">
-                  <span class="text-slate-900">{{ cityState }}</span>
-                  <template v-if="area">
-                    <span class="text-slate-400"> · </span>
-                    <span class="text-slate-700">{{ area }}</span>
-                  </template>
-                </span>
-              </span>
-            </div>
-
-            <div class="flex flex-wrap items-center gap-2 sm:gap-2.5">
-              <div
-                v-if="showRatingBadge"
-                class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-slate-900 shadow-md ring-1 ring-slate-200/90"
-              >
-                <div class="flex" aria-hidden="true">
-                  <svg
-                    v-for="i in 5"
-                    :key="i"
-                    class="h-4 w-4 sm:h-5 sm:w-5"
-                    :class="i <= Math.round(displayAverageRating) ? 'text-amber-400' : 'text-slate-200'"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                  </svg>
-                </div>
-                <span class="text-sm font-bold tabular-nums text-slate-900">{{ displayRatingLabel }}</span>
-                <span class="text-sm text-slate-600">({{ displayTotalReviews }} {{ displayTotalReviews === 1 ? 'review' : 'reviews' }})</span>
-              </div>
-              <span
-                v-if="instituteTypeLabel"
-                class="inline-flex items-center rounded-lg bg-indigo-100 px-3 py-1.5 text-sm font-semibold text-indigo-950 shadow-sm ring-1 ring-indigo-200/90"
-              >
-                {{ instituteTypeLabel }}
-              </span>
-              <span
-                v-if="instituteCategoryLabel"
-                class="inline-flex items-center rounded-lg bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 shadow-sm ring-1 ring-violet-200/90"
-              >
-                {{ instituteCategoryLabel }}
-              </span>
-            </div>
+          <div
+            v-if="counts.total_teachers"
+            class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+          >
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Teaching staff</p>
+            <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_teachers }}</p>
           </div>
-        </div>
-      </div>
-
-      <div
-        v-if="establishmentLabel || counts.total_students || counts.total_teachers || counts.total_branches != null"
-        class="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4"
-      >
-        <div
-          v-if="establishmentLabel"
-          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
-        >
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Established</p>
-          <p class="mt-1 text-lg font-bold text-slate-900">{{ establishmentLabel }}</p>
-        </div>
-        <div
-          v-if="counts.total_students"
-          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
-        >
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Students</p>
-          <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_students }}</p>
-        </div>
-        <div
-          v-if="counts.total_teachers"
-          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
-        >
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Teaching staff</p>
-          <p class="mt-1 text-lg font-bold text-slate-900">{{ counts.total_teachers }}</p>
-        </div>
-        <div
-          v-if="counts.total_branches != null"
-          class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
-        >
-          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Branches</p>
-          <p class="mt-1 text-lg font-bold tabular-nums text-slate-900">{{ counts.total_branches }}</p>
+          <div
+            v-if="counts.total_branches != null"
+            class="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm backdrop-blur-sm"
+          >
+            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Branches</p>
+            <p class="mt-1 text-lg font-bold tabular-nums text-slate-900">{{ counts.total_branches }}</p>
+          </div>
         </div>
       </div>
 
@@ -834,42 +987,45 @@ onMounted(loadInstitute);
         class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       >
         <div class="min-w-0 space-y-8">
-          <div
-            v-if="descriptionPlain"
-            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
-            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Description</h2>
-            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
-              {{ descriptionPlain }}
-            </p>
-          </div>
+          <div id="institute-section-about" class="scroll-mt-28 space-y-8">
+            <div
+              v-if="descriptionPlain"
+              class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+            >
+              <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
+              <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Description</h2>
+              <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
+                {{ descriptionPlain }}
+              </p>
+            </div>
 
-          <div
-            v-if="showBioSection"
-            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-100/50 blur-3xl"></div>
-            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Bio</h2>
-            <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
-              {{ bioPlain }}
-            </p>
-          </div>
+            <div
+              v-if="showBioSection"
+              class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+            >
+              <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-100/50 blur-3xl"></div>
+              <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Bio</h2>
+              <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
+                {{ bioPlain }}
+              </p>
+            </div>
 
-          <div
-            v-if="!descriptionPlain && !bioPlain"
-            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
-            <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
-            <p class="relative max-w-3xl text-base leading-[1.7] text-slate-500 sm:text-lg">
-              {{ DEFAULT_ABOUT }}
-            </p>
+            <div
+              v-if="!descriptionPlain && !bioPlain"
+              class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+            >
+              <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
+              <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
+              <p class="relative max-w-3xl text-base leading-[1.7] text-slate-500 sm:text-lg">
+                {{ DEFAULT_ABOUT }}
+              </p>
+            </div>
           </div>
 
           <div
             v-if="hasPortfolioContent"
-            class="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_12px_40px_-16px_rgba(79,70,229,0.2)]"
+            id="institute-section-portfolio"
+            class="scroll-mt-28 relative overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_12px_40px_-16px_rgba(79,70,229,0.2)]"
           >
             <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/[0.04] via-transparent to-indigo-600/[0.06]"></div>
             <div class="relative p-6 sm:p-8">
@@ -1021,13 +1177,25 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <div v-if="address || pincode || (profile.latitude != null && profile.longitude != null)" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <GetDirectionsMapSection
+            v-if="instituteShowDirectionsMap"
+            :profile-name="name"
+            :latitude="instituteMapLat"
+            :longitude="instituteMapLng"
+            :place-query="institutePlaceQuery"
+            :phone="instituteDirectionsPhone"
+            :contact-person="principalName"
+            :address="instituteDirectionsAddress"
+          />
+
+          <div v-if="address || pincode || (profile.latitude != null && profile.longitude != null) || instituteShowDirectionsMap" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Location</h2>
             <p v-if="address" class="font-medium leading-relaxed text-slate-800">{{ address }}</p>
-            <p v-if="pincode" class="mt-2 text-sm text-slate-600">PIN: {{ pincode }}</p>
+            <p v-else-if="institutePlaceQuery.length >= 3" class="font-medium leading-relaxed text-slate-800">{{ institutePlaceQuery }}</p>
+            <p v-if="pincode && address" class="mt-2 text-sm text-slate-600">PIN: {{ pincode }}</p>
             <a
-              v-if="profile.latitude != null && profile.longitude != null"
-              :href="`https://www.google.com/maps?q=${profile.latitude},${profile.longitude}`"
+              v-if="instituteMapsExternalUrl && !instituteShowDirectionsMap"
+              :href="instituteMapsExternalUrl"
               target="_blank"
               rel="noopener noreferrer"
               class="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:border-indigo-200 hover:bg-white"
@@ -1089,7 +1257,25 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <div class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
+          <div
+            v-if="relatedInstitutes.length"
+            id="institute-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
+            <div class="flex flex-col gap-4">
+              <InstituteCard
+                v-for="rel in relatedInstitutes"
+                :key="rel.id"
+                layout="row"
+                :institute="rel"
+                @click="navigateToInstitute"
+                @contact="navigateToInstitute"
+              />
+            </div>
+          </div>
+
+          <div id="institute-section-reviews" class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Reviews</h2>
@@ -1221,23 +1407,9 @@ onMounted(loadInstitute);
               </div>
             </template>
           </div>
-
-          <div v-if="relatedInstitutes.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
-            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
-            <div class="flex flex-col gap-4">
-              <InstituteCard
-                v-for="rel in relatedInstitutes"
-                :key="rel.id"
-                layout="row"
-                :institute="rel"
-                @click="navigateToInstitute"
-                @contact="navigateToInstitute"
-              />
-            </div>
-          </div>
         </div>
 
-        <aside class="w-full shrink-0 space-y-6 lg:sticky lg:top-24 lg:z-10 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="Contact and links">
+        <aside class="w-full shrink-0 space-y-6 lg:sticky lg:top-0 lg:z-10 lg:max-h-screen lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="Contact and links">
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">
             <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
             <h3 class="relative text-lg font-bold sm:text-xl">Contact</h3>
