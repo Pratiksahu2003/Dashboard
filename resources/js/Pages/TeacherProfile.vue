@@ -1064,9 +1064,9 @@ onMounted(loadTeacher);
       </div>
         </div>
 
-        <!-- Sticky sidebar: Contact + Social (right on lg, after hero on small screens) -->
+        <!-- Sticky sidebar: scrollport is AppLayout main — top aligns to main viewport, not document -->
         <aside
-          class="w-full shrink-0 space-y-6 lg:sticky lg:top-24 lg:z-10 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+          class="w-full shrink-0 space-y-4 self-start lg:sticky lg:top-0 lg:z-10 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
           aria-label="Contact and social links"
         >
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">

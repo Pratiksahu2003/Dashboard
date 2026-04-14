@@ -24,7 +24,7 @@ const company = computed(() => page.props.company ?? {});
 
 <template>
     <div
-        class="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-hidden bg-white font-sans text-slate-900 antialiased"
+        class="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-clip bg-white font-sans text-slate-900 antialiased"
     >
         <PublicHeader v-if="nav" :nav="nav.header" />
 
