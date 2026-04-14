@@ -963,10 +963,6 @@ onMounted(loadInstitute);
         All institutes
       </Link>
 
-      <div v-if="name" id="institute-section-why" class="scroll-mt-28">
-        <WhyChooseUsSection :profile-name="name" variant="institute" />
-      </div>
-
       <div id="institute-section-overview" class="scroll-mt-28">
         <div
           v-if="establishmentLabel || counts.total_students || counts.total_teachers || counts.total_branches != null"
@@ -1224,6 +1220,10 @@ onMounted(loadInstitute);
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
               Open in Maps
             </a>
+          </div>
+
+          <div v-if="name" id="institute-section-why" class="scroll-mt-28">
+            <WhyChooseUsSection :profile-name="name" variant="institute" />
           </div>
 
           <div v-if="coursesOffered.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">

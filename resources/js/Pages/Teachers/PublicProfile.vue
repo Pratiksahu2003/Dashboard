@@ -14,7 +14,6 @@ import {
   twitterSiteHandle,
   buildTeacherJsonLd,
   SERP_DESCRIPTION_MAX,
-  OG_DESCRIPTION_MAX,
   clampShareText,
   originFromSiteUrl,
   ogImageMimeFromUrl,
@@ -436,8 +435,6 @@ const metaDescriptionBase = computed(() => {
 
 const metaDescription = computed(() => clampShareText(metaDescriptionBase.value, SERP_DESCRIPTION_MAX));
 
-const ogDescription = computed(() => clampShareText(metaDescriptionBase.value, OG_DESCRIPTION_MAX));
-
 const profileOgNameParts = computed(() => {
   const parts = String(name.value || '')
     .trim()
@@ -462,7 +459,7 @@ const teacherJsonLdString = computed(() => {
     siteName: siteName.value,
     personName: name.value,
     pageTitle: metaTitle.value,
-    pageDescription: ogDescription.value,
+    pageDescription: metaDescription.value,
     imageUrl: ogImageUrl.value,
     jobTitle: [qualification.value, teachingMode.value].filter(Boolean).join(' · ') || 'Tutor',
     description: bioPlain.value || metaDescription.value,
@@ -575,7 +572,7 @@ onMounted(loadTeacher);
     <meta property="og:locale" content="en_IN" />
     <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
-    <meta property="og:description" :content="ogDescription" />
+    <meta property="og:description" :content="metaDescription" />
     <meta property="og:image" :content="ogImageUrl" />
     <meta property="og:image:secure_url" :content="ogImageUrl" />
     <meta v-if="ogImageMime" property="og:image:type" :content="ogImageMime" />
@@ -587,7 +584,7 @@ onMounted(loadTeacher);
     <meta name="twitter:card" content="summary_large_image" />
     <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
-    <meta name="twitter:description" :content="ogDescription" />
+    <meta name="twitter:description" :content="metaDescription" />
     <meta name="twitter:image" :content="ogImageUrl" />
     <meta name="twitter:image:alt" :content="ogImageAlt" />
     <meta v-if="twitterRatingLine" name="twitter:label1" content="Rating" />
@@ -848,10 +845,6 @@ onMounted(loadTeacher);
         All teachers
       </Link>
 
-      <div v-if="name" id="teacher-section-why" class="scroll-mt-28">
-        <WhyChooseUsSection :profile-name="name" variant="teacher" />
-      </div>
-
       <div
         class="flex flex-col-reverse gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_17rem] xl:grid-cols-[minmax(0,1fr)_18.5rem] lg:items-start lg:gap-6"
       >
@@ -933,6 +926,10 @@ onMounted(loadTeacher);
               <div v-if="nationalityLabel" class="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Nationality</span><p class="text-slate-900 font-semibold">{{ nationalityLabel }}</p></div>
               <div v-if="completionPct != null" class="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Profile completion</span><p class="text-slate-900 font-semibold">{{ completionPct }}%</p></div>
             </div>
+          </div>
+
+          <div v-if="name" id="teacher-section-why" class="scroll-mt-28">
+            <WhyChooseUsSection :profile-name="name" variant="teacher" />
           </div>
           </div>
 

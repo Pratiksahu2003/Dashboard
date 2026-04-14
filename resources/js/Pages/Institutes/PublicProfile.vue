@@ -14,7 +14,6 @@ import {
   twitterSiteHandle,
   buildInstituteJsonLd,
   SERP_DESCRIPTION_MAX,
-  OG_DESCRIPTION_MAX,
   clampShareText,
   originFromSiteUrl,
   ogImageMimeFromUrl,
@@ -654,8 +653,6 @@ const metaDescriptionBase = computed(() => {
 
 const metaDescription = computed(() => clampShareText(metaDescriptionBase.value, SERP_DESCRIPTION_MAX));
 
-const ogDescription = computed(() => clampShareText(metaDescriptionBase.value, OG_DESCRIPTION_MAX));
-
 const twitterRatingLine = computed(() => {
   if (!showRatingBadge.value || displayTotalReviews.value <= 0) return '';
   return `${displayRatingLabel.value}★ out of 5 · ${displayTotalReviews.value} review${displayTotalReviews.value === 1 ? '' : 's'}`;
@@ -721,7 +718,7 @@ const instituteJsonLdString = computed(() => {
     siteName: siteName.value,
     orgName: name.value,
     pageTitle: metaTitle.value,
-    pageDescription: ogDescription.value,
+    pageDescription: metaDescription.value,
     imageUrl: coverAbs || logoAbs,
     logoUrl: logoAbs,
     description: descriptionPlain.value || bioPlain.value || metaDescription.value,
@@ -885,7 +882,7 @@ onMounted(loadInstitute);
     <meta property="og:locale" content="en_IN" />
     <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
-    <meta property="og:description" :content="ogDescription" />
+    <meta property="og:description" :content="metaDescription" />
     <meta property="og:image" :content="ogImageUrl" />
     <meta property="og:image:secure_url" :content="ogImageUrl" />
     <meta v-if="ogImageMime" property="og:image:type" :content="ogImageMime" />
@@ -894,7 +891,7 @@ onMounted(loadInstitute);
     <meta name="twitter:card" content="summary_large_image" />
     <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
-    <meta name="twitter:description" :content="ogDescription" />
+    <meta name="twitter:description" :content="metaDescription" />
     <meta name="twitter:image" :content="ogImageUrl" />
     <meta name="twitter:image:alt" :content="ogImageAlt" />
     <meta v-if="twitterRatingLine" name="twitter:label1" content="Rating" />
@@ -1103,6 +1100,24 @@ onMounted(loadInstitute);
               Portfolio
             </button>
             <button
+              v-if="name"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'why' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-why', 'why')"
+            >
+              Why choose us
+            </button>
+            <button
+              v-if="instituteShowDirectionsMap"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'map' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-map', 'map')"
+            >
+              Map
+            </button>
+            <button
               type="button"
               class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
               :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
@@ -1130,8 +1145,6 @@ onMounted(loadInstitute);
         <svg class="h-4 w-4 transition group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
         All institutes
       </Link>
-
-      <WhyChooseUsSection v-if="name" :profile-name="name" variant="institute" />
 
       <div id="institute-section-overview" class="scroll-mt-28">
         <div
@@ -1390,6 +1403,10 @@ onMounted(loadInstitute);
               <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
               Open in Maps
             </a>
+          </div>
+
+          <div v-if="name" id="institute-section-why" class="scroll-mt-28">
+            <WhyChooseUsSection :profile-name="name" variant="institute" />
           </div>
 
           <div v-if="coursesOffered.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">

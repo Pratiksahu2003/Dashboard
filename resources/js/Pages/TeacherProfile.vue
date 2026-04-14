@@ -963,8 +963,6 @@ onMounted(loadTeacher);
         All teachers
       </Link>
 
-      <WhyChooseUsSection v-if="name" :profile-name="name" variant="teacher" />
-
       <div
         class="flex flex-col-reverse gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_18.5rem] xl:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
       >
@@ -1046,6 +1044,10 @@ onMounted(loadTeacher);
               <div v-if="nationalityLabel" class="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Nationality</span><p class="text-slate-900 font-semibold">{{ nationalityLabel }}</p></div>
               <div v-if="completionPct != null" class="rounded-2xl bg-white px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Profile completion</span><p class="text-slate-900 font-semibold">{{ completionPct }}%</p></div>
             </div>
+          </div>
+
+          <div v-if="name" id="teacher-section-why" class="scroll-mt-28">
+            <WhyChooseUsSection :profile-name="name" variant="teacher" />
           </div>
           </div>
 

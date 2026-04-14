@@ -1,11 +1,8 @@
 /** Default Open Graph / Twitter image when profile media is missing. */
 export const DEFAULT_PUBLIC_OG_IMAGE = 'https://app.suganta.com/logo/Su250.png';
 
-/** Google-style snippet length (meta name=description). */
+/** Google-style snippet length (meta name=description, og:description, twitter:description on public profiles). */
 export const SERP_DESCRIPTION_MAX = 160;
-
-/** Richer share cards (og:description, twitter:description) — many platforms show ~200 chars. */
-export const OG_DESCRIPTION_MAX = 200;
 
 /**
  * Collapse whitespace and trim; optionally clamp with ellipsis for share/meta text.
