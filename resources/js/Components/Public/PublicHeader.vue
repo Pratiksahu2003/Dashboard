@@ -16,6 +16,8 @@ const scrolled = ref(false);
 const userMenuOpen = ref(false);
 const userMenuRef = ref(null);
 
+let scrollRaf = 0;
+
 const authUser = computed(() => page.props.auth?.user ?? null);
 const isLoggedIn = computed(() => authUser.value != null);
 
@@ -38,7 +40,12 @@ const userInitials = computed(() => {
 });
 
 function onScroll() {
-    scrolled.value = typeof window !== 'undefined' && window.scrollY > 8;
+    if (typeof window === 'undefined') return;
+    if (scrollRaf) cancelAnimationFrame(scrollRaf);
+    scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        scrolled.value = window.scrollY > 6;
+    });
 }
 
 function onDocumentClick(e) {
@@ -48,7 +55,9 @@ function onDocumentClick(e) {
 }
 
 function onDocumentKeydown(e) {
-    if (e.key === 'Escape') userMenuOpen.value = false;
+    if (e.key !== 'Escape') return;
+    userMenuOpen.value = false;
+    mobileOpen.value = false;
 }
 
 onMounted(() => {
@@ -64,6 +73,7 @@ watch(mobileOpen, (open) => {
 });
 
 onUnmounted(() => {
+    if (scrollRaf) cancelAnimationFrame(scrollRaf);
     window.removeEventListener('scroll', onScroll);
     document.removeEventListener('click', onDocumentClick);
     document.removeEventListener('keydown', onDocumentKeydown);
@@ -76,10 +86,10 @@ function isExternal(item) {
 
 const barClass = computed(() =>
     [
-        'relative z-50 border-b transition-[box-shadow,background-color] duration-200',
+        'sticky top-0 z-50 border-b transition-[box-shadow,background-color,border-color] duration-300 ease-out',
         scrolled.value
-            ? 'border-slate-200/90 bg-white/95 shadow-[0_1px_0_0_rgba(15,23,42,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-white/90'
-            : 'border-slate-200/70 bg-white',
+            ? 'border-slate-200/80 bg-white/80 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.12)] backdrop-blur-xl supports-[backdrop-filter]:bg-white/72'
+            : 'border-transparent bg-white/95 backdrop-blur-sm supports-[backdrop-filter]:bg-white/90',
     ].join(' '),
 );
 
@@ -103,61 +113,91 @@ async function signOut() {
         window.location.assign(route('login'));
     }
 }
+
+const navLinkClass =
+    'rounded-full px-3.5 py-1.5 text-[13px] font-medium text-slate-600 outline-none transition duration-200 hover:bg-white hover:text-slate-900 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500/70 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent';
+
+const mobileNavLinkClass =
+    'flex items-center justify-between rounded-xl px-3 py-3 text-[15px] font-medium text-slate-800 outline-none transition active:bg-slate-100/90 min-h-[2.75rem] hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-500/50';
 </script>
 
 <template>
-    <header :class="barClass">
+    <header :class="[barClass, 'pt-[env(safe-area-inset-top,0px)]']">
         <div
-            class="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-600 opacity-90"
+            class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-400/50 to-transparent"
             aria-hidden="true"
         />
-        <div class="relative mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+        <div
+            class="relative mx-auto flex h-14 max-w-7xl min-w-0 items-center justify-between gap-2 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] sm:gap-3 sm:pl-[max(1.5rem,env(safe-area-inset-left,0px))] sm:pr-[max(1.5rem,env(safe-area-inset-right,0px))] lg:pl-[max(2rem,env(safe-area-inset-left,0px))] lg:pr-[max(2rem,env(safe-area-inset-right,0px))]"
+        >
             <!-- Brand -->
             <a
                 :href="nav.logo.href"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex shrink-0 items-center gap-2.5 rounded-lg py-0.5 outline-none ring-offset-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-indigo-500"
+                class="group flex min-w-0 shrink-0 items-center gap-2 rounded-xl py-0.5 outline-none transition active:scale-[0.98] sm:gap-2.5"
             >
-                <img
-                    :src="nav.logo.src"
-                    :alt="nav.logo.alt"
-                    class="h-8 w-auto object-contain"
-                />
-                <span class="hidden leading-tight sm:block">
-                    <span class="block text-sm font-bold tracking-tight text-slate-900">{{ nav.logo.alt }}</span>
+                <span
+                    class="flex h-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/90 p-1 ring-1 ring-slate-200/80 shadow-sm transition group-hover:ring-indigo-200/80 group-hover:shadow-md group-focus-visible:ring-2 group-focus-visible:ring-indigo-500"
+                >
+                    <img
+                        :src="nav.logo.src"
+                        :alt="nav.logo.alt"
+                        class="h-7 w-auto object-contain"
+                        decoding="async"
+                        fetchpriority="high"
+                    />
+                </span>
+                <span class="hidden min-w-0 leading-tight sm:block">
+                    <span class="block truncate text-sm font-semibold tracking-tight text-slate-900">{{ nav.logo.alt }}</span>
                 </span>
             </a>
 
             <!-- Desktop nav -->
-            <nav class="hidden min-w-0 flex-1 justify-center md:flex" aria-label="Primary">
-                <ul class="flex items-center gap-0.5">
+            <nav class="hidden min-w-0 flex-1 justify-center px-2 md:flex" aria-label="Primary">
+                <ul
+                    class="inline-flex max-w-full flex-wrap items-center justify-center gap-0.5 rounded-full border border-slate-200/70 bg-slate-100/60 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] backdrop-blur-md"
+                >
                     <li v-for="item in nav.nav" :key="item.label">
                         <a
                             :href="item.href"
                             :target="isExternal(item) ? '_blank' : undefined"
                             :rel="isExternal(item) ? 'noopener noreferrer' : undefined"
-                            class="rounded-md px-3 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-indigo-50 hover:text-indigo-700"
+                            :class="navLinkClass"
                         >
-                            {{ item.label }}
+                            <span class="inline-flex items-center gap-1">
+                                {{ item.label }}
+                                <svg
+                                    v-if="isExternal(item)"
+                                    class="h-3 w-3 shrink-0 opacity-40"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                    aria-hidden="true"
+                                >
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                            </span>
                         </a>
                     </li>
                 </ul>
             </nav>
 
             <!-- Desktop actions -->
-            <div class="hidden shrink-0 items-center gap-2 md:flex">
+            <div class="hidden shrink-0 items-center gap-2 md:flex md:gap-2.5">
                 <template v-if="isLoggedIn">
                     <div ref="userMenuRef" class="relative">
                         <button
+                            id="public-user-menu-button"
                             type="button"
-                            class="flex items-center gap-2 rounded-lg border border-slate-200/90 bg-slate-50/80 py-1 pl-1 pr-2 transition hover:border-slate-300 hover:bg-white"
+                            class="flex items-center gap-2 rounded-full border border-slate-200/90 bg-white py-1 pl-1 pr-2.5 shadow-sm shadow-slate-900/5 outline-none transition hover:border-slate-300 hover:shadow-md focus-visible:ring-2 focus-visible:ring-indigo-500/70 focus-visible:ring-offset-2"
                             :aria-expanded="userMenuOpen"
-                            aria-haspopup="true"
+                            aria-haspopup="menu"
+                            aria-controls="public-user-menu"
                             @click.stop="toggleUserMenu"
                         >
                             <span
-                                class="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-indigo-600 to-violet-600 text-xs font-bold text-white"
+                                class="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-700 text-[11px] font-bold text-white shadow-inner shadow-black/10"
                             >
                                 {{ userInitials }}
                             </span>
@@ -165,7 +205,7 @@ async function signOut() {
                                 {{ displayName }}
                             </span>
                             <svg
-                                class="h-3.5 w-3.5 shrink-0 text-slate-400"
+                                class="h-3.5 w-3.5 shrink-0 text-slate-400 transition duration-200"
                                 :class="userMenuOpen ? '-rotate-180' : ''"
                                 fill="none"
                                 stroke="currentColor"
@@ -177,30 +217,32 @@ async function signOut() {
                         </button>
 
                         <Transition
-                            enter-active-class="transition duration-150 ease-out"
-                            enter-from-class="translate-y-1 opacity-0"
-                            enter-to-class="translate-y-0 opacity-100"
+                            enter-active-class="transition duration-200 ease-out"
+                            enter-from-class="translate-y-1 scale-[0.98] opacity-0"
+                            enter-to-class="translate-y-0 scale-100 opacity-100"
                             leave-active-class="transition duration-100 ease-in"
                             leave-from-class="translate-y-0 opacity-100"
                             leave-to-class="translate-y-1 opacity-0"
                         >
                             <div
                                 v-if="userMenuOpen"
-                                class="absolute right-0 z-[80] mt-1.5 w-64 overflow-hidden rounded-xl border border-slate-200/90 bg-white py-1 shadow-lg shadow-slate-900/10"
+                                id="public-user-menu"
+                                class="absolute right-0 z-[80] mt-2 w-64 origin-top-right overflow-hidden rounded-2xl border border-slate-200/90 bg-white/95 py-1 shadow-2xl shadow-slate-900/15 ring-1 ring-slate-900/5 backdrop-blur-xl"
                                 role="menu"
+                                aria-labelledby="public-user-menu-button"
                             >
-                                <div class="border-b border-slate-100 px-3 py-2">
-                                    <p class="truncate text-xs font-bold text-slate-900">{{ displayName }}</p>
-                                    <p class="truncate text-[11px] text-slate-500">{{ displayEmail }}</p>
+                                <div class="border-b border-slate-100/90 bg-gradient-to-br from-slate-50/80 to-white px-3.5 py-3">
+                                    <p class="truncate text-sm font-semibold text-slate-900">{{ displayName }}</p>
+                                    <p class="truncate text-xs text-slate-500">{{ displayEmail }}</p>
                                 </div>
-                                <div class="p-1">
+                                <div class="p-1.5">
                                     <Link
                                         :href="route('dashboard')"
-                                        class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+                                        class="flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                                         role="menuitem"
                                         @click="userMenuOpen = false"
                                     >
-                                        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-sky-400 to-blue-600 text-white">
+                                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-sm">
                                             <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                             </svg>
@@ -209,11 +251,11 @@ async function signOut() {
                                     </Link>
                                     <Link
                                         :href="route('profile')"
-                                        class="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-semibold text-slate-700 hover:bg-slate-50"
+                                        class="flex items-center gap-3 rounded-xl px-2.5 py-2.5 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
                                         role="menuitem"
                                         @click="userMenuOpen = false"
                                     >
-                                        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-teal-400 to-emerald-600 text-white">
+                                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-400 to-emerald-600 text-white shadow-sm">
                                             <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                             </svg>
@@ -221,14 +263,14 @@ async function signOut() {
                                         Profile
                                     </Link>
                                 </div>
-                                <div class="border-t border-slate-100 p-1">
+                                <div class="border-t border-slate-100 p-1.5">
                                     <button
                                         type="button"
-                                        class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50"
+                                        class="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left text-[13px] font-semibold text-rose-600 transition hover:bg-rose-50"
                                         role="menuitem"
                                         @click="signOut"
                                     >
-                                        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-rose-400 to-pink-600 text-white">
+                                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-400 to-pink-600 text-white shadow-sm">
                                             <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                                             </svg>
@@ -243,13 +285,13 @@ async function signOut() {
                 <template v-else>
                     <Link
                         :href="route(nav.cta.login.route)"
-                        class="rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-100"
+                        class="rounded-full border border-slate-200/90 bg-white px-4 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:ring-2 focus-visible:ring-indigo-500/70 focus-visible:ring-offset-2 active:scale-[0.98]"
                     >
                         {{ nav.cta.login.label }}
                     </Link>
                     <Link
                         :href="route(nav.cta.register.route)"
-                        class="rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-[13px] font-semibold text-white shadow-md shadow-indigo-500/20 transition hover:from-indigo-500 hover:to-violet-500"
+                        class="rounded-full bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 px-4 py-2 text-[13px] font-semibold text-white shadow-lg shadow-indigo-500/25 ring-1 ring-inset ring-white/15 outline-none transition hover:shadow-indigo-500/35 hover:brightness-[1.03] focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 active:scale-[0.98]"
                     >
                         {{ nav.cta.register.label }}
                     </Link>
@@ -259,16 +301,19 @@ async function signOut() {
             <!-- Mobile toggle -->
             <button
                 type="button"
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 md:hidden"
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-slate-700 outline-none transition md:hidden"
+                :class="mobileOpen
+                    ? 'border-indigo-200 bg-indigo-50 text-indigo-800 shadow-inner'
+                    : 'border-slate-200/90 bg-white shadow-sm hover:border-slate-300 hover:bg-slate-50'"
                 :aria-expanded="mobileOpen"
                 aria-controls="public-mobile-nav"
-                aria-label="Menu"
+                :aria-label="mobileOpen ? 'Close menu' : 'Open menu'"
                 @click="mobileOpen = !mobileOpen"
             >
-                <svg v-if="!mobileOpen" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-if="!mobileOpen" class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
-                <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-else class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
             </button>
@@ -285,74 +330,106 @@ async function signOut() {
             >
                 <div
                     v-if="mobileOpen"
-                    class="fixed inset-0 z-[60] bg-slate-900/30 backdrop-blur-[1px] md:hidden"
+                    class="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-[2px] md:hidden"
                     aria-hidden="true"
                     @click="mobileOpen = false"
                 />
             </Transition>
 
             <Transition
-                enter-active-class="transition duration-200 ease-out"
-                enter-from-class="-translate-y-1 opacity-0"
-                enter-to-class="translate-y-0 opacity-100"
-                leave-active-class="transition duration-150 ease-in"
+                enter-active-class="transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
+                enter-from-class="-translate-y-2 scale-[0.98] opacity-0"
+                enter-to-class="translate-y-0 scale-100 opacity-100"
+                leave-active-class="transition duration-200 ease-in"
                 leave-from-class="translate-y-0 opacity-100"
-                leave-to-class="-translate-y-1 opacity-0"
+                leave-to-class="-translate-y-2 opacity-0"
             >
                 <div
                     v-if="mobileOpen"
                     id="public-mobile-nav"
-                    class="fixed left-3 right-3 top-[3.75rem] z-[70] max-h-[min(82vh,24rem)] overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-xl md:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Site menu"
+                    class="fixed z-[70] max-h-[min(85dvh,32rem)] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl shadow-slate-900/20 ring-1 ring-slate-900/5 md:hidden left-[max(0.75rem,env(safe-area-inset-left,0px))] right-[max(0.75rem,env(safe-area-inset-right,0px))] top-[calc(env(safe-area-inset-top,0px)+3.5rem+0.35rem)]"
                 >
-                    <div class="max-h-[min(82vh,24rem)] overflow-y-auto overscroll-contain p-2">
+                    <div class="flex items-center justify-between border-b border-slate-100 px-3 py-2.5">
+                        <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Menu</p>
+                        <button
+                            type="button"
+                            class="rounded-lg px-2 py-1 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
+                            @click="mobileOpen = false"
+                        >
+                            Close
+                        </button>
+                    </div>
+                    <div class="max-h-[min(85dvh,32rem)] overflow-y-auto overscroll-contain px-2 pb-3 pt-1">
                         <ul class="space-y-0.5" role="list">
                             <li v-for="item in nav.nav" :key="item.label">
                                 <a
                                     :href="item.href"
                                     :target="isExternal(item) ? '_blank' : undefined"
                                     :rel="isExternal(item) ? 'noopener noreferrer' : undefined"
-                                    class="flex items-center justify-between rounded-lg px-3 py-2.5 text-[13px] font-semibold text-slate-800 hover:bg-indigo-50"
+                                    :class="mobileNavLinkClass"
                                     @click="mobileOpen = false"
                                 >
                                     {{ item.label }}
                                     <svg
                                         v-if="isExternal(item)"
-                                        class="h-3.5 w-3.5 text-slate-400"
+                                        class="h-4 w-4 shrink-0 text-slate-400"
                                         fill="none"
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
+                                        aria-hidden="true"
                                     >
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                     </svg>
                                 </a>
                             </li>
                         </ul>
-                        <div class="mt-2 space-y-2 border-t border-slate-100 pt-2">
+                        <div class="mt-3 space-y-2 border-t border-slate-100 pt-3">
                             <template v-if="isLoggedIn">
-                                <div class="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                                    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-xs font-bold text-white">
+                                <div class="flex items-center gap-3 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/80 px-3 py-3">
+                                    <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 text-xs font-bold text-white shadow-md">
                                         {{ userInitials }}
                                     </span>
                                     <div class="min-w-0 flex-1">
-                                        <p class="truncate text-xs font-bold text-slate-900">{{ displayName }}</p>
-                                        <p class="truncate text-[11px] text-slate-500">{{ displayEmail }}</p>
+                                        <p class="truncate text-sm font-semibold text-slate-900">{{ displayName }}</p>
+                                        <p class="truncate text-xs text-slate-500">{{ displayEmail }}</p>
                                     </div>
                                 </div>
-                                <Link :href="route('dashboard')" class="block rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-800 hover:bg-slate-50" @click="mobileOpen = false">Dashboard</Link>
-                                <Link :href="route('profile')" class="block rounded-lg px-3 py-2 text-[13px] font-semibold text-slate-800 hover:bg-slate-50" @click="mobileOpen = false">Profile</Link>
-                                <button type="button" class="w-full rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-rose-600 hover:bg-rose-50" @click="signOut">Sign out</button>
+                                <Link
+                                    :href="route('dashboard')"
+                                    :class="mobileNavLinkClass"
+                                    @click="mobileOpen = false"
+                                >
+                                    Dashboard
+                                </Link>
+                                <Link
+                                    :href="route('profile')"
+                                    :class="mobileNavLinkClass"
+                                    @click="mobileOpen = false"
+                                >
+                                    Profile
+                                </Link>
+                                <button
+                                    type="button"
+                                    class="w-full rounded-xl px-3 py-3 text-left text-[15px] font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-rose-400/50"
+                                    @click="signOut"
+                                >
+                                    Sign out
+                                </button>
                             </template>
                             <template v-else>
                                 <Link
                                     :href="route(nav.cta.login.route)"
-                                    class="block rounded-lg border border-slate-200 py-2.5 text-center text-[13px] font-semibold text-slate-800"
+                                    class="block rounded-xl border border-slate-200/90 py-3 text-center text-[15px] font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
                                     @click="mobileOpen = false"
                                 >
                                     {{ nav.cta.login.label }}
                                 </Link>
                                 <Link
                                     :href="route(nav.cta.register.route)"
-                                    class="block rounded-lg bg-gradient-to-r from-indigo-600 to-violet-600 py-2.5 text-center text-[13px] font-semibold text-white"
+                                    class="block rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-indigo-600 py-3 text-center text-[15px] font-semibold text-white shadow-lg shadow-indigo-500/25 ring-1 ring-inset ring-white/10"
                                     @click="mobileOpen = false"
                                 >
                                     {{ nav.cta.register.label }}

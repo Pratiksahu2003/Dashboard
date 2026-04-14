@@ -270,8 +270,9 @@ function formatInrAmount(v) { const n = Number(v); return Number.isFinite(n) ? n
 const heroHourlyLine    = computed(() => hourlyRateFixed.value != null && hourlyRateFixed.value !== '' ? `\u20B9${formatInrAmount(hourlyRateFixed.value)} / hr` : (hourlyRateRange.value || ''));
 const heroMonthlyLine   = computed(() => monthlyRateFixed.value != null && monthlyRateFixed.value !== '' ? `\u20B9${formatInrAmount(monthlyRateFixed.value)} / mo` : (monthlyRateRange.value || ''));
 const showHeroHourlyRate  = computed(() => !!heroHourlyLine.value);
-const showHeroMonthlyRate = computed(() => !heroHourlyLine.value && !!heroMonthlyLine.value);
+const showHeroMonthlyRate = computed(() => !!heroMonthlyLine.value);
 const hasHeroRates        = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
+const showBothHeroRates   = computed(() => showHeroHourlyRate.value && showHeroMonthlyRate.value);
 
 const canonicalPath = computed(() => (t.value ? publicTeacherProfilePath(t.value) : null));
 const canonicalUrl  = computed(() => typeof window === 'undefined' || !canonicalPath.value ? '' : `${window.location.origin}${canonicalPath.value}`);
@@ -376,7 +377,7 @@ onMounted(loadTeacher);
 
   <PublicLayout>
     <!-- Loading -->
-    <div v-if="loading" class="relative max-w-6xl mx-auto animate-pulse px-1">
+    <div v-if="loading" class="relative mx-auto max-w-6xl animate-pulse px-3 sm:px-4 md:px-6">
       <div class="h-10 bg-slate-200 rounded-2xl w-40 mb-8"></div>
       <div class="rounded-3xl border border-slate-200/80 bg-white p-8 mb-6 shadow-sm">
         <div class="flex flex-col gap-6 sm:flex-row">
@@ -391,7 +392,7 @@ onMounted(loadTeacher);
     </div>
 
     <!-- 404 -->
-    <div v-else-if="errorCode === 404" class="max-w-6xl mx-auto text-center py-20 px-4">
+    <div v-else-if="errorCode === 404" class="mx-auto max-w-6xl px-3 py-20 text-center sm:px-4 md:px-6">
       <div class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
         <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.009-5.824-2.709M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       </div>
@@ -401,18 +402,18 @@ onMounted(loadTeacher);
     </div>
 
     <!-- Error -->
-    <div v-else-if="error" class="max-w-6xl mx-auto py-12 px-4">
+    <div v-else-if="error" class="mx-auto max-w-6xl px-3 py-12 sm:px-4 md:px-6">
       <div class="rounded-2xl border border-red-200/80 bg-red-50/90 p-5 text-red-900 shadow-sm mb-5">{{ error }}</div>
       <button type="button" class="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:from-indigo-500 hover:to-violet-500" @click="loadTeacher">Try again</button>
     </div>
 
     <!-- Profile -->
-    <div v-else-if="teacher" class="relative mx-auto max-w-7xl px-1">
-      <div class="pointer-events-none absolute -right-20 -top-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl -z-10"></div>
-      <div class="pointer-events-none absolute -left-16 top-32 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl -z-10"></div>
+    <div v-else-if="teacher" class="relative mx-auto max-w-7xl min-w-0 px-3 sm:px-4 md:px-6">
+      <div class="pointer-events-none absolute -right-20 -top-10 -z-10 h-64 w-64 rounded-full bg-violet-200/35 blur-3xl max-[480px]:-right-12"></div>
+      <div class="pointer-events-none absolute -left-16 top-32 -z-10 h-56 w-56 rounded-full bg-indigo-200/30 blur-3xl max-[480px]:-left-10"></div>
 
       <!-- Hero Card -->
-      <div class="relative mb-8 overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-8 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:p-10">
+      <div class="relative mb-8 overflow-hidden rounded-2xl border border-slate-200/70 bg-gradient-to-br from-white via-indigo-50/30 to-violet-50/40 p-5 shadow-[0_20px_50px_-24px_rgba(79,70,229,0.25)] sm:rounded-3xl sm:p-8 md:p-10">
         <div class="absolute right-0 top-0 h-40 w-40 translate-x-10 -translate-y-10 rounded-full bg-indigo-400/10 blur-2xl"></div>
         <div class="relative flex flex-col gap-8 md:flex-row md:items-start">
           <!-- Avatar -->
@@ -437,7 +438,7 @@ onMounted(loadTeacher);
           <div class="min-w-0 flex-1">
             <div class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h1 class="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{{ name }}</h1>
+                <h1 class="break-words text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl md:text-4xl">{{ name }}</h1>
                 <div v-if="cityState" class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-600">
                   <span class="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-sm font-medium text-slate-700 shadow-sm ring-1 ring-slate-200/80">
                     <svg class="h-4 w-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
@@ -447,21 +448,44 @@ onMounted(loadTeacher);
               </div>
               <div
                 v-if="hasHeroRates"
-                class="shrink-0 space-y-3 rounded-2xl border border-indigo-100/80 bg-white/90 px-5 py-4 text-right shadow-md shadow-indigo-500/5 backdrop-blur-sm"
+                class="w-full rounded-2xl border border-indigo-200/50 bg-gradient-to-br from-white via-white to-indigo-50/50 px-4 py-4 shadow-[0_12px_40px_-20px_rgba(79,70,229,0.35)] ring-1 ring-indigo-100/60 backdrop-blur-sm sm:w-auto sm:min-w-[13.5rem] sm:shrink-0 sm:px-5 sm:py-4"
               >
-                <div v-if="showHeroHourlyRate">
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
-                  <div class="text-xl font-bold tabular-nums text-indigo-600 sm:text-2xl">{{ heroHourlyLine }}</div>
-                </div>
-                <div v-else-if="showHeroMonthlyRate">
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
-                  <div class="text-xl font-bold text-indigo-600 sm:text-2xl">{{ heroMonthlyLine }}</div>
+                <p
+                  v-if="showBothHeroRates"
+                  class="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600/90 sm:text-right"
+                >
+                  Rates
+                </p>
+                <div
+                  class="grid gap-4"
+                  :class="showBothHeroRates ? 'sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-indigo-100/90' : ''"
+                >
+                  <div
+                    v-if="showHeroHourlyRate"
+                    class="min-w-0 text-center sm:text-right"
+                    :class="showBothHeroRates ? 'sm:pr-5 pb-4 border-b border-indigo-100/80 sm:border-b-0 sm:pb-0' : ''"
+                  >
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
+                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-indigo-600 sm:text-xl md:text-2xl">
+                      {{ heroHourlyLine }}
+                    </div>
+                  </div>
+                  <div
+                    v-if="showHeroMonthlyRate"
+                    class="min-w-0 text-center sm:text-right"
+                    :class="showBothHeroRates ? 'sm:pl-5' : ''"
+                  >
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
+                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-violet-700 sm:text-xl md:text-2xl">
+                      {{ heroMonthlyLine }}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Stats (ratings: V2 stats when available, else public teacher payload) -->
-            <div class="mb-6 flex flex-wrap gap-2">
+            <div class="mb-8 flex flex-wrap gap-2">
               <div
                 v-if="showRatingBadge"
                 class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/80"
@@ -478,10 +502,10 @@ onMounted(loadTeacher);
             </div>
 
             <!-- Bio -->
-            <div class="mb-6 rounded-2xl border border-slate-200/60 bg-white/60 p-5 backdrop-blur-sm">
-              <h2 class="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">About</h2>
+            <div class="mb-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/95 to-slate-50/40 p-5 shadow-inner shadow-slate-900/5 ring-1 ring-slate-100/80 sm:p-6">
+              <h2 class="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600/80">About</h2>
               <p
-                class="leading-relaxed whitespace-pre-line"
+                class="text-[15px] leading-relaxed whitespace-pre-line sm:text-base"
                 :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
               >{{ profileBioDisplay }}</p>
             </div>
@@ -516,8 +540,8 @@ onMounted(loadTeacher);
               <div v-if="fieldOfStudy" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Field of study</span><p class="text-slate-900 font-semibold">{{ fieldOfStudy }}</p></div>
               <div v-if="graduationYear" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Graduation year</span><p class="text-slate-900 font-semibold">{{ graduationYear }}</p></div>
               <div v-if="specialization" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Specialization</span><p class="text-slate-900 font-semibold">{{ specialization }}</p></div>
-              <div v-if="showHeroHourlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Hourly rate</span><p class="text-slate-900 font-semibold">{{ heroHourlyLine }}</p></div>
-              <div v-else-if="showHeroMonthlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Monthly rate</span><p class="text-slate-900 font-semibold">{{ heroMonthlyLine }}</p></div>
+              <div v-if="showHeroHourlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Hourly rate</span><p class="font-semibold tabular-nums text-indigo-700">{{ heroHourlyLine }}</p></div>
+              <div v-if="showHeroMonthlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Monthly rate</span><p class="font-semibold tabular-nums text-violet-800">{{ heroMonthlyLine }}</p></div>
               <div v-if="teachingMode" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Teaching mode</span><p class="text-slate-900 font-semibold">{{ teachingMode }}</p></div>
               <div v-if="availability" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Availability</span><p class="text-slate-900 font-semibold">{{ availability }}</p></div>
               <div v-if="travelRadius" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Travel radius</span><p class="text-slate-900 font-semibold">{{ travelRadius }}</p></div>

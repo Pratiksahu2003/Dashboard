@@ -23,11 +23,12 @@ const company = computed(() => page.props.company ?? {});
 </script>
 
 <template>
-    <div class="min-h-screen flex flex-col bg-white font-sans antialiased">
-
+    <div
+        class="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-hidden bg-white font-sans text-slate-900 antialiased"
+    >
         <PublicHeader v-if="nav" :nav="nav.header" />
 
-        <main class="flex-1">
+        <main class="min-w-0 flex-1 w-full">
             <slot />
         </main>
 

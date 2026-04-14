@@ -490,10 +490,10 @@ const heroMonthlyLine = computed(() => {
   return monthlyRateRange.value || '';
 });
 
-/** Prefer hourly in UI; only show monthly when hourly is absent. */
 const showHeroHourlyRate = computed(() => !!heroHourlyLine.value);
-const showHeroMonthlyRate = computed(() => !heroHourlyLine.value && !!heroMonthlyLine.value);
+const showHeroMonthlyRate = computed(() => !!heroMonthlyLine.value);
 const hasHeroRates = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
+const showBothHeroRates = computed(() => showHeroHourlyRate.value && showHeroMonthlyRate.value);
 
 const canonicalPath = computed(() => (t.value ? teacherProfilePath(t.value) : null));
 const canonicalUrl = computed(() => {
@@ -725,21 +725,44 @@ onMounted(loadTeacher);
               </div>
               <div
                 v-if="hasHeroRates"
-                class="shrink-0 space-y-3 rounded-2xl border border-indigo-100/80 bg-white/90 px-5 py-4 text-right shadow-md shadow-indigo-500/5 backdrop-blur-sm"
+                class="w-full rounded-2xl border border-indigo-200/50 bg-gradient-to-br from-white via-white to-indigo-50/50 px-4 py-4 shadow-[0_12px_40px_-20px_rgba(79,70,229,0.35)] ring-1 ring-indigo-100/60 backdrop-blur-sm sm:w-auto sm:min-w-[13.5rem] sm:shrink-0 sm:px-5 sm:py-4"
               >
-                <div v-if="showHeroHourlyRate">
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
-                  <div class="text-xl font-bold tabular-nums text-indigo-600 sm:text-2xl">{{ heroHourlyLine }}</div>
-                </div>
-                <div v-else-if="showHeroMonthlyRate">
-                  <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
-                  <div class="text-xl font-bold text-indigo-600 sm:text-2xl">{{ heroMonthlyLine }}</div>
+                <p
+                  v-if="showBothHeroRates"
+                  class="mb-3 text-center text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600/90 sm:text-right"
+                >
+                  Rates
+                </p>
+                <div
+                  class="grid gap-4"
+                  :class="showBothHeroRates ? 'sm:grid-cols-2 sm:gap-0 sm:divide-x sm:divide-indigo-100/90' : ''"
+                >
+                  <div
+                    v-if="showHeroHourlyRate"
+                    class="min-w-0 text-center sm:text-right"
+                    :class="showBothHeroRates ? 'border-b border-indigo-100/80 pb-4 sm:border-b-0 sm:pb-0 sm:pr-5' : ''"
+                  >
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hourly</div>
+                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-indigo-600 sm:text-xl md:text-2xl">
+                      {{ heroHourlyLine }}
+                    </div>
+                  </div>
+                  <div
+                    v-if="showHeroMonthlyRate"
+                    class="min-w-0 text-center sm:text-right"
+                    :class="showBothHeroRates ? 'sm:pl-5' : ''"
+                  >
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Monthly</div>
+                    <div class="mt-1 break-words text-lg font-bold tabular-nums leading-snug text-violet-700 sm:text-xl md:text-2xl">
+                      {{ heroMonthlyLine }}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             <!-- Stats (ratings: V2 stats when available, else public teacher payload) -->
-            <div class="mb-6 flex flex-wrap gap-2">
+            <div class="mb-8 flex flex-wrap gap-2">
               <div
                 v-if="showRatingBadge"
                 class="inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 shadow-sm ring-1 ring-slate-200/80"
@@ -756,10 +779,10 @@ onMounted(loadTeacher);
             </div>
 
             <!-- Bio -->
-            <div class="mb-6 rounded-2xl border border-slate-200/60 bg-white/60 p-5 backdrop-blur-sm">
-              <h2 class="mb-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-400">About</h2>
+            <div class="mb-6 rounded-2xl border border-slate-200/70 bg-gradient-to-b from-slate-50/95 to-slate-50/40 p-5 shadow-inner shadow-slate-900/5 ring-1 ring-slate-100/80 sm:p-6">
+              <h2 class="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600/80">About</h2>
               <p
-                class="leading-relaxed whitespace-pre-line"
+                class="text-[15px] leading-relaxed whitespace-pre-line sm:text-base"
                 :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
               >{{ profileBioDisplay }}</p>
             </div>
@@ -794,8 +817,8 @@ onMounted(loadTeacher);
               <div v-if="fieldOfStudy" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Field of study</span><p class="text-slate-900 font-semibold">{{ fieldOfStudy }}</p></div>
               <div v-if="graduationYear" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Graduation year</span><p class="text-slate-900 font-semibold">{{ graduationYear }}</p></div>
               <div v-if="specialization" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Specialization</span><p class="text-slate-900 font-semibold">{{ specialization }}</p></div>
-              <div v-if="showHeroHourlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Hourly rate</span><p class="text-slate-900 font-semibold">{{ heroHourlyLine }}</p></div>
-              <div v-else-if="showHeroMonthlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Monthly rate</span><p class="text-slate-900 font-semibold">{{ heroMonthlyLine }}</p></div>
+              <div v-if="showHeroHourlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Hourly rate</span><p class="font-semibold tabular-nums text-indigo-700">{{ heroHourlyLine }}</p></div>
+              <div v-if="showHeroMonthlyRate" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Monthly rate</span><p class="font-semibold tabular-nums text-violet-800">{{ heroMonthlyLine }}</p></div>
               <div v-if="teachingMode" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Teaching mode</span><p class="text-slate-900 font-semibold">{{ teachingMode }}</p></div>
               <div v-if="availability" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Availability</span><p class="text-slate-900 font-semibold">{{ availability }}</p></div>
               <div v-if="travelRadius" class="rounded-2xl bg-slate-50/80 px-4 py-3 ring-1 ring-slate-100"><span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Travel radius</span><p class="text-slate-900 font-semibold">{{ travelRadius }}</p></div>
