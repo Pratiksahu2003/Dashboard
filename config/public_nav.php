@@ -58,7 +58,7 @@ return [
     ],
 
     'footer' => [
-        'tagline' => 'Connecting learners, teachers, and institutes — all in one place.',
+        'tagline' => 'SuGanta is an all-in-one edtech platform that connects learners, teachers, and institutes seamlessly. It simplifies access to quality education, personalized learning, and expert guidance. ',
 
         'columns' => [
             [
@@ -101,7 +101,7 @@ return [
         'app_links' => [
             [
                 'label' => 'Download on the App Store',
-                'href'  => $base . '/app/ios',
+                'href'  => $base . '/app',
                 'store' => 'apple',
             ],
             [

@@ -152,11 +152,7 @@ const mobileNavLinkClass =
                         decoding="async"
                         fetchpriority="high"
                     />
-                    <span class="hidden min-w-0 sm:block">
-                        <span class="block truncate bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-sm font-bold tracking-tight text-transparent">
-                            {{ nav.logo.alt }}
-                        </span>
-                    </span>
+                
                 </a>
 
                 <!-- Desktop nav: one continuous row, no per-link external icons -->
