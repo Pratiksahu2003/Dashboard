@@ -888,7 +888,7 @@ onMounted(loadTeacher);
           </div>
 
           <nav
-            class="sticky top-0 z-20 -mx-4 flex flex-wrap border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
+            class="sticky top-0 z-20 -mx-4 flex flex-wrap justify-center border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
             aria-label="Profile sections"
           >
             <button
@@ -915,6 +915,24 @@ onMounted(loadTeacher);
               @click="teacherScrollTo('teacher-section-portfolio', 'portfolio')"
             >
               Portfolio
+            </button>
+            <button
+              v-if="name"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'why' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-why', 'why')"
+            >
+              Why choose us
+            </button>
+            <button
+              v-if="teacherShowDirectionsMap"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'map' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-map', 'map')"
+            >
+              Map
             </button>
             <button
               type="button"
@@ -998,16 +1016,17 @@ onMounted(loadTeacher);
               <h2 class="text-lg font-bold text-slate-900 sm:text-xl">Profile &amp; location</h2>
             </div>
 
-            <GetDirectionsMapSection
-              v-if="teacherShowDirectionsMap"
-              :profile-name="name"
-              :latitude="mapLatitude"
-              :longitude="mapLongitude"
-              :place-query="teacherPlaceQuery"
-              :phone="teacherDirectionsPhone"
-              :contact-person="name"
-              :address="teacherDirectionsAddress"
-            />
+            <div v-if="teacherShowDirectionsMap" id="teacher-section-map" class="scroll-mt-28">
+              <GetDirectionsMapSection
+                :profile-name="name"
+                :latitude="mapLatitude"
+                :longitude="mapLongitude"
+                :place-query="teacherPlaceQuery"
+                :phone="teacherDirectionsPhone"
+                :contact-person="name"
+                :address="teacherDirectionsAddress"
+              />
+            </div>
 
             <div v-if="fullAddressLines.length" class="mb-6 rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-100">
               <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Address</span>

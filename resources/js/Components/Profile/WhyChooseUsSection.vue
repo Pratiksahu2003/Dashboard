@@ -73,10 +73,10 @@ const headingName = computed(() => (props.profileName?.trim() ? props.profileNam
 </script>
 
 <template>
-  <section class="mb-8" aria-labelledby="why-choose-heading">
+  <section class="mx-auto mb-8 max-w-7xl" aria-labelledby="why-choose-heading">
     <h2
       id="why-choose-heading"
-      class="mb-5 text-left text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
+      class="mb-5 text-center text-xl font-bold tracking-tight text-slate-900 sm:text-2xl"
     >
       Why Choose {{ headingName }}?
     </h2>

@@ -888,7 +888,7 @@ onMounted(loadInstitute);
 
           <!-- Sticky section tabs (reference: underline active) -->
           <nav
-            class="sticky top-0 z-20 -mx-4 flex flex-wrap border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
+            class="sticky top-0 z-20 -mx-4 flex flex-wrap justify-center border-t border-slate-100 bg-white/95 px-1 backdrop-blur-md sm:-mx-8 sm:px-2"
             aria-label="Profile sections"
           >
             <button
@@ -915,6 +915,24 @@ onMounted(loadInstitute);
               @click="instituteScrollTo('institute-section-portfolio', 'portfolio')"
             >
               Portfolio
+            </button>
+            <button
+              v-if="name"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'why' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-why', 'why')"
+            >
+              Why choose us
+            </button>
+            <button
+              v-if="instituteShowDirectionsMap"
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'map' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-map', 'map')"
+            >
+              Map
             </button>
             <button
               type="button"
@@ -945,7 +963,9 @@ onMounted(loadInstitute);
         All institutes
       </Link>
 
-      <WhyChooseUsSection v-if="name" :profile-name="name" variant="institute" />
+      <div v-if="name" id="institute-section-why" class="scroll-mt-28">
+        <WhyChooseUsSection :profile-name="name" variant="institute" />
+      </div>
 
       <div id="institute-section-overview" class="scroll-mt-28">
         <div
@@ -1177,16 +1197,17 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <GetDirectionsMapSection
-            v-if="instituteShowDirectionsMap"
-            :profile-name="name"
-            :latitude="instituteMapLat"
-            :longitude="instituteMapLng"
-            :place-query="institutePlaceQuery"
-            :phone="instituteDirectionsPhone"
-            :contact-person="principalName"
-            :address="instituteDirectionsAddress"
-          />
+          <div v-if="instituteShowDirectionsMap" id="institute-section-map" class="scroll-mt-28">
+            <GetDirectionsMapSection
+              :profile-name="name"
+              :latitude="instituteMapLat"
+              :longitude="instituteMapLng"
+              :place-query="institutePlaceQuery"
+              :phone="instituteDirectionsPhone"
+              :contact-person="principalName"
+              :address="instituteDirectionsAddress"
+            />
+          </div>
 
           <div v-if="address || pincode || (profile.latitude != null && profile.longitude != null) || instituteShowDirectionsMap" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <h2 class="mb-4 text-lg font-bold text-slate-900 sm:text-xl">Location</h2>
