@@ -4,16 +4,13 @@ const BANNER_SRC = '/Banner/profile_banner.jpg';
 </script>
 
 <template>
-  <!--
-    Responsive strip: aspect-ratio tracks width; min/max height + svh cap short viewports (mobile landscape).
-    Parent profile card supplies horizontal padding; this stays full width inside that column.
-  -->
+  <!-- Compact strip: wider aspect ratio + lower caps than before -->
   <div
     class="relative isolate w-full overflow-hidden bg-slate-900
-      aspect-[20/9] min-h-[6.75rem] max-h-[min(12rem,42svh)]
-      sm:aspect-[21/9] sm:min-h-[7.25rem] sm:max-h-[min(14rem,36svh)]
-      md:min-h-[8rem] md:max-h-[15rem]
-      lg:max-h-[17rem] xl:max-h-[19rem] 2xl:max-h-[21rem]"
+      aspect-[3/1] min-h-[4.75rem] max-h-[min(8.5rem,32svh)]
+      sm:min-h-[5.25rem] sm:max-h-[min(9.5rem,28svh)]
+      md:aspect-[28/9] md:min-h-[5.5rem] md:max-h-[10rem]
+      lg:max-h-[11rem] xl:max-h-[12rem]"
   >
     <img
       :src="BANNER_SRC"
