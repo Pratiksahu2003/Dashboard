@@ -35,11 +35,20 @@ export function instituteSeoSlug(institute) {
     );
 }
 
+/** Inertia path `/institute/{id}/{slug}` (auth app directory — see routes/web.php). */
 export function instituteProfilePath(institute) {
     const id = resolveInstituteUserId(institute);
     if (!id) return null;
     const slug = instituteSeoSlug(institute);
-    return `/institutes/${id}/${slug}`;
+    return `/institute/${id}/${slug}`;
+}
+
+/** Public marketing URL `/institutes/{slug}-{id}` (no auth — institutes.show). */
+export function publicInstituteProfilePath(institute) {
+    const id = resolveInstituteUserId(institute);
+    if (!id) return null;
+    const slug = instituteSeoSlug(institute);
+    return `/institutes/${slug}-${id}`;
 }
 
 function normaliseOptionList(val) {

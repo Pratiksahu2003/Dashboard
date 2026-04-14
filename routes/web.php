@@ -141,7 +141,7 @@ Route::get('/teachers/{slug}-{id}', [TeacherProfile::class, 'show'])
     // /institutes → redirect to main site
 Route::get('/institutes', fn () => redirect()->away('https://www.suganta.com/institutes'))->name('institutes.redirect');
 
-// /teachers/kishan-kumar-dubey-1257  (slug-id, id is numeric)
+// /institutes/acme-school-42  (slug-id, id is numeric)
 Route::get('/institutes/{slug}-{id}', [InstituteProfile::class, 'show'])
     ->where('slug', '[a-zA-Z0-9][a-zA-Z0-9\-]+')
     ->whereNumber('id')
