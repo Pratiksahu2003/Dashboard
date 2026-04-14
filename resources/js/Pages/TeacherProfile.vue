@@ -917,6 +917,14 @@ onMounted(loadTeacher);
               Portfolio
             </button>
             <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+            <button
               v-if="relatedTeachers.length"
               type="button"
               class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
@@ -924,14 +932,6 @@ onMounted(loadTeacher);
               @click="teacherScrollTo('teacher-section-similar', 'similar')"
             >
               Similar tutors
-            </button>
-            <button
-              type="button"
-              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
-              :class="teacherNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
-              @click="teacherScrollTo('teacher-section-reviews', 'reviews')"
-            >
-              Reviews
             </button>
           </nav>
         </div>
@@ -1079,24 +1079,6 @@ onMounted(loadTeacher);
                 />
                 <span class="sr-only">View full screen</span>
               </button>
-            </div>
-          </div>
-
-          <div
-            v-if="relatedTeachers.length"
-            id="teacher-section-similar"
-            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
-            <div class="flex flex-col gap-4">
-              <TeacherCard
-                v-for="related in relatedTeachers"
-                :key="related.id"
-                layout="row"
-                :teacher="related"
-                @click="navigateToTeacher"
-                @contact="navigateToTeacher"
-              />
             </div>
           </div>
 
@@ -1259,6 +1241,26 @@ onMounted(loadTeacher);
         </template>
       </div>
         </div>
+
+
+
+          <div
+            v-if="relatedTeachers.length"
+            id="teacher-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
+            <div class="flex flex-col gap-4">
+              <TeacherCard
+                v-for="related in relatedTeachers"
+                :key="related.id"
+                layout="row"
+                :teacher="related"
+                @click="navigateToTeacher"
+                @contact="navigateToTeacher"
+              />
+            </div>
+          </div>
 
         <!-- Sticky sidebar: scrollport is AppLayout main — top aligns to main viewport, not document -->
         <aside

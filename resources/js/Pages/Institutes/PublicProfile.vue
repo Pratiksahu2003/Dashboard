@@ -9,6 +9,7 @@ import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getInstitute, publicInstituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
+import { absoluteOgImage, twitterSiteHandle, buildInstituteJsonLd } from '@/utils/publicProfileSeo';
 import {
   getTeacherReviewStats,
   listTeacherReviews,
@@ -519,18 +520,21 @@ function onLeadCreatedFromProfile() {
   closeLeadModal();
 }
 
+const publicInstituteRating = computed(() => Number(data.value?.rating) || 0);
+const publicInstituteTotalReviews = computed(() => Number(data.value?.total_reviews) || 0);
+
 const displayAverageRating = computed(() => {
   if (reviewsFetchState.value === 'ok' && reviewStats.value?.average_rating != null) {
     return Number(reviewStats.value.average_rating);
   }
-  return 0;
+  return publicInstituteRating.value;
 });
 
 const displayTotalReviews = computed(() => {
   if (reviewsFetchState.value === 'ok' && reviewStats.value?.total_reviews != null) {
     return Number(reviewStats.value.total_reviews);
   }
-  return 0;
+  return publicInstituteTotalReviews.value;
 });
 
 const showRatingBadge = computed(
@@ -550,10 +554,52 @@ const distributionRows = computed(() => {
   return Array.isArray(d) ? [...d].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)) : [];
 });
 
-const canonicalPath = computed(() => (data.value ? publicInstituteProfilePath(data.value) : null));
+const company = computed(() => inertiaPage.props?.company ?? {});
+
+const siteName = computed(() => {
+  const n = String(company.value?.name ?? 'SuGanta').trim();
+  const cleaned = n.replace(/\.\s*$/, '');
+  return cleaned || 'SuGanta';
+});
+
+const siteUrl = computed(() => {
+  const w = company.value?.contact?.website;
+  const s = typeof w === 'string' && w.trim() ? w.trim() : 'https://www.suganta.com';
+  return s.replace(/\/$/, '');
+});
+
+const twitterSiteMeta = computed(() => twitterSiteHandle(company.value?.social?.twitter));
+
+const canonicalPath = computed(() => {
+  if (data.value) return publicInstituteProfilePath(data.value);
+  if (props.slug) return `/institutes/${props.slug}-${props.id}`;
+  return null;
+});
+
 const canonicalUrl = computed(() => {
   if (typeof window === 'undefined' || !canonicalPath.value) return '';
   return `${window.location.origin}${canonicalPath.value}`;
+});
+
+const ogImageUrl = computed(() => {
+  const primary = logoUrl.value || coverUrl.value;
+  return absoluteOgImage(primary, typeof window !== 'undefined' ? window.location.origin : '');
+});
+
+/** Rich alt text for Open Graph / Twitter cards (accessibility + share context). */
+const ogImageAlt = computed(() => {
+  if (!name.value) {
+    return 'SuGanta — find schools and institutes. Social sharing preview image.';
+  }
+  const bits = [
+    `${name.value} — institute on SuGanta`,
+    instituteTypeLabel.value || instituteCategoryLabel.value || null,
+    cityState.value ? `Location: ${cityState.value}` : null,
+    displayTotalReviews.value > 0 ? `Rating ${displayRatingLabel.value}★ (${displayTotalReviews.value} reviews)` : null,
+  ].filter(Boolean);
+  let s = bits.join('. ');
+  if (s.length > 220) s = `${s.slice(0, 217)}…`;
+  return `${s}. Logo or cover image for link previews.`;
 });
 
 const metaTitle = computed(() => {
@@ -572,6 +618,89 @@ const metaDescription = computed(() => {
     ? raw.replace(/\s+/g, ' ').trim().slice(0, 140)
     : `${name.value} is listed on SuGanta with programs and contact details.`;
   return one.length > 160 ? `${one.slice(0, 157)}…` : one;
+});
+
+const metaKeywords = computed(() => {
+  const parts = [
+    name.value,
+    'school',
+    'institute',
+    'college',
+    'SuGanta',
+    instituteTypeLabel.value,
+    instituteCategoryLabel.value,
+    cityState.value,
+    area.value,
+    ...coursesOffered.value.map((c) => String(c)),
+    ...specializations.value.map((c) => String(c)),
+    ...affiliations.value.map((c) => String(c)),
+  ];
+  return [...new Set(parts.map((p) => String(p).trim()).filter(Boolean))].join(', ');
+});
+
+const robotsContent = computed(() => {
+  if (errorCode.value === 404) return 'noindex, nofollow';
+  if (error.value && !loading.value) return 'noindex, follow';
+  return 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+});
+
+const instituteFoundingYear = computed(() => {
+  const e = establishmentLabel.value;
+  const m = String(e).match(/\b(19|20)\d{2}\b/);
+  return m ? m[0] : '';
+});
+
+const instituteSchemaSameAs = computed(() => {
+  const fromSocial = socialLinks.value.map(([, url]) => url).filter(Boolean);
+  const web = publicWebsiteUrl.value;
+  const merged = web ? [...fromSocial, web] : fromSocial;
+  return [...new Set(merged.map((u) => String(u).trim()).filter(Boolean))];
+});
+
+const instituteSchemaKeywords = computed(() =>
+  [
+    ...coursesOffered.value,
+    ...specializations.value,
+    ...affiliations.value,
+    ...facilities.value.slice(0, 8),
+  ]
+    .map((x) => String(x).trim())
+    .filter(Boolean),
+);
+
+const instituteJsonLdString = computed(() => {
+  const url = canonicalUrl.value;
+  if (!url || !name.value) return '';
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const logoAbs = absoluteOgImage(logoUrl.value, origin);
+  const coverAbs = coverUrl.value ? absoluteOgImage(coverUrl.value, origin) : '';
+  const graph = buildInstituteJsonLd({
+    pageUrl: url,
+    siteUrl: siteUrl.value,
+    siteName: siteName.value,
+    orgName: name.value,
+    pageTitle: metaTitle.value,
+    pageDescription: metaDescription.value,
+    imageUrl: coverAbs || logoAbs,
+    logoUrl: logoAbs,
+    description: descriptionPlain.value || bioPlain.value || metaDescription.value,
+    streetAddress: address.value || undefined,
+    addressLocality: city.value || area.value || undefined,
+    addressRegion: state.value || undefined,
+    postalCode: pincode.value || undefined,
+    addressCountry: undefined,
+    telephone: principalPhone.value || phonePrimary.value || undefined,
+    email: principalEmail.value || undefined,
+    sameAs: instituteSchemaSameAs.value,
+    foundingDate: instituteFoundingYear.value || undefined,
+    ratingValue: displayAverageRating.value,
+    reviewCount: displayTotalReviews.value,
+    orgUrl: publicWebsiteUrl.value || undefined,
+    latitude: instituteMapLat.value,
+    longitude: instituteMapLng.value,
+    keywords: instituteSchemaKeywords.value,
+  });
+  return JSON.stringify(graph);
 });
 
 async function loadInstitute() {
@@ -704,15 +833,29 @@ onMounted(loadInstitute);
 <template>
   <Head>
     <title>{{ metaTitle }}</title>
-    <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
     <meta name="description" :content="metaDescription" />
+    <meta name="keywords" :content="metaKeywords" />
+    <meta name="robots" :content="robotsContent" />
+    <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" :content="siteName" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
     <meta property="og:description" :content="metaDescription" />
-    <meta property="og:image" :content="logoUrl || 'https://app.suganta.com/logo/Su250.png'" />
-    <meta property="og:type" content="website" />
+    <meta property="og:image" :content="ogImageUrl" />
+    <meta property="og:image:secure_url" :content="ogImageUrl" />
+    <meta property="og:image:alt" :content="ogImageAlt" />
+
     <meta name="twitter:card" content="summary_large_image" />
+    <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
     <meta name="twitter:description" :content="metaDescription" />
+    <meta name="twitter:image" :content="ogImageUrl" />
+    <meta name="twitter:image:alt" :content="ogImageAlt" />
+
+    <script v-if="instituteJsonLdString" type="application/ld+json" v-text="instituteJsonLdString" />
   </Head>
 
   <PublicLayout>
@@ -915,6 +1058,14 @@ onMounted(loadInstitute);
               Portfolio
             </button>
             <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+            <button
               v-if="relatedInstitutes.length"
               type="button"
               class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
@@ -922,14 +1073,6 @@ onMounted(loadInstitute);
               @click="instituteScrollTo('institute-section-similar', 'similar')"
             >
               Similar institutes
-            </button>
-            <button
-              type="button"
-              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
-              :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
-              @click="instituteScrollTo('institute-section-reviews', 'reviews')"
-            >
-              Reviews
             </button>
           </nav>
         </div>
@@ -1255,24 +1398,6 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <div
-            v-if="relatedInstitutes.length"
-            id="institute-section-similar"
-            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
-            <div class="flex flex-col gap-4">
-              <InstituteCard
-                v-for="rel in relatedInstitutes"
-                :key="rel.id"
-                layout="row"
-                :institute="rel"
-                @click="navigateToInstitute"
-                @contact="navigateToInstitute"
-              />
-            </div>
-          </div>
-
           <div id="institute-section-reviews" class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -1406,6 +1531,26 @@ onMounted(loadInstitute);
             </template>
           </div>
         </div>
+
+
+
+          <div
+            v-if="relatedInstitutes.length"
+            id="institute-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
+            <div class="flex flex-col gap-4">
+              <InstituteCard
+                v-for="rel in relatedInstitutes"
+                :key="rel.id"
+                layout="row"
+                :institute="rel"
+                @click="navigateToInstitute"
+                @contact="navigateToInstitute"
+              />
+            </div>
+          </div>
 
         <aside class="w-full shrink-0 space-y-6 self-start lg:sticky lg:top-[calc(env(safe-area-inset-top,0px)+5.25rem)] lg:z-10 lg:max-h-[calc(100dvh-env(safe-area-inset-top,0px)-5.5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="Contact and links">
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">

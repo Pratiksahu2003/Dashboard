@@ -9,6 +9,7 @@ import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import { useAlerts } from '@/composables/useAlerts';
 import { getTeacher, publicTeacherProfilePath, resolveTeacherUserId } from '@/services/teacherApi';
+import { absoluteOgImage, twitterSiteHandle, buildTeacherJsonLd } from '@/utils/publicProfileSeo';
 import {
   getTeacherReviewStats,
   listTeacherReviews,
@@ -317,8 +318,71 @@ const showHeroMonthlyRate = computed(() => !!heroMonthlyLine.value);
 const hasHeroRates        = computed(() => showHeroHourlyRate.value || showHeroMonthlyRate.value);
 const showBothHeroRates   = computed(() => showHeroHourlyRate.value && showHeroMonthlyRate.value);
 
-const canonicalPath = computed(() => (t.value ? publicTeacherProfilePath(t.value) : null));
-const canonicalUrl  = computed(() => typeof window === 'undefined' || !canonicalPath.value ? '' : `${window.location.origin}${canonicalPath.value}`);
+const company = computed(() => page.props?.company ?? {});
+
+const siteName = computed(() => {
+  const n = String(company.value?.name ?? 'SuGanta').trim();
+  const cleaned = n.replace(/\.\s*$/, '');
+  return cleaned || 'SuGanta';
+});
+
+const siteUrl = computed(() => {
+  const w = company.value?.contact?.website;
+  const s = typeof w === 'string' && w.trim() ? w.trim() : 'https://www.suganta.com';
+  return s.replace(/\/$/, '');
+});
+
+const twitterSiteMeta = computed(() => twitterSiteHandle(company.value?.social?.twitter));
+
+const canonicalPath = computed(() => {
+  if (t.value) return publicTeacherProfilePath(t.value);
+  if (props.slug) return `/teachers/${props.slug}-${props.id}`;
+  return null;
+});
+
+const canonicalUrl = computed(() =>
+  typeof window === 'undefined' || !canonicalPath.value ? '' : `${window.location.origin}${canonicalPath.value}`,
+);
+
+const ogImageUrl = computed(() => absoluteOgImage(avatarUrl.value, typeof window !== 'undefined' ? window.location.origin : ''));
+
+/** Rich alt text for Open Graph / Twitter cards (accessibility + share context). */
+const ogImageAlt = computed(() => {
+  if (!name.value) {
+    return 'SuGanta — find tutors and book classes online. Social sharing preview image.';
+  }
+  const bits = [
+    `${name.value} — tutor profile on SuGanta`,
+    qualification.value || teachingMode.value || null,
+    cityState.value ? `Location: ${cityState.value}` : null,
+    displayTotalReviews.value > 0 ? `Rating ${displayRatingLabel.value}★ (${displayTotalReviews.value} reviews)` : null,
+  ].filter(Boolean);
+  let s = bits.join('. ');
+  if (s.length > 220) s = `${s.slice(0, 217)}…`;
+  return `${s}. Profile photo for link previews.`;
+});
+
+const metaKeywords = computed(() => {
+  const parts = [
+    name.value,
+    'tutor',
+    'private tutor',
+    'SuGanta',
+    ...subjects.value.map((s) => s?.name).filter(Boolean),
+    cityState.value,
+    qualification.value,
+    teachingMode.value,
+    area.value,
+    state.value,
+  ];
+  return [...new Set(parts.map((p) => String(p).trim()).filter(Boolean))].join(', ');
+});
+
+const robotsContent = computed(() => {
+  if (errorCode.value === 404) return 'noindex, nofollow';
+  if (error.value && !loading.value) return 'noindex, follow';
+  return 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+});
 
 const metaTitle = computed(() => {
   if (!name.value) return 'Teacher profile | SuGanta';
@@ -334,6 +398,34 @@ const metaDescription = computed(() => {
   ].filter(Boolean);
   const desc = parts.join(' ');
   return desc.length > 160 ? `${desc.slice(0, 157)}…` : desc;
+});
+
+const teacherJsonLdString = computed(() => {
+  const url = canonicalUrl.value;
+  if (!url || !name.value) return '';
+  const graph = buildTeacherJsonLd({
+    pageUrl: url,
+    siteUrl: siteUrl.value,
+    siteName: siteName.value,
+    personName: name.value,
+    pageTitle: metaTitle.value,
+    pageDescription: metaDescription.value,
+    imageUrl: ogImageUrl.value,
+    jobTitle: [qualification.value, teachingMode.value].filter(Boolean).join(' · ') || 'Tutor',
+    description: bioPlain.value || metaDescription.value,
+    streetAddress: [addressLine1.value, addressLine2.value].filter(Boolean).join(', ') || undefined,
+    addressLocality: city.value || area.value || undefined,
+    addressRegion: state.value || undefined,
+    postalCode: pincode.value || undefined,
+    addressCountry: countryLabel.value || undefined,
+    telephone: phonePrimary.value || phoneSecondary.value || undefined,
+    email: profileEmail.value || undefined,
+    sameAs: socialLinks.value.map(([, link]) => link),
+    knowsAbout: subjects.value.map((s) => s?.name).filter(Boolean),
+    ratingValue: displayAverageRating.value,
+    reviewCount: displayTotalReviews.value,
+  });
+  return JSON.stringify(graph);
 });
 
 async function loadTeacher() {
@@ -419,15 +511,29 @@ onMounted(loadTeacher);
 <template>
   <Head>
     <title>{{ metaTitle }}</title>
-    <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
     <meta name="description" :content="metaDescription" />
+    <meta name="keywords" :content="metaKeywords" />
+    <meta name="robots" :content="robotsContent" />
+    <link v-if="canonicalUrl" rel="canonical" :href="canonicalUrl" />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" :content="siteName" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" :content="canonicalUrl || siteUrl" />
     <meta property="og:title" :content="metaTitle" />
     <meta property="og:description" :content="metaDescription" />
-    <meta property="og:image" :content="avatarUrl || 'https://app.suganta.com/logo/Su250.png'" />
-    <meta property="og:type" content="profile" />
+    <meta property="og:image" :content="ogImageUrl" />
+    <meta property="og:image:secure_url" :content="ogImageUrl" />
+    <meta property="og:image:alt" :content="ogImageAlt" />
+
     <meta name="twitter:card" content="summary_large_image" />
+    <meta v-if="twitterSiteMeta" name="twitter:site" :content="twitterSiteMeta" />
     <meta name="twitter:title" :content="metaTitle" />
     <meta name="twitter:description" :content="metaDescription" />
+    <meta name="twitter:image" :content="ogImageUrl" />
+    <meta name="twitter:image:alt" :content="ogImageAlt" />
+
+    <script v-if="teacherJsonLdString" type="application/ld+json" v-text="teacherJsonLdString" />
   </Head>
 
   <PublicLayout>
@@ -636,6 +742,14 @@ onMounted(loadTeacher);
               Portfolio
             </button>
             <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="teacherNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="teacherScrollTo('teacher-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+            <button
               v-if="relatedTeachers.length"
               type="button"
               class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
@@ -643,14 +757,6 @@ onMounted(loadTeacher);
               @click="teacherScrollTo('teacher-section-similar', 'similar')"
             >
               Similar tutors
-            </button>
-            <button
-              type="button"
-              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
-              :class="teacherNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
-              @click="teacherScrollTo('teacher-section-reviews', 'reviews')"
-            >
-              Reviews
             </button>
           </nav>
         </div>
@@ -798,24 +904,6 @@ onMounted(loadTeacher);
                 />
                 <span class="sr-only">View full screen</span>
               </button>
-            </div>
-          </div>
-
-          <div
-            v-if="relatedTeachers.length"
-            id="teacher-section-similar"
-            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
-            <div class="flex flex-col gap-4">
-              <TeacherCard
-                v-for="related in relatedTeachers"
-                :key="related.id"
-                layout="row"
-                :teacher="related"
-                @click="navigateToTeacher"
-                @contact="navigateToTeacher"
-              />
             </div>
           </div>
 
@@ -978,6 +1066,26 @@ onMounted(loadTeacher);
         </template>
       </div>
         </div>
+
+
+
+          <div
+            v-if="relatedTeachers.length"
+            id="teacher-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related teachers</h2>
+            <div class="flex flex-col gap-4">
+              <TeacherCard
+                v-for="related in relatedTeachers"
+                :key="related.id"
+                layout="row"
+                :teacher="related"
+                @click="navigateToTeacher"
+                @contact="navigateToTeacher"
+              />
+            </div>
+          </div>
 
         <!-- Sticky sidebar: Contact + Social (right on lg; sticks below public header while page scrolls) -->
         <aside

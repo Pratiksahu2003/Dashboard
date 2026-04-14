@@ -917,6 +917,14 @@ onMounted(loadInstitute);
               Portfolio
             </button>
             <button
+              type="button"
+              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
+              :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
+              @click="instituteScrollTo('institute-section-reviews', 'reviews')"
+            >
+              Reviews
+            </button>
+            <button
               v-if="relatedInstitutes.length"
               type="button"
               class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
@@ -924,14 +932,6 @@ onMounted(loadInstitute);
               @click="instituteScrollTo('institute-section-similar', 'similar')"
             >
               Similar institutes
-            </button>
-            <button
-              type="button"
-              class="-mb-px border-b-2 border-transparent px-3 py-3 text-xs font-semibold transition sm:px-4 sm:text-sm"
-              :class="instituteNavTab === 'reviews' ? 'border-indigo-600 text-indigo-700' : 'text-slate-500 hover:text-slate-800'"
-              @click="instituteScrollTo('institute-section-reviews', 'reviews')"
-            >
-              Reviews
             </button>
           </nav>
         </div>
@@ -1257,24 +1257,6 @@ onMounted(loadInstitute);
             </div>
           </div>
 
-          <div
-            v-if="relatedInstitutes.length"
-            id="institute-section-similar"
-            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
-          >
-            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
-            <div class="flex flex-col gap-4">
-              <InstituteCard
-                v-for="rel in relatedInstitutes"
-                :key="rel.id"
-                layout="row"
-                :institute="rel"
-                @click="navigateToInstitute"
-                @contact="navigateToInstitute"
-              />
-            </div>
-          </div>
-
           <div id="institute-section-reviews" class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
             <div class="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -1408,6 +1390,26 @@ onMounted(loadInstitute);
             </template>
           </div>
         </div>
+
+
+
+          <div
+            v-if="relatedInstitutes.length"
+            id="institute-section-similar"
+            class="scroll-mt-28 rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8"
+          >
+            <h2 class="mb-6 text-lg font-bold text-slate-900 sm:text-xl">Related institutes</h2>
+            <div class="flex flex-col gap-4">
+              <InstituteCard
+                v-for="rel in relatedInstitutes"
+                :key="rel.id"
+                layout="row"
+                :institute="rel"
+                @click="navigateToInstitute"
+                @contact="navigateToInstitute"
+              />
+            </div>
+          </div>
 
         <aside class="w-full shrink-0 space-y-6 lg:sticky lg:top-0 lg:z-10 lg:max-h-screen lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="Contact and links">
           <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-indigo-800 p-6 text-white shadow-2xl shadow-indigo-900/25 ring-1 ring-white/10 sm:p-7">

@@ -16,8 +16,27 @@ const props = defineProps({
   address: { type: String, default: '' },
 });
 
-const latNum = computed(() => Number(props.latitude));
-const lngNum = computed(() => Number(props.longitude));
+/** Raw numbers from props (may be swapped or invalid). */
+const rawLat = computed(() => Number(props.latitude));
+const rawLng = computed(() => Number(props.longitude));
+
+/**
+ * Some APIs store longitude first for India-like regions; embed shows empty ocean if order is wrong.
+ * If values look like "lng, lat" (e.g. 81°, 25°), swap to lat, lng.
+ */
+function normalizeLatLngPair(lat, lng) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: lat, lng: lng };
+  if (Math.abs(lat) < 1e-6 && Math.abs(lng) < 1e-6) return { lat: NaN, lng: NaN };
+  if (lat >= 65 && lat <= 100 && lng >= 5 && lng <= 45) {
+    return { lat: lng, lng: lat };
+  }
+  return { lat, lng };
+}
+
+const normalizedCoords = computed(() => normalizeLatLngPair(rawLat.value, rawLng.value));
+
+const latNum = computed(() => normalizedCoords.value.lat);
+const lngNum = computed(() => normalizedCoords.value.lng);
 
 const validCoords = computed(() => {
   const la = latNum.value;
@@ -28,29 +47,38 @@ const validCoords = computed(() => {
 
 const trimmedPlace = computed(() => String(props.placeQuery ?? '').trim());
 
+/** Long addresses can break or blank some embeds; keep a safe length. */
+const embedPlaceQuery = computed(() => {
+  const s = trimmedPlace.value;
+  if (s.length <= 380) return s;
+  return `${s.slice(0, 377).replace(/[,\\s]+$/, '')}…`;
+});
+
 const hasPlaceQuery = computed(() => trimmedPlace.value.length >= 3);
 
-/** Show section when we can build an embed from coords or location text. */
+/** Prefer coordinates only when valid; otherwise address search. */
 const canShowMap = computed(() => validCoords.value || hasPlaceQuery.value);
 
-/** Google Maps embed (no API key). */
+/**
+ * Google Maps embed without API key — `www.google.com` + `hl` tends to load tiles more reliably than `maps.google.com`.
+ */
 const embedUrl = computed(() => {
   if (validCoords.value) {
     const q = `${latNum.value},${lngNum.value}`;
-    return `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=15&output=embed`;
+    return `https://www.google.com/maps?q=${encodeURIComponent(q)}&z=16&hl=en&output=embed`;
   }
   if (hasPlaceQuery.value) {
-    return `https://maps.google.com/maps?q=${encodeURIComponent(trimmedPlace.value)}&z=15&output=embed`;
+    return `https://www.google.com/maps?q=${encodeURIComponent(embedPlaceQuery.value)}&z=16&hl=en&output=embed`;
   }
   return '';
 });
 
 const openMapsUrl = computed(() => {
   if (validCoords.value) {
-    return `https://www.google.com/maps?q=${latNum.value},${lngNum.value}`;
+    return `https://www.google.com/maps?q=${latNum.value},${lngNum.value}&z=16&hl=en`;
   }
   if (hasPlaceQuery.value) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmedPlace.value)}`;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(trimmedPlace.value)}&hl=en`;
   }
   return '';
 });
@@ -90,12 +118,12 @@ const showAddress = computed(() => !!props.address?.trim());
       </div>
 
       <div
-        class="order-2 w-full shrink-0 rounded-xl border-2 border-[#d3833b] bg-[#2c3e50] p-6 shadow-xl lg:absolute lg:right-[4%] lg:top-[8%] lg:z-10 lg:max-w-sm lg:p-7"
+        class="order-2 w-full max-w-full shrink-0 rounded-xl border-2 border-[#d3833b] bg-[#2c3e50] p-5 shadow-xl sm:max-w-md sm:mx-auto lg:absolute lg:right-[3%] lg:top-[8%] lg:z-10 lg:mx-0 lg:max-w-[260px] lg:p-4 xl:max-w-[280px]"
       >
-        <h3 class="mb-5 text-lg font-bold text-[#d3833b]">
+        <h3 class="mb-4 text-base font-bold text-[#d3833b] lg:text-[0.95rem]">
           Contact Information
         </h3>
-        <ul class="space-y-5 text-left">
+        <ul class="space-y-4 text-left lg:space-y-3.5">
           <li v-if="showPhone" class="flex gap-3">
             <span class="mt-0.5 shrink-0 text-[#d3833b]" aria-hidden="true">
               <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +132,7 @@ const showAddress = computed(() => !!props.address?.trim());
             </span>
             <div class="min-w-0">
               <p class="text-xs font-bold uppercase tracking-wide text-[#d3833b]">Contact No</p>
-              <p class="mt-0.5 text-sm font-medium text-white">{{ phone }}</p>
+              <p class="mt-0.5 text-xs font-medium leading-snug text-white sm:text-sm">{{ phone }}</p>
             </div>
           </li>
           <li v-if="showPerson" class="flex gap-3">
@@ -115,7 +143,7 @@ const showAddress = computed(() => !!props.address?.trim());
             </span>
             <div class="min-w-0">
               <p class="text-xs font-bold uppercase tracking-wide text-[#d3833b]">Contact Person</p>
-              <p class="mt-0.5 text-sm font-medium text-white">{{ contactPerson }}</p>
+              <p class="mt-0.5 text-xs font-medium leading-snug text-white sm:text-sm">{{ contactPerson }}</p>
             </div>
           </li>
           <li v-if="showAddress" class="flex gap-3">
@@ -127,7 +155,7 @@ const showAddress = computed(() => !!props.address?.trim());
             </span>
             <div class="min-w-0">
               <p class="text-xs font-bold uppercase tracking-wide text-[#d3833b]">Address</p>
-              <p class="mt-0.5 text-sm font-medium leading-relaxed text-white">{{ address }}</p>
+              <p class="mt-0.5 text-xs font-medium leading-relaxed text-white sm:text-sm">{{ address }}</p>
             </div>
           </li>
         </ul>
@@ -137,7 +165,7 @@ const showAddress = computed(() => !!props.address?.trim());
           :href="openMapsUrl"
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#d3833b] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#c4732f]"
+          class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#d3833b] px-3 py-2 text-xs font-bold text-white transition hover:bg-[#c4732f] sm:text-sm"
         >
           Open in Google Maps
         </a>
