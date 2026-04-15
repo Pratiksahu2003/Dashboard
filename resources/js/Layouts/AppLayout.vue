@@ -430,6 +430,16 @@ const loadActivePlans = async () => {
                         </div>
 
                         <div class="flex items-center gap-3">
+                            <a
+                                href="https://ai.suganta.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="sm:hidden inline-flex items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] transition hover:brightness-105"
+                                aria-label="Open AI Agent"
+                            >
+                                <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
+                                AI Agent
+                            </a>
                             <Link
                                 :href="route('chat')"
                                 class="relative h-9 w-9 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition"
