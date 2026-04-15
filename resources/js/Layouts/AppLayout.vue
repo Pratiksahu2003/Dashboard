@@ -132,6 +132,7 @@ const navItems = computed(() => {
     const items = [
         { id: 'dashboard', label: 'Dashboard', icon: 'M3 12h18M3 6h18M3 18h18', href: 'dashboard' },
         { id: 'ai-adviser', label: 'AI Adviser', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 16.8 7.1 19.2 8 13.7 4 9.8l5.5-.8L12 3zm7 14h2m-1-1v2M3 17h2m-1-1v2', href: 'ai-adviser' },
+        { id: 'ai-agent', label: 'AI Agent', icon: 'M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M7.05 7.05 5.636 5.636m12.728 0-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z', externalUrl: 'https://ai.suganta.com' },
         { id: 'leads', label: 'Leads', icon: 'M17 20h5V4H2v16h5m10 0V10H7v10m10 0H7', href: 'leads' },
         { id: 'portfolio', label: 'Portfolio', icon: 'M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h8m-8 4h8m-8 4h5', href: 'portfolio' },
         { id: 'study-requirements', label: 'Study Requirements', icon: 'M4 6h16M4 12h10M4 18h7m11-2l2 2 4-4', href: 'study-requirements' },
@@ -167,6 +168,14 @@ const isItemActive = item => {
     }
     return currentRoute.value === item.href;
 };
+
+const getItemTag = item => (item.externalUrl ? 'a' : (item.href ? Link : 'button'));
+const getItemHref = item => {
+    if (item.externalUrl) return item.externalUrl;
+    if (item.href) return route(item.href);
+    return undefined;
+};
+const isItemHighlighted = item => item.id === 'ai-agent';
 
 const formatDateTime = value => {
     if (!value) return '-';
@@ -331,15 +340,19 @@ const loadActivePlans = async () => {
 
                 <nav class="space-y-2">
                     <component
-                        :is="item.href ? Link : 'button'"
+                        :is="getItemTag(item)"
                         v-for="item in navItems"
                         :key="item.id"
-                        :href="item.href ? route(item.href) : undefined"
+                        :href="getItemHref(item)"
+                        :target="item.externalUrl ? '_blank' : undefined"
+                        :rel="item.externalUrl ? 'noopener noreferrer' : undefined"
                         type="button"
                         :class="[
                             'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition',
                             isItemActive(item)
                                 ? 'bg-slate-900 text-white shadow-sm'
+                                : isItemHighlighted(item)
+                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm hover:brightness-105'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         ]"
                     >
@@ -352,6 +365,12 @@ const loadActivePlans = async () => {
                             class="ml-auto text-[10px] font-black rounded-md px-1.5 py-0.5 bg-rose-100 text-rose-700 border border-rose-200"
                         >
                             {{ unreadCount > 99 ? '99+' : unreadCount }}
+                        </span>
+                        <span
+                            v-if="item.id === 'ai-agent'"
+                            class="ml-auto text-[9px] font-black rounded-md px-1.5 py-0.5 bg-white/20 text-white border border-white/35 uppercase tracking-wide"
+                        >
+                            New
                         </span>
                     </component>
                 </nav>
@@ -530,13 +549,15 @@ const loadActivePlans = async () => {
                                 </div>
                             </div>
 
-                            <Link
-                                :href="route('ai-adviser')"
-                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 px-3 py-2 text-xs font-black text-indigo-700 hover:from-indigo-100 hover:to-blue-100 transition"
+                            <a
+                                href="https://ai.suganta.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-xs font-black text-white hover:brightness-105 transition shadow-sm"
                             >
                                 <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-black">AI</span>
-                                <span>AI Adviser</span>
-                            </Link>
+                                <span>AI Agent</span>
+                            </a>
 
                         </div>
                     </div>
@@ -563,15 +584,19 @@ const loadActivePlans = async () => {
                 </div>
                 <nav class="space-y-2">
                     <component
-                        :is="item.href ? Link : 'button'"
+                        :is="getItemTag(item)"
                         v-for="item in navItems"
                         :key="`mobile-${item.id}`"
-                        :href="item.href ? route(item.href) : undefined"
+                        :href="getItemHref(item)"
+                        :target="item.externalUrl ? '_blank' : undefined"
+                        :rel="item.externalUrl ? 'noopener noreferrer' : undefined"
                         type="button"
                         :class="[
                             'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-bold transition',
                             isItemActive(item)
                                 ? 'bg-slate-900 text-white shadow-sm'
+                                : isItemHighlighted(item)
+                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm hover:brightness-105'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         ]"
                         @click="sidebarOpen = false"
@@ -585,6 +610,12 @@ const loadActivePlans = async () => {
                             class="ml-auto text-[10px] font-black rounded-md px-1.5 py-0.5 bg-rose-100 text-rose-700 border border-rose-200"
                         >
                             {{ unreadCount > 99 ? '99+' : unreadCount }}
+                        </span>
+                        <span
+                            v-if="item.id === 'ai-agent'"
+                            class="ml-auto text-[9px] font-black rounded-md px-1.5 py-0.5 bg-white/20 text-white border border-white/35 uppercase tracking-wide"
+                        >
+                            New
                         </span>
                     </component>
                 </nav>

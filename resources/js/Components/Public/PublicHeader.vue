@@ -86,6 +86,10 @@ function isExternal(item) {
     return item.external === true;
 }
 
+function isAiAgent(item) {
+    return String(item?.href || '').startsWith('https://ai.suganta.com');
+}
+
 const shellClass = computed(() =>
     [
         'relative flex min-h-11 w-full min-w-0 items-center gap-2 rounded-2xl border px-2.5 py-1.5 shadow-sm transition-[box-shadow,background-color,border-color,transform] duration-300 sm:min-h-12 sm:gap-3 sm:px-4',
@@ -165,7 +169,12 @@ const mobileNavLinkClass =
                                 :href="item.href"
                                 :target="isExternal(item) ? '_blank' : undefined"
                                 :rel="isExternal(item) ? 'noopener noreferrer' : undefined"
-                                :class="deskNavLinkClass"
+                                :class="[
+                                    deskNavLinkClass,
+                                    isAiAgent(item)
+                                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:text-white hover:bg-gradient-to-r hover:from-indigo-500 hover:to-violet-500 shadow-sm'
+                                        : ''
+                                ]"
                             >
                                 <span
                                     class="absolute inset-x-1 -bottom-px h-px scale-x-0 rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 opacity-0 transition duration-200 group-hover:scale-x-100 group-hover:opacity-100 group-focus-visible:scale-x-100 group-focus-visible:opacity-100"
@@ -298,9 +307,19 @@ const mobileNavLinkClass =
                 </div>
 
                 <!-- Mobile menu -->
+                <a
+                    href="https://ai.suganta.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="relative z-[1] ml-auto mr-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-3 text-[11px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] outline-none transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-1 md:hidden"
+                    aria-label="Open AI Agent"
+                >
+                    <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
+                    AI Agent
+                </a>
                 <button
                     type="button"
-                    class="relative z-[1] ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-800 outline-none transition hover:bg-white md:hidden"
+                    class="relative z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 text-slate-800 outline-none transition hover:bg-white md:hidden"
                     :class="mobileOpen ? 'border-indigo-300 bg-indigo-50 text-indigo-900' : ''"
                     :aria-expanded="mobileOpen"
                     aria-controls="public-mobile-nav"
@@ -367,7 +386,12 @@ const mobileNavLinkClass =
                                     :href="item.href"
                                     :target="isExternal(item) ? '_blank' : undefined"
                                     :rel="isExternal(item) ? 'noopener noreferrer' : undefined"
-                                    :class="mobileNavLinkClass"
+                                    :class="[
+                                        mobileNavLinkClass,
+                                        isAiAgent(item)
+                                            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:text-white'
+                                            : ''
+                                    ]"
                                     @click="mobileOpen = false"
                                 >
                                     {{ item.label }}

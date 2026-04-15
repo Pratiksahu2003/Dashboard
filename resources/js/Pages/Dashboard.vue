@@ -310,14 +310,14 @@ onMounted(() => {
                         <div>
                             <p class="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600">Explore the platform</p>
                             <h2 class="mt-1 text-lg font-black tracking-tight text-slate-900 sm:text-xl">
-                                Teachers, institutes, AI adviser, and marketplace
+                                Teachers, institutes, AI adviser, AI agent, and marketplace
                             </h2>
                             <p class="mt-1 max-w-2xl text-sm font-semibold text-slate-600">
                                 Jump into the experiences that matter most: public directories, intelligent guidance, and resources.
                             </p>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
                         <Link
                             :href="route('teachers')"
                             class="dash-spotlight-card dash-spotlight-card--teachers group"
@@ -363,6 +363,26 @@ onMounted(() => {
                             </p>
                             <span class="dash-spotlight-cta">Open adviser</span>
                         </Link>
+                        <a
+                            href="https://ai.suganta.com"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="dash-spotlight-card dash-spotlight-card--ai-agent group"
+                        >
+                            <div class="dash-spotlight-icon-wrap dash-spotlight-icon-wrap--ai-agent">
+                                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M7.05 7.05 5.636 5.636m12.728 0-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                                </svg>
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
+                                <h3 class="text-base font-black text-slate-900">AI Agent</h3>
+                                <span class="rounded-full border border-violet-300 bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700">Highlighted</span>
+                            </div>
+                            <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
+                                Launch the dedicated AI Agent experience for faster support and actions.
+                            </p>
+                            <span class="dash-spotlight-cta">Open AI agent</span>
+                        </a>
                         <Link
                             :href="route('marketplace')"
                             class="dash-spotlight-card dash-spotlight-card--marketplace group"
@@ -714,6 +734,14 @@ onMounted(() => {
 .dash-spotlight-card--marketplace:hover {
     border-color: rgb(244 114 182);
 }
+.dash-spotlight-card--ai-agent {
+    border-color: rgb(196 181 253);
+    box-shadow: 0 10px 30px -12px rgba(124, 58, 237, 0.35);
+    background: linear-gradient(135deg, rgba(245, 243, 255, 0.95), rgba(255, 255, 255, 0.95));
+}
+.dash-spotlight-card--ai-agent:hover {
+    border-color: rgb(139 92 246);
+}
 
 .dash-spotlight-icon-wrap {
     display: flex;
@@ -740,6 +768,10 @@ onMounted(() => {
     background: rgb(252 231 243);
     color: rgb(190 24 93);
 }
+.dash-spotlight-icon-wrap--ai-agent {
+    background: rgb(237 233 254);
+    color: rgb(109 40 217);
+}
 
 .dash-spotlight-cta {
     margin-top: 0.85rem;
@@ -764,6 +796,9 @@ onMounted(() => {
 }
 .dash-spotlight-card--marketplace .dash-spotlight-cta {
     color: rgb(190 24 93);
+}
+.dash-spotlight-card--ai-agent .dash-spotlight-cta {
+    color: rgb(109 40 217);
 }
 
 .dash-spotlight-cta::after {

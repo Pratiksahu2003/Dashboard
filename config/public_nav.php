@@ -32,6 +32,11 @@ return [
                 'href'     => $base . '/institutes',
                 'external' => true,
             ],
+            [
+                'label'    => 'AI Agent',
+                'href'     => 'https://ai.suganta.com',
+                'external' => true,
+            ],
           
             [
                 'label'    => 'Blog',
