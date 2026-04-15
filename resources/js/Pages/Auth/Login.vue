@@ -8,6 +8,7 @@ import api, { sanitizeString, ensureCsrf } from '@/api';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
+    AUTH_REDIRECT_REASON_KEY,
     AUTH_RETURN_TO_KEY,
     PAYMENT_DETAILS_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
@@ -66,7 +67,29 @@ const persistDeviceTokenFromLoginResponse = response => {
     }
 };
 
-const ALLOWED_REDIRECT_HOST_SUFFIX = '.suganta.com';
+const parseAllowedRedirectHosts = () =>
+    String(import.meta.env.VITE_AUTH_REDIRECT_ALLOWED_HOSTS || '')
+        .split(',')
+        .map(host => host.trim().toLowerCase())
+        .filter(Boolean);
+
+const isAllowedRedirectHost = host => {
+    const normalized = String(host || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    if (typeof window !== 'undefined' && normalized === window.location.hostname.toLowerCase()) {
+        return true;
+    }
+
+    if (normalized === 'suganta.com' || normalized.endsWith('.suganta.com')) {
+        return true;
+    }
+
+    const configuredHosts = parseAllowedRedirectHosts();
+    return configuredHosts.some((allowed) =>
+        normalized === allowed || normalized.endsWith(`.${allowed}`),
+    );
+};
 
 const normalizeInternalPath = value => {
     if (typeof value !== 'string') return '';
@@ -90,7 +113,7 @@ const sanitizePostLoginTarget = raw => {
         }
 
         const host = parsed.hostname.toLowerCase();
-        if (host === 'suganta.com' || host.endsWith(ALLOWED_REDIRECT_HOST_SUFFIX)) {
+        if (isAllowedRedirectHost(host)) {
             return parsed.toString();
         }
     } catch {
@@ -368,12 +391,10 @@ onMounted(async () => {
         localStorage.removeItem(POST_VERIFY_LOGIN_NOTICE_KEY);
         sessionStorage.removeItem('post_verify_notice');
     }
-    if (props.status) showSuccess(props.status);
-    if (props.message) showInfo(sanitizeString(props.message), 'Notice');
-    const reason = localStorage.getItem('auth_redirect_reason');
+    const reason = localStorage.getItem(AUTH_REDIRECT_REASON_KEY);
     if (reason) {
         showError(sanitizeString(reason));
-        localStorage.removeItem('auth_redirect_reason');
+        localStorage.removeItem(AUTH_REDIRECT_REASON_KEY);
     }
 
     if (props.openOtpVerify) {
@@ -383,6 +404,31 @@ onMounted(async () => {
         }
     }
 });
+
+const lastShownStatus = ref('');
+const lastShownMessage = ref('');
+
+watch(
+    () => props.status,
+    (status) => {
+        const normalized = sanitizeString(status || '');
+        if (!normalized || normalized === lastShownStatus.value) return;
+        lastShownStatus.value = normalized;
+        showSuccess(normalized);
+    },
+    { immediate: true },
+);
+
+watch(
+    () => props.message,
+    (message) => {
+        const normalized = sanitizeString(message || '');
+        if (!normalized || normalized === lastShownMessage.value) return;
+        lastShownMessage.value = normalized;
+        showInfo(normalized, 'Notice');
+    },
+    { immediate: true },
+);
 
 onBeforeUnmount(() => {
     if (resendCountdownTimer) clearInterval(resendCountdownTimer);

@@ -10,6 +10,12 @@ const normalizePath = value => {
     return path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
 };
 
+const resolveLoginUrl = () => {
+    const configured = String(import.meta.env.VITE_LOGIN_URL || '').trim();
+    if (configured) return configured;
+    return route('login');
+};
+
 const buildLoginTargetWithReturn = loginUrl => {
     if (typeof window === 'undefined') return loginUrl;
     const current = window.location.href;
@@ -36,7 +42,7 @@ export function installUnauthorizedRedirect() {
 
         let target;
         try {
-            target = buildLoginTargetWithReturn(route('login'));
+            target = buildLoginTargetWithReturn(resolveLoginUrl());
         } catch {
             redirectLock = false;
             return;

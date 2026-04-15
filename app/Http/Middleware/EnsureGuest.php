@@ -42,7 +42,7 @@ class EnsureGuest
                 return '';
             }
 
-            if ($host === 'suganta.com' || str_ends_with($host, '.suganta.com')) {
+            if ($this->isAllowedRedirectHost($host)) {
                 return $candidate;
             }
         } catch (\Throwable) {
@@ -50,5 +50,39 @@ class EnsureGuest
         }
 
         return '';
+    }
+
+    private function isAllowedRedirectHost(string $host): bool
+    {
+        $host = Str::lower(trim($host));
+        if ($host === '') {
+            return false;
+        }
+
+        $currentHost = Str::lower((string) request()->getHost());
+        if ($currentHost !== '' && $host === $currentHost) {
+            return true;
+        }
+
+        if ($host === 'suganta.com' || str_ends_with($host, '.suganta.com')) {
+            return true;
+        }
+
+        $configured = config('services.suganta.redirect_allowed_hosts', []);
+        if (! is_array($configured)) {
+            $configured = [];
+        }
+
+        foreach ($configured as $allowed) {
+            $allowed = Str::lower(trim((string) $allowed));
+            if ($allowed === '') {
+                continue;
+            }
+            if ($host === $allowed || str_ends_with($host, '.' . $allowed)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

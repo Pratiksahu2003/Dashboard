@@ -1,5 +1,10 @@
 <?php
 
+$redirectAllowedHosts = array_values(array_filter(array_map(
+    static fn ($host) => strtolower(trim((string) $host)),
+    explode(',', (string) env('SUGANTA_REDIRECT_ALLOWED_HOSTS', ''))
+)));
+
 return [
 
     /*
@@ -43,6 +48,11 @@ return [
         'api_origin' => rtrim(env('VITE_API_ORIGIN', 'https://api.suganta.com'), '/'),
         /** Path only, e.g. /api/v1/auth/user or /auth/user — must match the API route that reads the web session. */
         'auth_user_path' => env('SUGANTA_AUTH_USER_PATH', '/api/v1/auth/user'),
+        /**
+         * Optional comma-separated host allowlist for cross-domain post-login redirects.
+         * Example: ai.suganta.com,portal.example.com
+         */
+        'redirect_allowed_hosts' => $redirectAllowedHosts,
         'reverb_app_key' => env('REVERB_APP_KEY') ?: env('VITE_REVERB_APP_KEY'),
         'reverb_app_secret' => env('REVERB_APP_SECRET'),
     ],
