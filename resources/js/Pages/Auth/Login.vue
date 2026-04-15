@@ -8,6 +8,7 @@ import api, { sanitizeString, ensureCsrf } from '@/api';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
+    AUTH_RETURN_TO_KEY,
     PAYMENT_DETAILS_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
 } from '@/constants/authStorage';
@@ -19,6 +20,8 @@ const props = defineProps({
     canResetPassword: { type: Boolean, default: true },
     status: { type: String },
     openOtpVerify: { type: Boolean, default: false },
+    returnTo: { type: String, default: '' },
+    message: { type: String, default: '' },
 });
 
 const form = reactive({
@@ -53,7 +56,7 @@ const MAX_VERIFY_ATTEMPTS = 5;
 const VERIFY_LOCKOUT_MS = 120_000;
 
 const authStore = useAuthStore();
-const { error: showError, success: showSuccess } = useAlerts();
+const { error: showError, success: showSuccess, info: showInfo } = useAlerts();
 const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
 
 const persistDeviceTokenFromLoginResponse = response => {
@@ -63,13 +66,96 @@ const persistDeviceTokenFromLoginResponse = response => {
     }
 };
 
-/** Bust server-side SPA auth cache, then open dashboard (avoids stale "logged out" cache after OTP/login). */
-const goToDashboardAfterLogin = () => {
-    router.post(route('auth.sync-cache'), {}, {
+const ALLOWED_REDIRECT_HOST_SUFFIX = '.suganta.com';
+
+const normalizeInternalPath = value => {
+    if (typeof value !== 'string') return '';
+    if (!value.startsWith('/') || value.startsWith('//')) return '';
+    return value;
+};
+
+const sanitizePostLoginTarget = raw => {
+    const candidate = sanitizeString(String(raw || '').trim());
+    if (!candidate) return '';
+
+    const internalPath = normalizeInternalPath(candidate);
+    if (internalPath) return internalPath;
+
+    if (typeof window === 'undefined') return '';
+
+    try {
+        const parsed = new URL(candidate, window.location.origin);
+        if (parsed.origin === window.location.origin) {
+            return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+        }
+
+        const host = parsed.hostname.toLowerCase();
+        if (host === 'suganta.com' || host.endsWith(ALLOWED_REDIRECT_HOST_SUFFIX)) {
+            return parsed.toString();
+        }
+    } catch {
+        return '';
+    }
+
+    return '';
+};
+
+const resolvePostLoginTarget = () => {
+    if (typeof window === 'undefined') return '';
+
+    const fromProp = sanitizePostLoginTarget(props.returnTo);
+    if (fromProp) return fromProp;
+
+    try {
+        const qp = new URLSearchParams(window.location.search);
+        const fromQuery = sanitizePostLoginTarget(qp.get('redirect') || '');
+        if (fromQuery) return fromQuery;
+    } catch {
+        // Ignore malformed search params.
+    }
+
+    const fromReferrer = sanitizePostLoginTarget(document.referrer || '');
+    if (fromReferrer) return fromReferrer;
+
+    return '';
+};
+
+const storePostLoginTarget = target => {
+    if (typeof window === 'undefined') return;
+    if (!target) {
+        sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
+        return;
+    }
+    sessionStorage.setItem(AUTH_RETURN_TO_KEY, target);
+};
+
+const takeStoredPostLoginTarget = () => {
+    if (typeof window === 'undefined') return '';
+    const target = sanitizePostLoginTarget(sessionStorage.getItem(AUTH_RETURN_TO_KEY) || '');
+    sessionStorage.removeItem(AUTH_RETURN_TO_KEY);
+    return target;
+};
+
+const isExternalTarget = target => /^https?:\/\//i.test(String(target || ''));
+
+/** Bust server-side SPA auth cache, then open destination (avoids stale "logged out" cache after OTP/login). */
+const goToPostLoginDestination = () => {
+    const target = takeStoredPostLoginTarget();
+
+    if (target && isExternalTarget(target)) {
+        window.location.assign(target);
+        return;
+    }
+
+    router.post(route('auth.sync-cache'), { redirect_to: target || null }, {
         replace: true,
         preserveState: false,
         preserveScroll: false,
         onError: () => {
+            if (target) {
+                window.location.assign(target);
+                return;
+            }
             window.location.assign(route('dashboard'));
         },
     });
@@ -211,7 +297,7 @@ const submitOtpVerify = async () => {
             authStore.setRequiresOtp(false);
             localStorage.removeItem(AUTH_IDENTIFIER_KEY);
             persistDeviceTokenFromLoginResponse(response);
-            goToDashboardAfterLogin();
+            goToPostLoginDestination();
         }
     } catch (err) {
         verifyAttempts.value++;
@@ -265,12 +351,14 @@ onMounted(async () => {
         const me = await api.get('/auth/user');
         const payload = me?.data;
         if (payload?.authenticated === true && payload?.user && typeof payload.user.id !== 'undefined') {
-            goToDashboardAfterLogin();
+            goToPostLoginDestination();
             return;
         }
     } catch {
         /* stay on login */
     }
+
+    storePostLoginTarget(resolvePostLoginTarget());
 
     const postVerifyLs = localStorage.getItem(POST_VERIFY_LOGIN_NOTICE_KEY);
     const postVerifySs = sessionStorage.getItem('post_verify_notice');
@@ -281,6 +369,7 @@ onMounted(async () => {
         sessionStorage.removeItem('post_verify_notice');
     }
     if (props.status) showSuccess(props.status);
+    if (props.message) showInfo(sanitizeString(props.message), 'Notice');
     const reason = localStorage.getItem('auth_redirect_reason');
     if (reason) {
         showError(sanitizeString(reason));
@@ -363,7 +452,7 @@ const handlePasswordLogin = async () => {
             loginAttempts.value = 0;
             authStore.setRequiresOtp(false);
             persistDeviceTokenFromLoginResponse(response);
-            goToDashboardAfterLogin();
+            goToPostLoginDestination();
         }
     } catch (err) {
         trackFailedAttempt();

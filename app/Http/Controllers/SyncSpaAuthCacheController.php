@@ -15,6 +15,26 @@ class SyncSpaAuthCacheController extends Controller
     {
         EnsureAuthenticated::forgetSpaAuthCacheForRequest($request);
 
+        $redirectTo = $this->normalizeInternalRedirect($request->input('redirect_to'));
+
+        if ($redirectTo !== null) {
+            return redirect()->to($redirectTo);
+        }
+
         return redirect()->route('dashboard');
+    }
+
+    private function normalizeInternalRedirect(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $candidate = trim($value);
+        if ($candidate === '' || ! str_starts_with($candidate, '/') || str_starts_with($candidate, '//')) {
+            return null;
+        }
+
+        return $candidate;
     }
 }

@@ -10,6 +10,18 @@ const normalizePath = value => {
     return path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
 };
 
+const buildLoginTargetWithReturn = loginUrl => {
+    if (typeof window === 'undefined') return loginUrl;
+    const current = window.location.href;
+    try {
+        const url = new URL(loginUrl, window.location.origin);
+        url.searchParams.set('redirect', current);
+        return url.toString();
+    } catch {
+        return loginUrl;
+    }
+};
+
 /**
  * Single global handler: any `app:unauthorized` (401/403 from API) sends the user to login.
  * Retries when Inertia is mid-navigation; falls back to full page load if needed.
@@ -24,7 +36,7 @@ export function installUnauthorizedRedirect() {
 
         let target;
         try {
-            target = route('login');
+            target = buildLoginTargetWithReturn(route('login'));
         } catch {
             redirectLock = false;
             return;

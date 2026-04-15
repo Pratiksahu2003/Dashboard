@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { useAuth } from '@/composables/useAuth';
 import { teardownWebPush } from '@/services/firebaseWebPush';
+import { getLoginUrl } from '@/utils/authRedirect';
 
 defineProps({
     nav: { type: Object, required: true },
@@ -10,6 +11,7 @@ defineProps({
 
 const page = usePage();
 const { clearSession } = useAuth();
+const loginUrl = getLoginUrl();
 
 const mobileOpen = ref(false);
 const scrolled = ref(false);
@@ -110,7 +112,7 @@ async function signOut() {
         });
     } catch {
         clearSession();
-        window.location.assign(route('login'));
+        window.location.assign(loginUrl);
     }
 }
 

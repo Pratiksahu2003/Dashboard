@@ -6,6 +6,7 @@ import SuInput from '@/Components/SuInput.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api from '@/api';
 import { useAlerts } from '@/composables/useAlerts';
+import { getLoginUrl } from '@/utils/authRedirect';
 
 const form = reactive({
     first_name: '',
@@ -19,6 +20,7 @@ const form = reactive({
 const loading = ref(false);
 const fieldErrors = ref({});
 const { error: showError, success: showSuccess } = useAlerts();
+const loginUrl = getLoginUrl();
 
 const handleSubmit = async () => {
     loading.value = true;
@@ -112,7 +114,7 @@ const handleSubmit = async () => {
         </form>
 
         <template #footer>
-            Already have an account? <Link :href="route('login')" class="text-blue-600 font-bold hover:underline">Sign in here</Link>
+            Already have an account? <Link :href="loginUrl" class="text-blue-600 font-bold hover:underline">Sign in here</Link>
         </template>
     </AuthLayout>
 </template>

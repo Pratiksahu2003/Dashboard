@@ -12,6 +12,8 @@ Route::middleware('guest')->group(function () {
             'canResetPassword' => Route::has('password.request'),
             'status' => request()->query('status', session('status')),
             'openOtpVerify' => request()->boolean('otp_verify'),
+            'returnTo' => request()->query('redirect'),
+            'message' => request()->query('message'),
         ]);
     })->name('login');
 

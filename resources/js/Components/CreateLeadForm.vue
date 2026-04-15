@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { Link } from '@inertiajs/vue3';
 import { useLeadApi } from '@/composables/useLeadApi';
 import { useAlerts } from '@/composables/useAlerts';
+import { getLoginUrl } from '@/utils/authRedirect';
 
 const props = defineProps({
   /** Profile owner (tutor) user id → sent as `lead_owner_id` per LeadCreateApi.md */
@@ -25,6 +26,7 @@ const emit = defineEmits(['created']);
 
 const { createLead } = useLeadApi();
 const { success: showSuccess, error: showError } = useAlerts();
+const loginUrl = getLoginUrl();
 
 const isSubmitting = ref(false);
 
@@ -197,7 +199,7 @@ async function submit() {
         class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/90 px-5 py-8 text-center"
       >
         <p class="text-sm text-slate-600">
-          <Link href="/login" class="font-semibold text-indigo-600 underline-offset-2 hover:text-violet-600 hover:underline">
+          <Link :href="loginUrl" class="font-semibold text-indigo-600 underline-offset-2 hover:text-violet-600 hover:underline">
             Sign in
           </Link>
           to send a contact request using your profile details.

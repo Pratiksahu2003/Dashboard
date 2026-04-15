@@ -9,6 +9,7 @@ import WhyChooseUsSection from '@/Components/Profile/WhyChooseUsSection.vue';
 import GetDirectionsMapSection from '@/Components/Profile/GetDirectionsMapSection.vue';
 import ProfileHeroBanner from '@/Components/Profile/ProfileHeroBanner.vue';
 import { useAlerts } from '@/composables/useAlerts';
+import { getLoginUrl } from '@/utils/authRedirect';
 import { getInstitute, publicInstituteProfilePath, resolveInstituteUserId } from '@/services/instituteApi';
 import {
   absoluteOgImage,
@@ -29,6 +30,7 @@ import {
 
 const inertiaPage = usePage();
 const { success: alertSuccess, error: alertError } = useAlerts();
+const loginUrl = getLoginUrl();
 
 const props = defineProps({
   id: { type: Number, required: true },
@@ -1042,7 +1044,7 @@ onMounted(loadInstitute);
               </button>
               <Link
                 v-else
-                href="/login"
+                :href="loginUrl"
                 class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/25 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:w-auto lg:w-full"
               >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -1463,7 +1465,7 @@ onMounted(loadInstitute);
 
             <div v-if="data && !isSelfProfile" class="mb-6 space-y-4">
               <p v-if="!isLoggedIn" class="rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm text-slate-600">
-                <Link href="/login" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
+                <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
                 to leave a review for {{ name.split(' ')[0] || 'this institute' }}.
               </p>
               <template v-else>
@@ -1521,7 +1523,7 @@ onMounted(loadInstitute);
 
             <template v-else-if="reviewsFetchState === 'unauthorized'">
               <p v-if="!isLoggedIn" class="text-sm leading-relaxed text-slate-600">
-                <Link href="/login" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
+                <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
                 to load full review statistics (Review API uses your session).
               </p>
               <p v-else class="text-sm leading-relaxed text-slate-600">Reviews could not be loaded. Try refreshing the page.</p>
@@ -1624,7 +1626,7 @@ onMounted(loadInstitute);
             </button>
             <Link
               v-else
-              href="/login"
+              :href="loginUrl"
               class="relative mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-indigo-600 shadow-lg transition hover:bg-indigo-50"
             >
               Sign in to contact
