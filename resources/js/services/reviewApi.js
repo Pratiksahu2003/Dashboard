@@ -130,8 +130,9 @@ export async function listTeacherReviews(reviewableUserId, opts = {}) {
     const page = Number(opts.page) > 0 ? Number(opts.page) : 1;
     const per_page = Number(opts.per_page) > 0 ? Math.min(50, Number(opts.per_page)) : 10;
     const sort = opts.sort || 'latest';
+    const usePublicList = opts.use_public_list === true;
     try {
-        const body = await api.get('/reviews', {
+        const body = await api.get(usePublicList ? '/reviews/list' : '/reviews', {
             baseURL: getApiV2BaseUrl(),
             params: {
                 reviewable_type: 'user',

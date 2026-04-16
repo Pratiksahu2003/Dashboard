@@ -775,7 +775,12 @@ async function loadReviewData() {
   reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
   const [statsResult, listResult] = await Promise.allSettled([
     getTeacherReviewStats(userId),
-    listTeacherReviews(userId, { page: 1, per_page: 10, sort: 'latest' }),
+    listTeacherReviews(userId, {
+      page: 1,
+      per_page: 10,
+      sort: 'latest',
+      use_public_list: !isLoggedIn.value,
+    }),
   ]);
 
   const statsOk = statsResult.status === 'fulfilled';
@@ -823,6 +828,7 @@ async function loadMoreReviews() {
       page: p.current_page + 1,
       per_page: p.per_page,
       sort: 'latest',
+      use_public_list: !isLoggedIn.value,
     });
     reviewList.value = [...reviewList.value, ...next.items];
     reviewPagination.value = next.pagination;
