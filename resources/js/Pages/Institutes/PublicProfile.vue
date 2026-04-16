@@ -328,6 +328,7 @@ const authUserIdNumber = computed(() => {
 });
 
 const leadOwnerUserId = computed(() => resolveInstituteUserId(data.value) ?? props.id);
+const reviewableUserId = computed(() => resolveInstituteUserId(data.value) ?? Number(props.id));
 
 const viewerLeadName = computed(() => {
   const u = authUser.value;
@@ -436,7 +437,7 @@ async function loadReviewEligibility() {
   }
   reviewCheckLoading.value = true;
   try {
-    reviewEligibility.value = await checkReviewEligibility(props.id);
+    reviewEligibility.value = await checkReviewEligibility(reviewableUserId.value);
     if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) {
       reviewRating.value = 5;
       reviewTitle.value = '';
@@ -496,7 +497,7 @@ async function submitReviewForm() {
       });
       alertSuccess('Review updated.', 'Review');
     } else {
-      await submitTeacherReview(props.id, {
+      await submitTeacherReview(reviewableUserId.value, {
         rating: r,
         title: reviewTitle.value.trim(),
         comment: reviewComment.value.trim(),
@@ -761,6 +762,12 @@ async function loadInstitute() {
 }
 
 async function loadReviewData() {
+  const userId = Number(reviewableUserId.value);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    reviewsFetchState.value = 'error';
+    reviewsError.value = 'Invalid review target.';
+    return;
+  }
   reviewsFetchState.value = 'loading';
   reviewsError.value = null;
   reviewStats.value = null;
@@ -768,8 +775,8 @@ async function loadReviewData() {
   reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
   try {
     const [stats, listPayload] = await Promise.all([
-      getTeacherReviewStats(props.id),
-      listTeacherReviews(props.id, { page: 1, per_page: 10, sort: 'latest' }),
+      getTeacherReviewStats(userId),
+      listTeacherReviews(userId, { page: 1, per_page: 10, sort: 'latest' }),
     ]);
     reviewStats.value = stats;
     reviewList.value = listPayload.items;
@@ -788,11 +795,13 @@ async function loadReviewData() {
 }
 
 async function loadMoreReviews() {
+  const userId = Number(reviewableUserId.value);
+  if (!Number.isFinite(userId) || userId <= 0) return;
   const p = reviewPagination.value;
   if (reviewsLoading.value || p.current_page >= p.last_page || reviewsFetchState.value !== 'ok') return;
   reviewsLoading.value = true;
   try {
-    const next = await listTeacherReviews(props.id, {
+    const next = await listTeacherReviews(userId, {
       page: p.current_page + 1,
       per_page: p.per_page,
       sort: 'latest',
@@ -1524,7 +1533,7 @@ onMounted(loadInstitute);
             <template v-else-if="reviewsFetchState === 'unauthorized'">
               <p v-if="!isLoggedIn" class="text-sm leading-relaxed text-slate-600">
                 <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
-                to load full review statistics (Review API uses your session).
+                to post a review. Public review statistics are visible to everyone.
               </p>
               <p v-else class="text-sm leading-relaxed text-slate-600">Reviews could not be loaded. Try refreshing the page.</p>
             </template>

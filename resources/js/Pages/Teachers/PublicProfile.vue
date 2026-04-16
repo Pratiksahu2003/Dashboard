@@ -218,6 +218,7 @@ const isLoggedIn       = computed(() => page.props?.auth?.user != null);
 const authUser         = computed(() => page.props?.auth?.user ?? null);
 const authUserIdNumber = computed(() => { const n = Number(authUser.value?.id); return Number.isFinite(n) && n > 0 ? n : null; });
 const leadOwnerUserId  = computed(() => resolveTeacherUserId(teacher.value) ?? props.id);
+const reviewableUserId = computed(() => resolveTeacherUserId(teacher.value) ?? Number(props.id));
 const viewerLeadName   = computed(() => { const u = authUser.value; if (!u) return ''; return (`${u.first_name ?? ''} ${u.last_name ?? ''}`).trim() || String(u.name ?? '').trim(); });
 const viewerLeadEmail  = computed(() => String(authUser.value?.email ?? '').trim());
 const viewerLeadPhone  = computed(() => String(authUser.value?.phone ?? '').trim());
@@ -263,7 +264,7 @@ async function loadReviewEligibility() {
   if (isSelfProfile.value) { reviewEligibility.value = { can_review: false, has_reviewed: false, is_self: true }; return; }
   reviewCheckLoading.value = true;
   try {
-    reviewEligibility.value = await checkReviewEligibility(props.id);
+    reviewEligibility.value = await checkReviewEligibility(reviewableUserId.value);
     if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) { reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = ''; }
   } catch (e) {
     if (redirectToLoginIfSessionStale(e, { always: true })) { reviewEligibility.value = null; return; }
@@ -300,7 +301,7 @@ async function submitReviewForm() {
       await updateTeacherReview(existing.id, { rating: r, title: reviewTitle.value.trim(), comment: reviewComment.value.trim() });
       alertSuccess('Review updated.', 'Review');
     } else {
-      await submitTeacherReview(props.id, { rating: r, title: reviewTitle.value.trim(), comment: reviewComment.value.trim() });
+      await submitTeacherReview(reviewableUserId.value, { rating: r, title: reviewTitle.value.trim(), comment: reviewComment.value.trim() });
       alertSuccess('Thanks! Your review was submitted.', 'Review');
     }
     reviewModalOpen.value = false; reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = '';
@@ -494,12 +495,18 @@ async function loadTeacher() {
 }
 
 async function loadReviewData() {
+  const userId = Number(reviewableUserId.value);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    reviewsFetchState.value = 'error';
+    reviewsError.value = 'Invalid review target.';
+    return;
+  }
   reviewsFetchState.value = 'loading'; reviewsError.value = null; reviewStats.value = null;
   reviewList.value = []; reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
   try {
     const [stats, listPayload] = await Promise.all([
-      getTeacherReviewStats(props.id),
-      listTeacherReviews(props.id, { page: 1, per_page: 10, sort: 'latest' }),
+      getTeacherReviewStats(userId),
+      listTeacherReviews(userId, { page: 1, per_page: 10, sort: 'latest' }),
     ]);
     reviewStats.value = stats; reviewList.value = listPayload.items;
     reviewPagination.value = listPayload.pagination; reviewsFetchState.value = 'ok';
@@ -511,11 +518,13 @@ async function loadReviewData() {
 }
 
 async function loadMoreReviews() {
+  const userId = Number(reviewableUserId.value);
+  if (!Number.isFinite(userId) || userId <= 0) return;
   const p = reviewPagination.value;
   if (reviewsLoading.value || p.current_page >= p.last_page || reviewsFetchState.value !== 'ok') return;
   reviewsLoading.value = true;
   try {
-    const next = await listTeacherReviews(props.id, { page: p.current_page + 1, per_page: p.per_page, sort: 'latest' });
+    const next = await listTeacherReviews(userId, { page: p.current_page + 1, per_page: p.per_page, sort: 'latest' });
     reviewList.value = [...reviewList.value, ...next.items];
     reviewPagination.value = next.pagination;
   } catch (e) { if (redirectToLoginIfSessionStale(e)) return; }
@@ -1068,7 +1077,7 @@ onMounted(loadTeacher);
         <template v-else-if="reviewsFetchState === 'unauthorized'">
           <p v-if="!isLoggedIn" class="text-sm leading-relaxed text-slate-600">
             <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
-            to load full review statistics and comments (Review API requires a session).
+            to post a review. Public review statistics and comments are visible to everyone.
           </p>
           <p v-else class="text-sm leading-relaxed text-slate-600">
             Reviews could not be loaded with your current session. Try refreshing the page.
