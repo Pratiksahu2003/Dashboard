@@ -43,6 +43,12 @@ export const useNotesApi = () => {
         return data?.types || [];
     };
 
+    const getNote = async noteId => {
+        const payload = await api.get(`${NOTES_API_BASE}/${encodeURIComponent(noteId)}`);
+        const data = readData(payload);
+        return data?.note || data?.data || null;
+    };
+
     const purchaseNote = async noteId => {
         const payload = await api.post(`${NOTES_API_BASE}/purchase`, { note_id: noteId });
         const data = readData(payload);
@@ -87,6 +93,7 @@ export const useNotesApi = () => {
         listNotes,
         listCategories,
         listTypes,
+        getNote,
         purchaseNote,
         checkAccess,
         getPaymentStatus,

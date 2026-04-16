@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
@@ -39,9 +39,6 @@ const purchasesMeta = ref(null);
 const purchaseHistoryStatus = ref('');
 const purchasesPerPage = ref(10);
 const purchasesPage = ref(1);
-
-const detailsDrawerOpen = ref(false);
-const detailNote = ref(null);
 
 const purchaseModalOpen = ref(false);
 const selectedNote = ref(null);
@@ -266,16 +263,6 @@ const closePurchaseModal = () => {
     purchaseStatus.value = '';
     purchaseOrderId.value = '';
     pollingMessage.value = '';
-};
-
-const openDetailsDrawer = note => {
-    detailNote.value = note || null;
-    detailsDrawerOpen.value = true;
-};
-
-const closeDetailsDrawer = () => {
-    detailsDrawerOpen.value = false;
-    detailNote.value = null;
 };
 
 const patchNoteAccess = async noteId => {
@@ -655,13 +642,12 @@ onBeforeUnmount(() => {
                             >
                                 Check Access
                             </button>
-                            <button
-                                type="button"
-                                class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 transition"
-                                @click="openDetailsDrawer(note)"
+                            <Link
+                                :href="route('notes.details', { note: note.id })"
+                                class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-xs font-black text-slate-700 hover:bg-slate-100 transition"
                             >
                                 View Details
-                            </button>
+                            </Link>
                         </div>
                     </article>
                 </div>
@@ -902,69 +888,4 @@ onBeforeUnmount(() => {
         </div>
     </div>
 
-    <div v-if="detailsDrawerOpen" class="fixed inset-0 z-40">
-        <div class="absolute inset-0 bg-slate-900/50" @click="closeDetailsDrawer"></div>
-        <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-white border-l border-slate-200 shadow-xl p-5 overflow-y-auto">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <p class="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">Note Details</p>
-                    <h3 class="mt-1 text-lg font-black text-slate-900">{{ detailNote?.name || 'Note' }}</h3>
-                </div>
-                <button
-                    type="button"
-                    class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-black text-slate-700 hover:bg-slate-100"
-                    @click="closeDetailsDrawer"
-                >
-                    Close
-                </button>
-            </div>
-
-            <div class="mt-4 space-y-3">
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Description</p>
-                    <div class="mt-1 text-sm font-medium text-slate-700 [&>*]:m-0" v-html="renderRichHtml(detailNote?.description)" />
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Pricing & Access</p>
-                    <p class="mt-1 text-sm font-semibold text-slate-700">
-                        Price: {{ detailNote?.is_paid ? (detailNote?.formatted_price || formatMoney(detailNote?.price, 'INR')) : 'Free' }}
-                    </p>
-                    <p class="text-sm font-semibold text-slate-700">Status: {{ statusText(detailNote) }}</p>
-                    <p class="text-sm font-semibold text-slate-700">Downloads: {{ detailNote?.download_count ?? 0 }}</p>
-                    <p class="text-sm font-semibold text-slate-700">File Size: {{ detailNote?.file_size || '-' }}</p>
-                </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Taxonomy</p>
-                    <p class="mt-1 text-sm font-semibold text-slate-700">Category: {{ detailNote?.note_category?.name || '-' }}</p>
-                    <p class="text-sm font-semibold text-slate-700">Type: {{ detailNote?.note_type?.name || '-' }}</p>
-                </div>
-            </div>
-
-            <div class="mt-4 grid grid-cols-2 gap-2">
-                <button
-                    v-if="detailNote?.can_access || !detailNote?.is_paid"
-                    type="button"
-                    class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 hover:bg-emerald-100 transition"
-                    @click="downloadNote(detailNote)"
-                >
-                    Download
-                </button>
-                <button
-                    v-else
-                    type="button"
-                    class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 hover:bg-blue-100 transition"
-                    @click="openPurchaseModal(detailNote)"
-                >
-                    Buy Now
-                </button>
-                <button
-                    type="button"
-                    class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-100 transition"
-                    @click="patchNoteAccess(detailNote?.id)"
-                >
-                    Refresh Access
-                </button>
-            </div>
-        </aside>
-    </div>
 </template>

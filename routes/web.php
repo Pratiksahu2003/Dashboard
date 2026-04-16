@@ -73,7 +73,8 @@ Route::middleware('auth')->group(function () {
 
     // Content & Activity
     Route::get('/notifications',      NotificationsController::class)->name('notifications');
-    Route::get('/notes',              NotesController::class)->name('notes');
+    Route::get('/notes',              [NotesController::class, 'index'])->name('notes');
+    Route::get('/notes/{note}',       [NotesController::class, 'show'])->whereNumber('note')->name('notes.details');
     Route::get('/my-reviews',         MyReviewsController::class)->name('my-reviews');
     Route::get('/marketplace',        MarketplaceController::class)->name('marketplace');
     Route::get('/study-requirements', StudyRequirementsController::class)->name('study-requirements');
