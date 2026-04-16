@@ -434,10 +434,12 @@ const loadActivePlans = async () => {
                                 href="https://ai.suganta.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="sm:hidden inline-flex items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] transition hover:brightness-105"
+                                class="sm:hidden inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-[10px] font-black text-slate-900 shadow-sm transition hover:bg-slate-50"
                                 aria-label="Open Kaalo Ai"
                             >
-                                <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-7.5a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 006 21h7.5a2.25 2.25 0 002.25-2.25V15m-6-3h11.25m0 0l-3-3m3 3l-3 3"/>
+                                </svg>
                                 Kaalo Ai
                             </a>
                             <Link
@@ -563,9 +565,11 @@ const loadActivePlans = async () => {
                                 href="https://ai.suganta.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-3 py-2 text-xs font-black text-white hover:brightness-105 transition shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)]"
+                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-black text-slate-900 transition hover:bg-slate-50 shadow-sm"
                             >
-                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-black">AI</span>
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-7.5a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 006 21h7.5a2.25 2.25 0 002.25-2.25V15m-6-3h11.25m0 0l-3-3m3 3l-3 3"/>
+                                </svg>
                                 <span>Kaalo Ai</span>
                             </a>
 

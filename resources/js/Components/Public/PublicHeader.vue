@@ -311,10 +311,12 @@ const mobileNavLinkClass =
                     href="https://ai.suganta.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="relative z-[1] ml-auto mr-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-3 text-[11px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] outline-none transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-1 md:hidden"
+                    class="relative z-[1] ml-auto mr-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 text-[11px] font-black text-slate-900 shadow-sm outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-slate-400/60 focus-visible:ring-offset-1 md:hidden"
                     aria-label="Open Kaalo Ai"
                 >
-                    <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-7.5a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 006 21h7.5a2.25 2.25 0 002.25-2.25V15m-6-3h11.25m0 0l-3-3m3 3l-3 3"/>
+                    </svg>
                     Kaalo Ai
                 </a>
                 <button
