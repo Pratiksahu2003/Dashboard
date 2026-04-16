@@ -315,7 +315,7 @@ const mobileNavLinkClass =
                     aria-label="Open Kaalo Ai"
                 >
                     <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-7.5a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 006 21h7.5a2.25 2.25 0 002.25-2.25V15m-6-3h11.25m0 0l-3-3m3 3l-3 3"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 3.75h4.5m-4.5 0a2.25 2.25 0 00-2.25 2.25v1.5A2.25 2.25 0 009.75 9.75h4.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25m-9 8.25h13.5A2.25 2.25 0 0121 14.25v3A2.25 2.25 0 0118.75 19.5H5.25A2.25 2.25 0 013 17.25v-3A2.25 2.25 0 015.25 12m4.5 3h.008v.008H9.75V15zm4.5 0h.008v.008H14.25V15z"/>
                     </svg>
                     Kaalo Ai
                 </a>
