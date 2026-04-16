@@ -773,25 +773,43 @@ async function loadReviewData() {
   reviewStats.value = null;
   reviewList.value = [];
   reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
-  try {
-    const [stats, listPayload] = await Promise.all([
-      getTeacherReviewStats(userId),
-      listTeacherReviews(userId, { page: 1, per_page: 10, sort: 'latest' }),
-    ]);
-    reviewStats.value = stats;
-    reviewList.value = listPayload.items;
-    reviewPagination.value = listPayload.pagination;
-    reviewsFetchState.value = 'ok';
-  } catch (e) {
-    const code = e?.code ?? e?.status;
-    if (code === 401) {
-      if (redirectToLoginIfSessionStale(e)) return;
-      reviewsFetchState.value = 'unauthorized';
-    } else {
-      reviewsFetchState.value = 'error';
-      reviewsError.value = e?.message ?? 'Could not load reviews.';
-    }
+  const [statsResult, listResult] = await Promise.allSettled([
+    getTeacherReviewStats(userId),
+    listTeacherReviews(userId, { page: 1, per_page: 10, sort: 'latest' }),
+  ]);
+
+  const statsOk = statsResult.status === 'fulfilled';
+  const listOk = listResult.status === 'fulfilled';
+
+  if (statsOk) {
+    reviewStats.value = statsResult.value ?? null;
   }
+  if (listOk) {
+    reviewList.value = listResult.value.items;
+    reviewPagination.value = listResult.value.pagination;
+  }
+
+  if (statsOk) {
+    reviewsFetchState.value = 'ok';
+    if (!listOk) {
+      const listError = listResult.reason;
+      const listCode = listError?.code ?? listError?.status;
+      if (!(listCode === 401 && redirectToLoginIfSessionStale(listError))) {
+        reviewsError.value = listError?.message ?? null;
+      }
+    }
+    return;
+  }
+
+  const statsError = statsResult.status === 'rejected' ? statsResult.reason : null;
+  const code = statsError?.code ?? statsError?.status;
+  if (code === 401) {
+    if (redirectToLoginIfSessionStale(statsError)) return;
+    reviewsFetchState.value = 'unauthorized';
+    return;
+  }
+  reviewsFetchState.value = 'error';
+  reviewsError.value = statsError?.message ?? 'Could not load reviews.';
 }
 
 async function loadMoreReviews() {
