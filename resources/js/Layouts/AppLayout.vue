@@ -132,7 +132,7 @@ const navItems = computed(() => {
     const items = [
         { id: 'dashboard', label: 'Dashboard', icon: 'M3 12h18M3 6h18M3 18h18', href: 'dashboard' },
         { id: 'ai-adviser', label: 'AI Adviser', icon: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 16.8 7.1 19.2 8 13.7 4 9.8l5.5-.8L12 3zm7 14h2m-1-1v2M3 17h2m-1-1v2', href: 'ai-adviser' },
-        { id: 'ai-agent', label: 'AI Agent', icon: 'M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M7.05 7.05 5.636 5.636m12.728 0-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z', externalUrl: 'https://ai.suganta.com' },
+        { id: 'ai-agent', label: 'Kaalo Ai', icon: 'M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M7.05 7.05 5.636 5.636m12.728 0-1.414 1.414M7.05 16.95l-1.414 1.414M12 8a4 4 0 100 8 4 4 0 000-8z', externalUrl: 'https://ai.suganta.com' },
         { id: 'leads', label: 'Leads', icon: 'M17 20h5V4H2v16h5m10 0V10H7v10m10 0H7', href: 'leads' },
         { id: 'portfolio', label: 'Portfolio', icon: 'M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zm3 4h8m-8 4h8m-8 4h5', href: 'portfolio' },
         { id: 'study-requirements', label: 'Study Requirements', icon: 'M4 6h16M4 12h10M4 18h7m11-2l2 2 4-4', href: 'study-requirements' },
@@ -352,7 +352,7 @@ const loadActivePlans = async () => {
                             isItemActive(item)
                                 ? 'bg-slate-900 text-white shadow-sm'
                                 : isItemHighlighted(item)
-                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm hover:brightness-105'
+                                    ? 'bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] hover:brightness-105'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         ]"
                     >
@@ -435,10 +435,10 @@ const loadActivePlans = async () => {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 class="sm:hidden inline-flex items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-2.5 py-2 text-[10px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] transition hover:brightness-105"
-                                aria-label="Open AI Agent"
+                                aria-label="Open Kaalo Ai"
                             >
                                 <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
-                                AI Agent
+                                Kaalo Ai
                             </a>
                             <Link
                                 :href="route('chat')"
@@ -563,10 +563,10 @@ const loadActivePlans = async () => {
                                 href="https://ai.suganta.com"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-violet-200 bg-gradient-to-r from-indigo-600 to-violet-600 px-3 py-2 text-xs font-black text-white hover:brightness-105 transition shadow-sm"
+                                class="hidden sm:inline-flex items-center gap-2 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-3 py-2 text-xs font-black text-white hover:brightness-105 transition shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)]"
                             >
                                 <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-black">AI</span>
-                                <span>AI Agent</span>
+                                <span>Kaalo Ai</span>
                             </a>
 
                         </div>
@@ -606,7 +606,7 @@ const loadActivePlans = async () => {
                             isItemActive(item)
                                 ? 'bg-slate-900 text-white shadow-sm'
                                 : isItemHighlighted(item)
-                                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-sm hover:brightness-105'
+                                    ? 'bg-gradient-to-r from-orange-500 to-blue-600 text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] hover:brightness-105'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         ]"
                         @click="sidebarOpen = false"

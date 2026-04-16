@@ -33,7 +33,7 @@ return [
                 'external' => true,
             ],
             [
-                'label'    => 'AI Agent',
+                'label'    => 'Kaalo Ai',
                 'href'     => 'https://ai.suganta.com',
                 'external' => true,
             ],

@@ -172,7 +172,7 @@ const mobileNavLinkClass =
                                 :class="[
                                     deskNavLinkClass,
                                     isAiAgent(item)
-                                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:text-white hover:bg-gradient-to-r hover:from-indigo-500 hover:to-violet-500 shadow-sm'
+                                        ? 'bg-gradient-to-r from-orange-500 to-blue-600 text-white hover:text-white hover:bg-gradient-to-r hover:from-orange-400 hover:to-blue-500 shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)]'
                                         : ''
                                 ]"
                             >
@@ -312,10 +312,10 @@ const mobileNavLinkClass =
                     target="_blank"
                     rel="noopener noreferrer"
                     class="relative z-[1] ml-auto mr-2 inline-flex h-9 items-center gap-1.5 rounded-xl border border-orange-200/60 bg-gradient-to-r from-orange-500 to-blue-600 px-3 text-[11px] font-black uppercase tracking-[0.05em] text-white shadow-[0_10px_24px_-12px_rgba(37,99,235,0.8)] outline-none transition hover:brightness-105 focus-visible:ring-2 focus-visible:ring-blue-400/70 focus-visible:ring-offset-1 md:hidden"
-                    aria-label="Open AI Agent"
+                    aria-label="Open Kaalo Ai"
                 >
                     <span class="inline-block h-1.5 w-1.5 rounded-full bg-white/90"></span>
-                    AI Agent
+                    Kaalo Ai
                 </a>
                 <button
                     type="button"
@@ -389,7 +389,7 @@ const mobileNavLinkClass =
                                     :class="[
                                         mobileNavLinkClass,
                                         isAiAgent(item)
-                                            ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:text-white'
+                                            ? 'bg-gradient-to-r from-orange-500 to-blue-600 text-white hover:text-white'
                                             : ''
                                     ]"
                                     @click="mobileOpen = false"

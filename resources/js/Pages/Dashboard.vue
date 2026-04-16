@@ -310,7 +310,7 @@ onMounted(() => {
                         <div>
                             <p class="text-[11px] font-black uppercase tracking-[0.2em] text-indigo-600">Explore the platform</p>
                             <h2 class="mt-1 text-lg font-black tracking-tight text-slate-900 sm:text-xl">
-                                Teachers, institutes, AI adviser, AI agent, and marketplace
+                                Teachers, institutes, AI adviser, Kaalo Ai, and marketplace
                             </h2>
                             <p class="mt-1 max-w-2xl text-sm font-semibold text-slate-600">
                                 Jump into the experiences that matter most: public directories, intelligent guidance, and resources.
@@ -375,13 +375,13 @@ onMounted(() => {
                                 </svg>
                             </div>
                             <div class="mt-3 flex items-center gap-2">
-                                <h3 class="text-base font-black text-slate-900">AI Agent</h3>
+                                <h3 class="text-base font-black text-slate-900">Kaalo Ai</h3>
                                 <span class="rounded-full border border-violet-300 bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700">Highlighted</span>
                             </div>
                             <p class="mt-1 text-sm font-semibold leading-snug text-slate-600">
-                                Launch the dedicated AI Agent experience for faster support and actions.
+                                Launch the dedicated Kaalo Ai experience for faster support and actions.
                             </p>
-                            <span class="dash-spotlight-cta">Open AI agent</span>
+                            <span class="dash-spotlight-cta">Open Kaalo Ai</span>
                         </a>
                         <Link
                             :href="route('marketplace')"
