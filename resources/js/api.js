@@ -65,6 +65,28 @@ const resolveRequestPath = config => {
     }
 };
 
+const messageForStatus = (status, fallback) => {
+    const map = {
+        0: 'Network error. Please check your connection and try again.',
+        400: 'Invalid request. Please verify your input and try again.',
+        401: 'Your session expired. Please sign in again.',
+        403: 'Access denied. Please sign in again.',
+        404: 'Requested resource was not found.',
+        408: 'Request timed out. Please try again.',
+        419: 'Session security token expired. Please refresh and try again.',
+        422: 'Some submitted data is invalid. Please review and try again.',
+        429: 'Too many requests. Please wait a moment and try again.',
+        500: 'Server error. Please try again shortly.',
+        502: 'Gateway error from server. Please try again shortly.',
+        503: 'Service is temporarily unavailable. Please try again shortly.',
+        504: 'Server is taking too long to respond. Please try again.',
+    };
+
+    const normalized = Number(status || 0);
+    if (map[normalized]) return map[normalized];
+    return sanitizeString(fallback || 'Request failed');
+};
+
 const shouldSkipUnauthorizedRedirect = config => {
     if (!config) return false;
     const p = resolveRequestPath(config);
@@ -134,7 +156,14 @@ api.interceptors.request.use(async config => {
 api.interceptors.response.use(
     response => {
         if (response.headers?.['content-type']?.includes('text/html')) {
-            return Promise.reject({ success: false, code: 0, message: 'Unexpected response format.', errors: null, data: null });
+            const status = Number(response?.status || 0);
+            return Promise.reject({
+                success: false,
+                code: status || 0,
+                message: messageForStatus(status, 'Unexpected response format.'),
+                errors: null,
+                data: null,
+            });
         }
         return response.data;
     },
@@ -168,16 +197,26 @@ api.interceptors.response.use(
         if (res?.status === 429) {
             return Promise.reject({
                 success: false, code: 429,
-                message: sanitizeString(res?.data?.message || 'Too many requests. Please wait a moment and try again.'),
+                message: messageForStatus(429, res?.data?.message),
                 errors: res?.data?.errors || null,
                 data:   res?.data?.data   || null,
             });
         }
 
+        const statusCode = Number(res?.status || 0);
+        const responseMessage =
+            typeof res?.data?.message === 'string' && res.data.message.trim()
+                ? res.data.message
+                : '';
+        const errorMessage =
+            typeof error?.message === 'string' && error.message.trim()
+                ? error.message
+                : '';
+
         return Promise.reject({
             success: false,
-            code:    res?.status || 500,
-            message: sanitizeString(res?.data?.message || error?.message || 'Request failed'),
+            code:    statusCode || 500,
+            message: messageForStatus(statusCode, responseMessage || errorMessage || 'Request failed'),
             errors:  res?.data?.errors || null,
             data:    res?.data?.data   || null,
             responsePayload: res?.data && typeof res.data === 'object' ? res.data : null,
