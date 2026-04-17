@@ -15,6 +15,8 @@ class SecurityHeaders
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
+        $apiOrigin = rtrim(config('services.suganta.api_origin', 'https://api.suganta.com'), '/');
+        $cloudflareChallenges = 'https://challenges.cloudflare.com';
 
         // Prevent MIME-type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
@@ -35,13 +37,15 @@ class SecurityHeaders
         // Allows: self, Inertia/Vue inline styles, YouTube embeds, Firebase, API domain
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com",
-            "style-src 'self' 'unsafe-inline'",
+            "script-src 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges}",
+            "script-src-elem 'self' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges}",
+            "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
+            "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net",
             "img-src 'self' data: blob: https:",
-            "font-src 'self' data:",
-            "connect-src 'self' " . rtrim(config('services.suganta.api_origin', 'https://api.suganta.com'), '/') . " wss: ws:",
+            "font-src 'self' data: https://fonts.bunny.net",
+            "connect-src 'self' {$apiOrigin} {$cloudflareChallenges} wss: ws:",
             // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
-            'frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com',
+            "frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges}",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
             "base-uri 'self'",
@@ -50,8 +54,12 @@ class SecurityHeaders
         ]);
         $response->headers->set('Content-Security-Policy', $csp);
 
-        // HTTPS enforcement (HSTS with preload)
-        if ($request->isSecure()) {
+        // HTTPS enforcement (HSTS with preload), including Cloudflare proxy headers.
+        $forwardedProto = strtolower((string) $request->header('X-Forwarded-Proto', ''));
+        $cfVisitor = strtolower((string) $request->header('CF-Visitor', ''));
+        $isHttpsViaProxy = $forwardedProto === 'https' || str_contains($cfVisitor, '"scheme":"https"');
+
+        if ($request->isSecure() || $isHttpsViaProxy) {
             $response->headers->set(
                 'Strict-Transport-Security',
                 'max-age=31536000; includeSubDomains; preload'

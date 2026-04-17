@@ -11,8 +11,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Prefetch only the critical app chunk and CSS — not all vendor chunks.
-        // Vendor chunks (quill, firebase, echo) are lazy-loaded on demand.
-        Vite::prefetch(concurrency: 3);
+        // Keep prefetch opt-in. In production behind Cloudflare this can trigger
+        // unnecessary burst asset requests and "preload not used" warnings.
+        if (filter_var(env('VITE_ASSET_PREFETCH', false), FILTER_VALIDATE_BOOL)) {
+            Vite::prefetch(concurrency: 3);
+        }
     }
 }
