@@ -19,6 +19,13 @@ class SecurityHeaders
         $firstPartyWildcard = 'https://*.suganta.com';
         $cloudflareChallenges = 'https://challenges.cloudflare.com';
         $cloudflareInsights = 'https://static.cloudflareinsights.com';
+        $googleTagManager = 'https://www.googletagmanager.com';
+        $googleAnalytics = 'https://www.google-analytics.com';
+        $googleAds = 'https://www.googleadservices.com';
+        $googleDoubleClick = 'https://stats.g.doubleclick.net';
+        $clarity = 'https://www.clarity.ms';
+        $facebookConnect = 'https://connect.facebook.net';
+        $facebookTracking = 'https://www.facebook.com';
 
         // Prevent MIME-type sniffing
         $response->headers->set('X-Content-Type-Options', 'nosniff');
@@ -39,13 +46,13 @@ class SecurityHeaders
         // Allows: self, Inertia/Vue inline styles, YouTube embeds, Firebase, API domain
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights}",
-            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights}",
+            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAds} {$clarity} {$facebookConnect}",
+            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAds} {$clarity} {$facebookConnect}",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
             "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net",
             "img-src 'self' data: blob: https:",
             "font-src 'self' data: https://fonts.bunny.net",
-            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} wss: ws:",
+            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAnalytics} {$googleAds} {$googleDoubleClick} {$clarity} {$facebookConnect} {$facebookTracking} wss: ws:",
             // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
             "frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges}",
             "worker-src 'self' blob:",
