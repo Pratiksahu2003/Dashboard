@@ -20,9 +20,13 @@ class SecurityHeaders
         $cloudflareChallenges = 'https://challenges.cloudflare.com';
         $cloudflareInsights = 'https://static.cloudflareinsights.com';
         $googleTagManager = 'https://www.googletagmanager.com';
+        $googleTagManagerWildcard = 'https://*.googletagmanager.com';
         $googleAnalytics = 'https://www.google-analytics.com';
+        $googleAnalyticsWildcard = 'https://*.google-analytics.com';
         $googleAds = 'https://www.googleadservices.com';
         $googleDoubleClick = 'https://stats.g.doubleclick.net';
+        $googleDoubleClickWildcard = 'https://*.doubleclick.net';
+        $googleTagServices = 'https://www.googletagservices.com';
         $clarity = 'https://www.clarity.ms';
         $clarityWildcard = 'https://*.clarity.ms';
         $bing = 'https://bat.bing.com';
@@ -55,9 +59,9 @@ class SecurityHeaders
             "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net",
             "img-src 'self' data: blob: https: {$bing} {$bingWildcard} {$facebookTracking}",
             "font-src 'self' data: https://fonts.bunny.net",
-            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAnalytics} {$googleAds} {$googleDoubleClick} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookTracking} wss: ws:",
+            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleTagManagerWildcard} {$googleAnalytics} {$googleAnalyticsWildcard} {$googleAds} {$googleDoubleClick} {$googleDoubleClickWildcard} {$googleTagServices} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookTracking} wss: ws:",
             // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
-            "frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges}",
+            "frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$googleTagManager} {$googleTagManagerWildcard} {$googleAds} {$googleDoubleClickWildcard} {$googleTagServices} {$facebookTracking}",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
             "base-uri 'self'",
