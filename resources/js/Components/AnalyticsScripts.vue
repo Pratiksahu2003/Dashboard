@@ -4,6 +4,7 @@ import { onMounted } from 'vue';
 const GTM_ID = 'GTM-KWN9WTDG';
 const CLARITY_ID = 'u17ah1ulb7';
 const FACEBOOK_PIXEL_ID = '1427181572239343';
+const ANALYTICS_CONSENT_KEY = 'analytics_cookie_consent';
 
 const markLoaded = key => {
     window.__analyticsScriptsLoaded = window.__analyticsScriptsLoaded || {};
@@ -89,18 +90,45 @@ const addFacebookNoScriptImage = () => {
     (document.body || document.documentElement).appendChild(noscript);
 };
 
-const exposeCookieHandlers = () => {
-    window.acceptAnalyticsCookies = window.acceptAnalyticsCookies || function acceptAnalyticsCookies() {};
-    window.rejectAnalyticsCookies = window.rejectAnalyticsCookies || function rejectAnalyticsCookies() {};
-};
-
-onMounted(() => {
+const initAnalytics = () => {
     initGoogleTagManager();
     trackGoogleAdsConversion();
     initClarity();
     initFacebookPixel();
     addFacebookNoScriptImage();
+};
+
+const hasAnalyticsConsent = () => {
+    try {
+        return window.localStorage.getItem(ANALYTICS_CONSENT_KEY) === 'accepted';
+    } catch {
+        return false;
+    }
+};
+
+const setAnalyticsConsent = value => {
+    try {
+        window.localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
+    } catch {
+        // Ignore storage errors; consent applies for current runtime only.
+    }
+};
+
+const exposeCookieHandlers = () => {
+    window.acceptAnalyticsCookies = function acceptAnalyticsCookies() {
+        setAnalyticsConsent('accepted');
+        initAnalytics();
+    };
+    window.rejectAnalyticsCookies = function rejectAnalyticsCookies() {
+        setAnalyticsConsent('rejected');
+    };
+};
+
+onMounted(() => {
     exposeCookieHandlers();
+    if (hasAnalyticsConsent()) {
+        initAnalytics();
+    }
 });
 </script>
 

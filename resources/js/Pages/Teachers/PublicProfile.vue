@@ -405,8 +405,6 @@ const metaKeywords = computed(() => {
 });
 
 const robotsContent = computed(() => {
-  if (errorCode.value === 404) return 'noindex, nofollow';
-  if (error.value && !loading.value) return 'noindex, follow';
   return 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 });
 
