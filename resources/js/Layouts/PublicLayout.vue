@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import PublicHeader from '@/Components/Public/PublicHeader.vue';
 import PublicFooter from '@/Components/Public/PublicFooter.vue';
+import AnalyticsScripts from '@/Components/AnalyticsScripts.vue';
 
 /**
  * Public layout — header + footer driven by config/public_nav.php.
@@ -26,6 +27,7 @@ const company = computed(() => page.props.company ?? {});
     <div
         class="flex min-h-screen w-full max-w-[100vw] flex-col overflow-x-clip bg-white font-sans text-slate-900 antialiased"
     >
+        <AnalyticsScripts />
         <PublicHeader v-if="nav" :nav="nav.header" />
 
         <main class="min-w-0 flex-1 w-full">

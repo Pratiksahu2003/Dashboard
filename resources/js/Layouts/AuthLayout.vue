@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
+import AnalyticsScripts from '@/Components/AnalyticsScripts.vue';
 /** Used only if Inertia shared props are missing (e.g. error boundary). Mirrors config/auth_slides.php */
 const FALLBACK_SLIDES = [
     { image: '/App/1.png', title: 'Smart learning dashboard', subtitle: 'Track lessons, goals, and your growth in one place.', tag: 'Dashboard' },
@@ -130,6 +131,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden font-sans">
+        <AnalyticsScripts />
         <!-- Left: Form Section (40%) -->
         <div
             v-motion

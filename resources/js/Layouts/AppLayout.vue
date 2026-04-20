@@ -7,6 +7,7 @@ import api from '@/api';
 import { initWebPush, teardownWebPush } from '@/services/firebaseWebPush';
 import { connectEcho, subscribeToChatConversation } from '@/services/chatEcho';
 import Modal from '@/Components/Modal.vue';
+import AnalyticsScripts from '@/Components/AnalyticsScripts.vue';
 
 const user = ref(usePage().props.auth?.user ?? null);
 const sidebarOpen = ref(false);
@@ -330,6 +331,7 @@ const loadActivePlans = async () => {
 
 <template>
     <div class="h-screen overflow-hidden bg-slate-100">
+        <AnalyticsScripts />
         <div class="flex h-full">
             <aside
                 class="hidden lg:flex lg:w-72 bg-white border-r border-slate-200 text-slate-900 flex-col p-5 h-full overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-0 [&::-webkit-scrollbar]:w-0"
