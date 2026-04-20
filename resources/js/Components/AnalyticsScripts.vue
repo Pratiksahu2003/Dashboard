@@ -32,7 +32,7 @@ const initGoogleTagManager = () => {
         window.dataLayer.push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
         const script = document.createElement('script');
         script.async = true;
-        script.src = `https://app.suganta.com/um72?id=${id}${dl}`;
+        script.src = `https://app.suganta.com/um72/?id=${id}${dl}`;
         if (firstScript?.parentNode) {
             firstScript.parentNode.insertBefore(script, firstScript);
             return;
@@ -42,7 +42,7 @@ const initGoogleTagManager = () => {
 };
 
 const initGtag = () => {
-    appendScript(`https://www.googletagmanager.com/gtag/js?id=${GTAG_ID}`, { async: true });
+    appendScript(`https://app.suganta.com/um72/?id=${GTAG_ID}`, { async: true });
     window.dataLayer = window.dataLayer || [];
     window.gtag = function gtag() {
         window.dataLayer.push(arguments);
