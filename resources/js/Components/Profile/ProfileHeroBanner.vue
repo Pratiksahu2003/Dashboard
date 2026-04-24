@@ -1,6 +1,6 @@
 <script setup>
-/** Public asset: `public/Banner/profile_banner.jpg` */
-const BANNER_SRC = '/Banner/profile_banner.jpg';
+/** Public asset: `public/Banner/p_banner.png` */
+const BANNER_SRC = '/Banner/p_banner.png';
 </script>
 
 <template>

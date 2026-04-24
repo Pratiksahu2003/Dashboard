@@ -71,9 +71,8 @@ return [
                 'links'   => [
                     ['label' => 'Find Teachers',  'href' => $base . '/teachers'],
                     ['label' => 'Find Institutes', 'href' => $base . '/institutes'],
-                    ['label' => 'Marketplace',     'href' => $base . '/marketplace'],
-                    ['label' => 'AI Adviser',      'href' => $base . '/ai-adviser'],
-                    ['label' => 'Pricing',         'href' => $base . '/pricing'],
+                    ['label' => 'Kaalo Ai', 'href' => 'https://ai.suganta.com'],
+                    ['label' => 'Find Tutors India ', 'href' => $base . '/find-tutors-india'],
                 ],
             ],
             [

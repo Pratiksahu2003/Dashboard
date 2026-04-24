@@ -77,7 +77,7 @@ function isExternalHref(href) {
                         rel="noopener noreferrer"
                         class="inline-flex rounded-md outline-none ring-offset-2 ring-offset-white focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
-                        <img src="/logo/Su2501.png" :alt="companyName" class="h-7 w-auto sm:h-8" />
+                        <img src="/logo/Su250.png" :alt="companyName" class="h-7 w-auto sm:h-8" />
                     </a>
                     <p class="mt-2.5 max-w-sm text-xs leading-relaxed text-slate-600 sm:text-[13px]">
                         {{ footer.tagline }}
