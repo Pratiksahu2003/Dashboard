@@ -212,13 +212,13 @@ const handleRegister = async () => {
                     :disabled="!!socialLoading || loading"
                     @click="handleSocialRegister(provider.id)"
                 >
-                    <svg v-if="provider.id === 'google'" class="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg v-if="provider.id === 'google'" class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h6.5c-.3 1.4-1.1 2.7-2.3 3.5v2.9h3.7c2.2-2 3.6-4.9 3.6-8.4z" />
                         <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.1-4.2 1.1-3.1 0-5.7-2.1-6.6-4.9H1.6v3C3.5 21.3 7.4 24 12 24z" />
                         <path fill="#FBBC05" d="M5.4 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.6.4-2.4v-3H1.6C.6 8.2 0 10.1 0 12s.6 3.8 1.6 5.4l3.8-3z" />
                         <path fill="#EA4335" d="M12 4.7c1.8 0 3.3.6 4.6 1.8L20 3.1C17.9 1.2 15.2 0 12 0 7.4 0 3.5 2.7 1.6 6.6l3.8 3C6.3 6.8 8.9 4.7 12 4.7z" />
                     </svg>
-                    <svg v-else class="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                    <svg v-else class="h-4 w-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                         <path fill="currentColor" d="M24 12.1C24 5.4 18.6 0 12 0S0 5.4 0 12.1c0 6 4.4 11 10.1 11.9v-8.4h-3v-3.5h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9v2.3h3.4l-.5 3.5h-2.9V24c5.8-.9 10.2-5.9 10.2-11.9z" />
                     </svg>
                     <span>{{ socialLoading === provider.id ? 'Connecting...' : provider.label }}</span>
