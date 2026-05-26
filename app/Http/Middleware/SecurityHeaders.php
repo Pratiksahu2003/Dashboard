@@ -25,12 +25,15 @@ class SecurityHeaders
         $googleApisWildcard = 'https://*.googleapis.com';
         $googleAccounts = 'https://accounts.google.com';
         $googleStatic = 'https://www.gstatic.com';
+        $googleStaticWildcard = 'https://*.gstatic.com';
         $googleAnalytics = 'https://www.google-analytics.com';
         $googleAnalyticsWildcard = 'https://*.google-analytics.com';
         $googleAds = 'https://www.googleadservices.com';
         $googleDoubleClick = 'https://stats.g.doubleclick.net';
         $googleDoubleClickWildcard = 'https://*.doubleclick.net';
         $googleTagServices = 'https://www.googletagservices.com';
+        $firebaseAuthDomains = 'https://*.firebaseapp.com';
+        $firebaseStorageDomains = 'https://*.firebasestorage.app';
         $clarity = 'https://www.clarity.ms';
         $clarityWildcard = 'https://*.clarity.ms';
         $bing = 'https://bat.bing.com';
@@ -58,15 +61,15 @@ class SecurityHeaders
         // Allows: self, Inertia/Vue inline styles, YouTube embeds, Firebase, API domain
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
-            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
+            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleStaticWildcard} {$firebaseAuthDomains} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
+            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleStaticWildcard} {$firebaseAuthDomains} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
             "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net",
             "img-src 'self' data: blob: https: {$bing} {$bingWildcard} {$facebookTracking}",
             "font-src 'self' data: https://fonts.bunny.net",
-            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleTagManagerWildcard} {$googleApis} {$googleApisWildcard} {$googleAccounts} {$googleStatic} {$googleAnalytics} {$googleAnalyticsWildcard} {$googleAds} {$googleDoubleClick} {$googleDoubleClickWildcard} {$googleTagServices} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookGraph} {$facebookTracking} wss: ws:",
+            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleTagManagerWildcard} {$googleApis} {$googleApisWildcard} {$googleAccounts} {$googleStatic} {$googleStaticWildcard} {$firebaseAuthDomains} {$firebaseStorageDomains} {$googleAnalytics} {$googleAnalyticsWildcard} {$googleAds} {$googleDoubleClick} {$googleDoubleClickWildcard} {$googleTagServices} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookGraph} {$facebookTracking} wss: ws:",
             // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
-            "frame-src https://*.google.com {$googleAccounts} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$googleTagManager} {$googleTagManagerWildcard} {$googleAds} {$googleDoubleClickWildcard} {$googleTagServices} {$facebookTracking}",
+            "frame-src https://*.google.com {$googleAccounts} {$firebaseAuthDomains} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$googleTagManager} {$googleTagManagerWildcard} {$googleAds} {$googleDoubleClickWildcard} {$googleTagServices} {$facebookTracking}",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
             "base-uri 'self'",
@@ -74,6 +77,7 @@ class SecurityHeaders
             "upgrade-insecure-requests",
         ]);
         $response->headers->set('Content-Security-Policy', $csp);
+        $response->headers->set('X-Suganta-CSP-Version', '2026-05-social-auth');
 
         // HTTPS enforcement (HSTS with preload), including Cloudflare proxy headers.
         $forwardedProto = strtolower((string) $request->header('X-Forwarded-Proto', ''));
