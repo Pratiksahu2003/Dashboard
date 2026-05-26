@@ -91,6 +91,21 @@
 
     # Clickjacking
     Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Final CSP override for Apache-hosted production. Keeps Firebase social auth
+    # working even when an upstream/stale Laravel header is still cached.
+    Header unset Content-Security-Policy
+    Header always unset Content-Security-Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://*.suganta.com https://www.youtube.com https://www.youtube-nocookie.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.firebaseapp.com https://www.googleadservices.com https://www.clarity.ms https://*.clarity.ms https://bat.bing.com https://*.bing.com https://connect.facebook.net; script-src-elem 'self' 'unsafe-inline' https://*.suganta.com https://www.youtube.com https://www.youtube-nocookie.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://apis.google.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.firebaseapp.com https://www.googleadservices.com https://www.clarity.ms https://*.clarity.ms https://bat.bing.com https://*.bing.com https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net; img-src 'self' data: blob: https: https://bat.bing.com https://*.bing.com https://www.facebook.com; font-src 'self' data: https://fonts.bunny.net; connect-src 'self' https://*.suganta.com https://api.suganta.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://*.googletagmanager.com https://apis.google.com https://*.googleapis.com https://accounts.google.com https://www.gstatic.com https://*.gstatic.com https://*.firebaseapp.com https://*.firebasestorage.app https://www.google-analytics.com https://*.google-analytics.com https://www.googleadservices.com https://stats.g.doubleclick.net https://*.doubleclick.net https://www.googletagservices.com https://www.clarity.ms https://*.clarity.ms https://bat.bing.com https://*.bing.com https://connect.facebook.net https://graph.facebook.com https://www.facebook.com wss: ws:; frame-src https://*.google.com https://accounts.google.com https://*.firebaseapp.com https://www.youtube.com https://www.youtube-nocookie.com https://challenges.cloudflare.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.googleadservices.com https://*.doubleclick.net https://www.googletagservices.com https://www.facebook.com; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+    Header always set X-Suganta-CSP-Version "2026-05-social-auth"
+
+    # Some hosts inject malformed reporting headers; remove them to stop console noise.
+    Header unset Report-To
+    Header always unset Report-To
+    Header unset Reporting-Endpoints
+    Header always unset Reporting-Endpoints
+    Header unset NEL
+    Header always unset NEL
 </IfModule>
 
 # ─── Keep-Alive ───────────────────────────────────────────────────────────────

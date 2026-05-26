@@ -26,6 +26,7 @@ import {
     persistAuthToken,
     persistPaymentGate,
 } from '@/services/authFlow';
+import { socialPost } from '@/services/socialApi';
 
 const props = defineProps({
     canResetPassword: { type: Boolean, default: true },
@@ -620,13 +621,13 @@ const handleSocialLogin = async provider => {
     fieldErrors.value = {};
     try {
         const firebase = await signInWithFirebaseProvider(provider);
-        const response = await api.post('/auth/social-login', {
+        const response = await socialPost('/auth/social-login', {
             provider,
             token: firebase.token,
             id_token: firebase.token,
             firebase_token: firebase.token,
             device_name: deviceName(),
-        }, { skipCsrfBootstrap: true, skipAuthRedirect: true });
+        }, { skipAuthRedirect: true });
 
         if (response?.success === false && !needsPayment(response)) {
             throw response;
@@ -752,14 +753,14 @@ const handlePasskeyLogin = async () => {
         </div>
 
         <template v-else>
-            <div class="mb-6 space-y-3">
+            <div class="mb-4 space-y-2.5">
                 <div v-if="firebaseConfigured" class="grid grid-cols-2 gap-2">
                     <button
                         v-for="provider in socialProviders"
                         :key="provider.id"
                         type="button"
                         :class="[
-                            'flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60',
+                            'flex h-11 items-center justify-center gap-2 rounded-xl px-3 text-[13px] font-black leading-none shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60',
                             provider.id === 'google'
                                 ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                                 : 'border border-[#1877F2] bg-[#1877F2] text-white hover:bg-[#166FE5]',
@@ -767,30 +768,34 @@ const handlePasskeyLogin = async () => {
                         :disabled="!!socialLoading || loading || otpLoading || passkeyLoading"
                         @click="handleSocialLogin(provider.id)"
                     >
-                        <svg v-if="provider.id === 'google'" class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                        <svg v-if="provider.id === 'google'" class="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h6.5c-.3 1.4-1.1 2.7-2.3 3.5v2.9h3.7c2.2-2 3.6-4.9 3.6-8.4z" />
                             <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.1-4.2 1.1-3.1 0-5.7-2.1-6.6-4.9H1.6v3C3.5 21.3 7.4 24 12 24z" />
                             <path fill="#FBBC05" d="M5.4 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.6.4-2.4v-3H1.6C.6 8.2 0 10.1 0 12s.6 3.8 1.6 5.4l3.8-3z" />
                             <path fill="#EA4335" d="M12 4.7c1.8 0 3.3.6 4.6 1.8L20 3.1C17.9 1.2 15.2 0 12 0 7.4 0 3.5 2.7 1.6 6.6l3.8 3C6.3 6.8 8.9 4.7 12 4.7z" />
                         </svg>
-                        <svg v-else class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                        <svg v-else class="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                             <path fill="currentColor" d="M24 12.1C24 5.4 18.6 0 12 0S0 5.4 0 12.1c0 6 4.4 11 10.1 11.9v-8.4h-3v-3.5h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9v2.3h3.4l-.5 3.5h-2.9V24c5.8-.9 10.2-5.9 10.2-11.9z" />
                         </svg>
-                        <span>{{ socialLoading === provider.id ? 'Connecting...' : `Continue with ${provider.label}` }}</span>
+                        <span>{{ socialLoading === provider.id ? 'Connecting...' : provider.label }}</span>
                     </button>
                 </div>
 
                 <button
                     v-if="passkeySupported"
                     type="button"
-                    class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    class="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-[13px] font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
                     :disabled="passkeyLoading || !!socialLoading || loading || otpLoading"
                     @click="handlePasskeyLogin"
                 >
-                    {{ passkeyLoading ? 'Checking passkey...' : 'Continue with passkey' }}
+                    <svg class="h-4.5 w-4.5 shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M7.5 10.5a4.5 4.5 0 1 1 8.6 1.8l3.4 3.4a1 1 0 0 1 .3.7V19a1 1 0 0 1-1 1h-2.2a1 1 0 0 1-1-1v-1.1h-1.2a1 1 0 0 1-1-1v-1.2l-1.2-1.2a4.5 4.5 0 0 1-4.7-4Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M10.5 9.5h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                    </svg>
+                    {{ passkeyLoading ? 'Checking...' : 'Passkey' }}
                 </button>
 
-                <div v-if="firebaseConfigured || passkeySupported" class="flex items-center gap-3">
+                <div v-if="firebaseConfigured || passkeySupported" class="flex items-center gap-3 pt-1">
                     <span class="h-px flex-1 bg-slate-200"></span>
                     <span class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">or</span>
                     <span class="h-px flex-1 bg-slate-200"></span>

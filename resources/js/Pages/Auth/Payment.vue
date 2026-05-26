@@ -7,9 +7,9 @@ import { computed, ref, onMounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
-import api from '@/api';
 import { AUTH_TOKEN_KEY, PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
+import { socialPost } from '@/services/socialApi';
 
 const parsePaymentPayload = () => {
     try {
@@ -169,7 +169,7 @@ const ensurePaymentOrder = async () => {
     orderLoading.value = true;
     paymentError.value = '';
     try {
-        const response = await api.post('/payment/create-order', {});
+        const response = await socialPost('/payment/create-order', {});
         mergePaymentOrder(response);
         if (response?.already_paid || response?.data?.already_paid) {
             router.post(route('auth.sync-cache'), { token: localStorage.getItem(AUTH_TOKEN_KEY) || null }, {

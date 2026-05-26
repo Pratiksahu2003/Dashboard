@@ -1,5 +1,5 @@
-import api from '@/api';
 import { deviceName, unwrapAuthPayload } from '@/services/authFlow';
+import { socialPost } from '@/services/socialApi';
 
 const base64UrlToArrayBuffer = value => {
     const base64 = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
@@ -80,10 +80,10 @@ export async function loginWithPasskey(identifier = '') {
         throw new Error('Passkeys are not supported in this browser.');
     }
 
-    const optionsResponse = await api.post(
+    const optionsResponse = await socialPost(
         '/auth/passkey/login/options',
         identifier ? { identifier } : {},
-        { skipCsrfBootstrap: true, skipAuthRedirect: true },
+        { skipAuthRedirect: true },
     );
     const options = unwrapAuthPayload(optionsResponse);
     const credential = await navigator.credentials.get({
@@ -91,7 +91,7 @@ export async function loginWithPasskey(identifier = '') {
     });
     const assertion = credential.response;
 
-    return api.post(
+    return socialPost(
         '/auth/passkey/login/verify',
         {
             challenge_id: options.challenge_id,
@@ -108,7 +108,7 @@ export async function loginWithPasskey(identifier = '') {
                 },
             },
         },
-        { skipCsrfBootstrap: true, skipAuthRedirect: true },
+        { skipAuthRedirect: true },
     );
 }
 
@@ -117,10 +117,9 @@ export async function registerPasskey(label = '') {
         throw new Error('Passkeys are not supported in this browser.');
     }
 
-    const optionsResponse = await api.post(
+    const optionsResponse = await socialPost(
         '/auth/passkey/register/options',
         {},
-        { skipCsrfBootstrap: true },
     );
     const options = unwrapAuthPayload(optionsResponse);
     const credential = await navigator.credentials.create({
@@ -128,7 +127,7 @@ export async function registerPasskey(label = '') {
     });
     const attestation = credential.response;
 
-    return api.post(
+    return socialPost(
         '/auth/passkey/register/verify',
         {
             challenge_id: options.challenge_id,
@@ -143,6 +142,5 @@ export async function registerPasskey(label = '') {
                 },
             },
         },
-        { skipCsrfBootstrap: true },
     );
 }
