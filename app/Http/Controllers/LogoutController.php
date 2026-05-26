@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Middleware\EnsureAuthenticated;
 use App\Http\Support\SugantaBrowserProxyHeaders;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,13 +18,20 @@ class LogoutController extends Controller
     public function __invoke(Request $request)
     {
         EnsureAuthenticated::forgetSpaAuthCacheForRequest($request);
+        Cookie::queue(Cookie::forget(EnsureAuthenticated::BEARER_TOKEN_COOKIE, '/', config('session.domain')));
 
         $apiOrigin = rtrim((string) config('services.suganta.api_origin', ''), '/');
         if ($apiOrigin !== '') {
             $url = $apiOrigin . '/api/v1/auth/logout';
             try {
+                $headers = SugantaBrowserProxyHeaders::forJsonApi($request);
+                $bearerToken = $request->cookie(EnsureAuthenticated::BEARER_TOKEN_COOKIE);
+                if (is_string($bearerToken) && $bearerToken !== '') {
+                    $headers['Authorization'] = 'Bearer ' . $bearerToken;
+                }
+
                 Http::timeout(12)
-                    ->withHeaders(SugantaBrowserProxyHeaders::forJsonApi($request))
+                    ->withHeaders($headers)
                     ->post($url, []);
             } catch (\Exception $e) {
                 Log::debug('API logout proxy failed', [

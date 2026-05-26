@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Log;
  */
 trait ResolvesAuthState
 {
+    public const BEARER_TOKEN_COOKIE = 'suganta_api_token';
+
     private const SAFE_FIELDS = [
         'id',
         'name',
@@ -24,8 +26,12 @@ trait ResolvesAuthState
         'role',
         'phone',
         'profile_pic',
+        'avatar',
         'email_verified_at',
         'phone_verified_at',
+        'is_phone_verified',
+        'is_profile_complete',
+        'is_fee_paid',
         'registration_fee_status',
         'payment_required',
         'verification_status',
@@ -120,10 +126,13 @@ trait ResolvesAuthState
     protected function getCacheKey(Request $request): ?string
     {
         $session = $this->sessionCookieValue($request);
+        $bearerToken = $this->bearerTokenCookieValue($request);
         $cookieLine = SugantaBrowserProxyHeaders::cookieLine($request) ?? '';
 
         if ($session !== null) {
             $material = $session . "\0";
+        } elseif ($bearerToken !== null) {
+            $material = "\0\1" . hash('sha256', $bearerToken);
         } elseif ($cookieLine !== '') {
             $material = "\0\0" . hash('sha256', $cookieLine);
         } else {
@@ -142,6 +151,10 @@ trait ResolvesAuthState
 
         try {
             $headers = SugantaBrowserProxyHeaders::forJsonApi($request, false);
+            $bearerToken = $this->bearerTokenCookieValue($request);
+            if ($bearerToken !== null) {
+                $headers['Authorization'] = 'Bearer ' . $bearerToken;
+            }
 
             $response = Http::timeout(self::API_TIMEOUT)
                 ->withHeaders($headers)
@@ -242,6 +255,17 @@ trait ResolvesAuthState
             self::forgetUser($session);
         }
 
+        $bearerToken = $request->cookie(self::BEARER_TOKEN_COOKIE);
+        if (is_string($bearerToken) && $bearerToken !== '') {
+            try {
+                Cache::forget('spa_user:' . hash('sha256', "\0\1" . hash('sha256', $bearerToken)));
+            } catch (\Exception $e) {
+                Log::debug('Auth cache invalidation failed (bearer token)', [
+                    'exception' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $cookieLine = SugantaBrowserProxyHeaders::cookieLine($request) ?? '';
         if ($cookieLine !== '') {
             $material = "\0\0" . hash('sha256', $cookieLine);
@@ -269,8 +293,19 @@ trait ResolvesAuthState
             return true;
         }
 
+        if ($this->bearerTokenCookieValue($request) !== null) {
+            return true;
+        }
+
         $line = SugantaBrowserProxyHeaders::cookieLine($request);
 
         return is_string($line) && $line !== '';
+    }
+
+    private function bearerTokenCookieValue(Request $request): ?string
+    {
+        $value = $request->cookie(self::BEARER_TOKEN_COOKIE);
+
+        return is_string($value) && $value !== '' ? $value : null;
     }
 }

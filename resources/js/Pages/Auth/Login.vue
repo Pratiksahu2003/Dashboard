@@ -16,6 +16,16 @@ import {
 import { useOtpCountdown } from '@/composables/useOtpCountdown';
 import { useAuthStore } from '@/stores/auth';
 import { useAlerts } from '@/composables/useAlerts';
+import { describeFirebaseAuthError, hasFirebaseAuthConfig, signInWithFirebaseProvider } from '@/services/firebaseAuth';
+import { describePasskeyError, isPasskeySupported, loginWithPasskey } from '@/services/passkeys';
+import {
+    deviceName,
+    extractAuthToken,
+    needsOnboarding,
+    needsPayment,
+    persistAuthToken,
+    persistPaymentGate,
+} from '@/services/authFlow';
 
 const props = defineProps({
     canResetPassword: { type: Boolean, default: true },
@@ -49,6 +59,9 @@ const trustThisBrowser = ref(false);
 const verifyLoading = ref(false);
 const resendLoading = ref(false);
 const resendCountdown = ref(0);
+const socialLoading = ref('');
+const passkeyLoading = ref(false);
+const passkeySupported = ref(false);
 let resendCountdownTimer = null;
 
 const verifyAttempts = ref(0);
@@ -59,6 +72,11 @@ const VERIFY_LOCKOUT_MS = 120_000;
 const authStore = useAuthStore();
 const { error: showError, success: showSuccess, info: showInfo } = useAlerts();
 const { countdownMessage, isCountingDown, parseAndStartCountdown } = useOtpCountdown();
+const firebaseConfigured = hasFirebaseAuthConfig();
+const socialProviders = [
+    { id: 'google', label: 'Google' },
+    { id: 'facebook', label: 'Facebook' },
+];
 
 const persistDeviceTokenFromLoginResponse = response => {
     const deviceTok = response?.data?.device_token;
@@ -162,18 +180,28 @@ const takeStoredPostLoginTarget = () => {
 const isExternalTarget = target => /^https?:\/\//i.test(String(target || ''));
 
 /** Bust server-side SPA auth cache, then open destination (avoids stale "logged out" cache after OTP/login). */
-const goToPostLoginDestination = () => {
+const goToPostLoginDestination = (token = null) => {
     const target = takeStoredPostLoginTarget();
 
-    if (target && isExternalTarget(target)) {
+    if (target && isExternalTarget(target) && !token) {
         window.location.assign(target);
         return;
     }
 
-    router.post(route('auth.sync-cache'), { redirect_to: target || null }, {
+    const payload = {
+        redirect_to: target && !isExternalTarget(target) ? target : null,
+    };
+    if (token) payload.token = token;
+
+    router.post(route('auth.sync-cache'), payload, {
         replace: true,
         preserveState: false,
         preserveScroll: false,
+        onSuccess: () => {
+            if (target && isExternalTarget(target)) {
+                window.location.assign(target);
+            }
+        },
         onError: () => {
             if (target) {
                 window.location.assign(target);
@@ -182,6 +210,24 @@ const goToPostLoginDestination = () => {
             window.location.assign(route('dashboard'));
         },
     });
+};
+
+const finishModernAuthFlow = response => {
+    const token = extractAuthToken(response);
+    if (token) persistAuthToken(token);
+
+    if (needsOnboarding(response)) {
+        router.visit(route('auth.onboarding'), { replace: true });
+        return;
+    }
+
+    if (needsPayment(response)) {
+        persistPaymentGate(response);
+        router.visit(route('auth.payment.required'), { replace: true });
+        return;
+    }
+
+    goToPostLoginDestination(token);
 };
 
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -370,6 +416,8 @@ watch(() => form.identifier, () => {
 });
 
 onMounted(async () => {
+    passkeySupported.value = isPasskeySupported();
+
     try {
         const me = await api.get('/auth/user');
         const payload = me?.data;
@@ -561,6 +609,66 @@ const handleSendOtp = async () => {
         otpLoading.value = false;
     }
 };
+
+const handleSocialLogin = async provider => {
+    if (!firebaseConfigured) {
+        showError('Firebase social login is not configured for this environment.');
+        return;
+    }
+
+    socialLoading.value = provider;
+    fieldErrors.value = {};
+    try {
+        const firebase = await signInWithFirebaseProvider(provider);
+        const response = await api.post('/auth/social-login', {
+            provider,
+            token: firebase.token,
+            id_token: firebase.token,
+            firebase_token: firebase.token,
+            device_name: deviceName(),
+        }, { skipCsrfBootstrap: true, skipAuthRedirect: true });
+
+        if (response?.success === false && !needsPayment(response)) {
+            throw response;
+        }
+
+        finishModernAuthFlow(response);
+    } catch (err) {
+        if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+            showInfo('Social sign in was cancelled.', 'Sign in cancelled');
+        } else {
+            fieldErrors.value = err?.errors || {};
+            showError(describeFirebaseAuthError(err, provider));
+        }
+    } finally {
+        socialLoading.value = '';
+    }
+};
+
+const handlePasskeyLogin = async () => {
+    if (!passkeySupported.value) {
+        showError('Passkeys are not supported in this browser.');
+        return;
+    }
+
+    passkeyLoading.value = true;
+    fieldErrors.value = {};
+    try {
+        const identifier = sanitizeString(form.identifier.trim());
+        const response = await loginWithPasskey(identifier);
+
+        if (response?.success === false && !needsPayment(response)) {
+            throw response;
+        }
+
+        finishModernAuthFlow(response);
+    } catch (err) {
+        fieldErrors.value = err?.errors || {};
+        showError(describePasskeyError(err));
+    } finally {
+        passkeyLoading.value = false;
+    }
+};
 </script>
 
 <template>
@@ -644,6 +752,51 @@ const handleSendOtp = async () => {
         </div>
 
         <template v-else>
+            <div class="mb-6 space-y-3">
+                <div v-if="firebaseConfigured" class="grid grid-cols-2 gap-2">
+                    <button
+                        v-for="provider in socialProviders"
+                        :key="provider.id"
+                        type="button"
+                        :class="[
+                            'flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-black shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60',
+                            provider.id === 'google'
+                                ? 'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                : 'border border-[#1877F2] bg-[#1877F2] text-white hover:bg-[#166FE5]',
+                        ]"
+                        :disabled="!!socialLoading || loading || otpLoading || passkeyLoading"
+                        @click="handleSocialLogin(provider.id)"
+                    >
+                        <svg v-if="provider.id === 'google'" class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.5-.2-2.2H12v4.2h6.5c-.3 1.4-1.1 2.7-2.3 3.5v2.9h3.7c2.2-2 3.6-4.9 3.6-8.4z" />
+                            <path fill="#34A853" d="M12 24c3.2 0 5.9-1.1 7.9-2.9l-3.7-2.9c-1 .7-2.4 1.1-4.2 1.1-3.1 0-5.7-2.1-6.6-4.9H1.6v3C3.5 21.3 7.4 24 12 24z" />
+                            <path fill="#FBBC05" d="M5.4 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.6.4-2.4v-3H1.6C.6 8.2 0 10.1 0 12s.6 3.8 1.6 5.4l3.8-3z" />
+                            <path fill="#EA4335" d="M12 4.7c1.8 0 3.3.6 4.6 1.8L20 3.1C17.9 1.2 15.2 0 12 0 7.4 0 3.5 2.7 1.6 6.6l3.8 3C6.3 6.8 8.9 4.7 12 4.7z" />
+                        </svg>
+                        <svg v-else class="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path fill="currentColor" d="M24 12.1C24 5.4 18.6 0 12 0S0 5.4 0 12.1c0 6 4.4 11 10.1 11.9v-8.4h-3v-3.5h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v3h-1.5c-1.5 0-2 .9-2 1.9v2.3h3.4l-.5 3.5h-2.9V24c5.8-.9 10.2-5.9 10.2-11.9z" />
+                        </svg>
+                        <span>{{ socialLoading === provider.id ? 'Connecting...' : `Continue with ${provider.label}` }}</span>
+                    </button>
+                </div>
+
+                <button
+                    v-if="passkeySupported"
+                    type="button"
+                    class="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-black text-emerald-800 shadow-sm transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    :disabled="passkeyLoading || !!socialLoading || loading || otpLoading"
+                    @click="handlePasskeyLogin"
+                >
+                    {{ passkeyLoading ? 'Checking passkey...' : 'Continue with passkey' }}
+                </button>
+
+                <div v-if="firebaseConfigured || passkeySupported" class="flex items-center gap-3">
+                    <span class="h-px flex-1 bg-slate-200"></span>
+                    <span class="text-[10px] font-black uppercase tracking-[0.22em] text-slate-400">or</span>
+                    <span class="h-px flex-1 bg-slate-200"></span>
+                </div>
+            </div>
+
             <div class="mb-6 rounded-xl bg-slate-100 p-1 grid grid-cols-2 gap-1">
                 <button
                     type="button"
@@ -730,7 +883,7 @@ const handleSendOtp = async () => {
                 />
 
                 <p class="text-xs text-slate-600">
-                    We will send a code to your email or phone. You will enter it on this page — no extra screen.
+                    We’ll send a secure 6-digit code to your email or phone. Enter it here to continue.
                 </p>
 
                 <SuButton type="button" :loading="otpLoading" class="w-full" :disabled="isCountingDown" @click="handleSendOtp">

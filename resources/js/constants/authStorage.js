@@ -4,6 +4,7 @@
  * Do not store API personal access tokens; identity on the dashboard comes from cookies forwarded to `/auth/user`.
  */
 export const AUTH_DEVICE_TOKEN_KEY = 'auth_device_token';
+export const AUTH_TOKEN_KEY = 'auth_token';
 export const PAYMENT_DETAILS_KEY = 'payment_details';
 export const AUTH_IDENTIFIER_KEY = 'auth_identifier';
 export const REGISTRATION_CHARGES_KEY = 'registration_charges_context';

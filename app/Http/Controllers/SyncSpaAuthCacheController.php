@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\EnsureAuthenticated;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Http\Request;
 
 /**
@@ -14,6 +15,7 @@ class SyncSpaAuthCacheController extends Controller
     public function __invoke(Request $request)
     {
         EnsureAuthenticated::forgetSpaAuthCacheForRequest($request);
+        $this->queueBearerTokenCookie($request->input('token'));
 
         $redirectTo = $this->normalizeInternalRedirect($request->input('redirect_to'));
 
@@ -22,6 +24,31 @@ class SyncSpaAuthCacheController extends Controller
         }
 
         return redirect()->route('dashboard');
+    }
+
+    private function queueBearerTokenCookie(mixed $token): void
+    {
+        if (! is_string($token)) {
+            return;
+        }
+
+        $token = trim($token);
+        if ($token === '' || strlen($token) > 4096) {
+            return;
+        }
+
+        $secure = config('session.secure');
+
+        Cookie::queue(cookie(
+            name: EnsureAuthenticated::BEARER_TOKEN_COOKIE,
+            value: $token,
+            minutes: 60 * 24 * 30,
+            path: '/',
+            domain: config('session.domain'),
+            secure: is_bool($secure) ? $secure : request()->isSecure(),
+            httpOnly: true,
+            sameSite: 'Lax',
+        ));
     }
 
     private function normalizeInternalRedirect(mixed $value): ?string

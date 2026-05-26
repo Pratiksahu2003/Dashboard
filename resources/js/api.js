@@ -2,6 +2,7 @@ import axios from 'axios';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_REDIRECT_REASON_KEY,
+    AUTH_TOKEN_KEY,
 } from '@/constants/authStorage';
 
 axios.defaults.withCredentials = true;
@@ -127,7 +128,7 @@ api.interceptors.request.use(async config => {
     const method = (config.method || '').toLowerCase();
 
     // Sanctum SPA: refresh CSRF cookie before mutating API calls (see https://laravel.com/docs/sanctum#spa-authentication).
-    if (MUTATING.has(method)) {
+    if (MUTATING.has(method) && !config.skipCsrfBootstrap) {
         await bootstrapCsrf();
         if (!xsrfTokenFromCookie()) {
             await new Promise(r => { setTimeout(r, 0); });
@@ -145,6 +146,11 @@ api.interceptors.request.use(async config => {
 
     const deviceToken = getStorage()?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) config.headers['X-Device-Token'] = deviceToken;
+
+    const authToken = getStorage()?.getItem(AUTH_TOKEN_KEY);
+    if (authToken && !config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${authToken}`;
+    }
 
     const xsrf = xsrfTokenFromCookie();
     if (xsrf) config.headers['X-XSRF-TOKEN'] = xsrf;

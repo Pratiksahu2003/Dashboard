@@ -21,6 +21,10 @@ class SecurityHeaders
         $cloudflareInsights = 'https://static.cloudflareinsights.com';
         $googleTagManager = 'https://www.googletagmanager.com';
         $googleTagManagerWildcard = 'https://*.googletagmanager.com';
+        $googleApis = 'https://apis.google.com';
+        $googleApisWildcard = 'https://*.googleapis.com';
+        $googleAccounts = 'https://accounts.google.com';
+        $googleStatic = 'https://www.gstatic.com';
         $googleAnalytics = 'https://www.google-analytics.com';
         $googleAnalyticsWildcard = 'https://*.google-analytics.com';
         $googleAds = 'https://www.googleadservices.com';
@@ -32,6 +36,7 @@ class SecurityHeaders
         $bing = 'https://bat.bing.com';
         $bingWildcard = 'https://*.bing.com';
         $facebookConnect = 'https://connect.facebook.net';
+        $facebookGraph = 'https://graph.facebook.com';
         $facebookTracking = 'https://www.facebook.com';
 
         // Prevent MIME-type sniffing
@@ -53,15 +58,15 @@ class SecurityHeaders
         // Allows: self, Inertia/Vue inline styles, YouTube embeds, Firebase, API domain
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
-            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
+            "script-src 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
+            "script-src-elem 'self' 'unsafe-inline' {$firstPartyWildcard} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleApis} {$googleAccounts} {$googleStatic} {$googleAds} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect}",
             "style-src 'self' 'unsafe-inline' https://fonts.bunny.net",
             "style-src-elem 'self' 'unsafe-inline' https://fonts.bunny.net",
             "img-src 'self' data: blob: https: {$bing} {$bingWildcard} {$facebookTracking}",
             "font-src 'self' data: https://fonts.bunny.net",
-            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleTagManagerWildcard} {$googleAnalytics} {$googleAnalyticsWildcard} {$googleAds} {$googleDoubleClick} {$googleDoubleClickWildcard} {$googleTagServices} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookTracking} wss: ws:",
+            "connect-src 'self' {$firstPartyWildcard} {$apiOrigin} {$cloudflareChallenges} {$cloudflareInsights} {$googleTagManager} {$googleTagManagerWildcard} {$googleApis} {$googleApisWildcard} {$googleAccounts} {$googleStatic} {$googleAnalytics} {$googleAnalyticsWildcard} {$googleAds} {$googleDoubleClick} {$googleDoubleClickWildcard} {$googleTagServices} {$clarity} {$clarityWildcard} {$bing} {$bingWildcard} {$facebookConnect} {$facebookGraph} {$facebookTracking} wss: ws:",
             // Google Maps embeds use nested *.google.com frames; YouTube stays explicit (youtube.com ≠ *.google.com)
-            "frame-src https://*.google.com https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$googleTagManager} {$googleTagManagerWildcard} {$googleAds} {$googleDoubleClickWildcard} {$googleTagServices} {$facebookTracking}",
+            "frame-src https://*.google.com {$googleAccounts} https://www.youtube.com https://www.youtube-nocookie.com {$cloudflareChallenges} {$googleTagManager} {$googleTagManagerWildcard} {$googleAds} {$googleDoubleClickWildcard} {$googleTagServices} {$facebookTracking}",
             "worker-src 'self' blob:",
             "manifest-src 'self'",
             "base-uri 'self'",

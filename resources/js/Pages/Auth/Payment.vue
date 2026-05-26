@@ -8,7 +8,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import api from '@/api';
-import { PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
+import { AUTH_TOKEN_KEY, PAYMENT_DETAILS_KEY } from '@/constants/authStorage';
 import { POST_VERIFY_LOGIN_NOTICE_KEY, useAuth } from '@/composables/useAuth';
 
 const parsePaymentPayload = () => {
@@ -20,6 +20,8 @@ const parsePaymentPayload = () => {
 };
 
 const paymentData = ref(parsePaymentPayload());
+const orderLoading = ref(false);
+const paymentError = ref('');
 const { clearSession } = useAuth();
 
 const paymentInfo = computed(() => {
@@ -83,9 +85,18 @@ const formatVerifiedAt = iso => {
 
 const hasPricing = computed(() => {
     const e = paymentInfo.value;
-    const d = Number(e?.discounted_price);
+    const d = Number(e?.discounted_price ?? e?.amount);
     const a = Number(e?.actual_price);
     return (Number.isFinite(d) && d > 0) || (Number.isFinite(a) && a > 0);
+});
+
+const checkoutLink = computed(() => paymentInfo.value?.payment_link || paymentInfo.value?.checkout_url || '');
+
+const shouldCreateRegistrationOrder = computed(() => {
+    const info = paymentInfo.value;
+    return !!(info?.requires_registration_payment || info?.needs_payment)
+        && !checkoutLink.value
+        && !info?.already_paid;
 });
 
 const handleLogout = async () => {
@@ -107,7 +118,7 @@ const handleLogout = async () => {
 
 const proceedToPayment = () => {
     const info = paymentInfo.value;
-    const link = info?.payment_link;
+    const link = checkoutLink.value;
     if (link) {
         window.location.href = link;
         return;
@@ -124,16 +135,66 @@ const apiMessage = computed(() => {
     return typeof m === 'string' && m.trim() ? m.trim() : '';
 });
 
-const canProceedToCheckout = computed(() => !!paymentInfo.value?.payment_link);
+const canProceedToCheckout = computed(() => !!checkoutLink.value);
+
+const mergePaymentOrder = order => {
+    const data = order?.data && typeof order.data === 'object' ? order.data : order;
+    if (!data || typeof data !== 'object') return;
+
+    const root = paymentData.value && typeof paymentData.value === 'object' ? paymentData.value : {};
+    const info = paymentInfo.value;
+    const nextErrors = {
+        ...info,
+        ...data,
+        requires_registration_payment: true,
+        payment_link: data.payment_link || data.checkout_url || info.payment_link,
+        discounted_price: data.amount ?? info.discounted_price,
+        currency: data.currency || info.currency || 'INR',
+    };
+
+    const next = {
+        ...root,
+        success: false,
+        message: root.message || data.message || 'Registration fee payment is required to complete login.',
+        errors: nextErrors,
+        code: root.code || data.code || 200,
+    };
+    paymentData.value = next;
+    localStorage.setItem(PAYMENT_DETAILS_KEY, JSON.stringify(next));
+};
+
+const ensurePaymentOrder = async () => {
+    if (!shouldCreateRegistrationOrder.value || orderLoading.value) return;
+
+    orderLoading.value = true;
+    paymentError.value = '';
+    try {
+        const response = await api.post('/payment/create-order', {});
+        mergePaymentOrder(response);
+        if (response?.already_paid || response?.data?.already_paid) {
+            router.post(route('auth.sync-cache'), { token: localStorage.getItem(AUTH_TOKEN_KEY) || null }, {
+                replace: true,
+                preserveState: false,
+                preserveScroll: false,
+            });
+        }
+    } catch (err) {
+        paymentError.value = err?.message || 'Unable to create payment order. Please try again.';
+    } finally {
+        orderLoading.value = false;
+    }
+};
 
 onMounted(() => {
     paymentData.value = parsePaymentPayload();
     const root = paymentData.value;
     const info =
         root?.errors && typeof root.errors === 'object' ? root.errors : root;
-    if (!info?.requires_registration_payment) {
+    if (!info?.requires_registration_payment && !info?.needs_payment) {
         router.visit(route('login'));
+        return;
     }
+    ensurePaymentOrder();
 });
 </script>
 
@@ -208,10 +269,17 @@ onMounted(() => {
                 {{ apiMessage }}
             </p>
 
+            <p
+                v-if="paymentError"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800"
+            >
+                {{ paymentError }}
+            </p>
+
             <div v-if="hasPricing" class="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
                 <span class="text-[10px] font-bold uppercase tracking-[0.28em] text-slate-400">Limited membership offer</span>
                 <div class="mt-5 flex flex-wrap items-end justify-center gap-4">
-                    <span class="text-5xl font-black tabular-nums tracking-tight text-slate-900">₹{{ paymentInfo.discounted_price }}</span>
+                    <span class="text-5xl font-black tabular-nums tracking-tight text-slate-900">₹{{ paymentInfo.discounted_price ?? paymentInfo.amount }}</span>
                     <div class="flex flex-col items-start pb-1">
                         <span class="text-base text-slate-400 line-through font-semibold tabular-nums">₹{{ paymentInfo.actual_price }}</span>
                         <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Active discount</span>
@@ -244,11 +312,12 @@ onMounted(() => {
             <div class="space-y-3 pt-1">
                 <SuButton
                     :variant="canProceedToCheckout ? 'primary' : 'secondary'"
-                    :disabled="!canProceedToCheckout"
+                    :disabled="!canProceedToCheckout || orderLoading"
+                    :loading="orderLoading"
                     class="w-full"
                     @click="proceedToPayment"
                 >
-                    {{ canProceedToCheckout ? 'Complete activation via Cashfree' : 'Payment link unavailable' }}
+                    {{ orderLoading ? 'Preparing checkout...' : (canProceedToCheckout ? 'Complete activation via Cashfree' : 'Payment link unavailable') }}
                 </SuButton>
                 <p v-if="!canProceedToCheckout && paymentInfo.payment_session_id" class="text-center text-xs font-medium text-amber-800">
                     Checkout link not provided — contact support with your order reference.

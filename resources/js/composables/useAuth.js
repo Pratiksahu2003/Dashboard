@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/auth';
 import {
     AUTH_DEVICE_TOKEN_KEY,
     AUTH_IDENTIFIER_KEY,
+    AUTH_TOKEN_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     PAYMENT_DETAILS_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
@@ -13,6 +14,7 @@ import {
 /** Re-export for pages that import keys from composable (stable public API). */
 export {
     AUTH_DEVICE_TOKEN_KEY,
+    AUTH_TOKEN_KEY,
     EMAIL_VERIFY_LOGIN_FLOW_KEY,
     POST_VERIFY_LOGIN_NOTICE_KEY,
 } from '@/constants/authStorage';
@@ -75,6 +77,8 @@ export const isEmailVerified = user => {
  */
 export const isRegistrationFeeSatisfied = user => {
     if (!user || typeof user !== 'object') return true;
+    if (user.is_fee_paid === true) return true;
+    if (user.is_fee_paid === false) return false;
     if (user.payment_required === false) return true;
     const s = user.registration_fee_status;
     if (s === true) return true;
@@ -128,7 +132,7 @@ export const ensureRegistrationPaymentDetails = (user, getCharges) => {
 
 /** Clears stored auth/UI keys and Pinia auth hints — safe to call outside Vue setup (e.g. global 401 handler). */
 export const clearClientAuthState = () => {
-    localStorage.removeItem('auth_token');
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_DEVICE_TOKEN_KEY);
     localStorage.removeItem('user');
     localStorage.removeItem('auth_session_ts');

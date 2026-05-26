@@ -44,3 +44,7 @@ Route::get('otp-verify', function () {
 Route::get('payment-required', function () {
     return Inertia::render('Auth/Payment');
 })->name('auth.payment.required');
+
+Route::get('onboarding', function () {
+    return Inertia::render('Auth/Onboarding');
+})->name('auth.onboarding');

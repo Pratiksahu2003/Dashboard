@@ -7,6 +7,7 @@ import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import { useAuth } from '@/composables/useAuth';
 import { useAlerts } from '@/composables/useAlerts';
 import api from '@/api';
+import { describePasskeyError, isPasskeySupported, registerPasskey } from '@/services/passkeys';
 
 const { requireAuth, getUser } = useAuth();
 const {
@@ -19,6 +20,8 @@ const authUser = ref(null);
 const profileLoading = ref(false);
 const profileOptionsLoading = ref(false);
 const profileCompletionLoading = ref(false);
+const passkeySupported = ref(false);
+const passkeyRegistering = ref(false);
 const locationStatus = ref('');
 const isLocating = ref(false);
 const profileImageUrl = ref('');
@@ -467,6 +470,23 @@ const changePassword = async () => {
     }
 };
 
+const addPasskey = async () => {
+    if (!passkeySupported.value) {
+        showError('Passkeys are not supported in this browser.');
+        return;
+    }
+
+    passkeyRegistering.value = true;
+    try {
+        await registerPasskey('Dashboard passkey');
+        showSuccess('Passkey registered successfully.');
+    } catch (error) {
+        showError(describePasskeyError(error));
+    } finally {
+        passkeyRegistering.value = false;
+    }
+};
+
 const deleteAccount = async () => {
     const confirmed = await confirmDanger({
         title: 'Delete account permanently?',
@@ -544,6 +564,7 @@ watch(subjectSearch, value => {
 });
 
 onMounted(() => {
+    passkeySupported.value = isPasskeySupported();
     if (!requireAuth()) return;
     authUser.value = getUser();
     fetchProfileAutofill();
@@ -804,6 +825,20 @@ onMounted(() => {
                 </div>
 
                 <div v-if="activeProfileTab === 'password'" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                        <p class="text-sm font-black text-emerald-900">Passkey sign in</p>
+                        <p class="mt-1 text-xs font-medium text-emerald-800">
+                            Add a biometric or device passkey so you can sign in without a password on supported browsers.
+                        </p>
+                        <button
+                            type="button"
+                            class="mt-3 rounded-lg border border-emerald-700 bg-emerald-700 px-4 py-2 text-xs font-black text-white transition hover:bg-emerald-800 disabled:opacity-70"
+                            :disabled="!passkeySupported || passkeyRegistering"
+                            @click="addPasskey"
+                        >
+                            {{ passkeyRegistering ? 'Registering...' : (passkeySupported ? 'Add passkey' : 'Passkeys unavailable') }}
+                        </button>
+                    </div>
                     <label class="field-wrap md:col-span-2"><span class="field-title">Current Password *</span><input v-model="profileForm.password.current_password" type="password" class="field-input" placeholder="Enter current password" /></label>
                     <label class="field-wrap"><span class="field-title">New Password *</span><input v-model="profileForm.password.password" type="password" class="field-input" placeholder="Enter new password" /></label>
                     <label class="field-wrap"><span class="field-title">Confirm New Password *</span><input v-model="profileForm.password.password_confirmation" type="password" class="field-input" placeholder="Confirm new password" /></label>
