@@ -4,7 +4,6 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
 import SuButton from '@/Components/SuButton.vue';
 import SuInput from '@/Components/SuInput.vue';
-import { AUTH_TOKEN_KEY } from '@/constants/authStorage';
 import {
     extractAuthToken,
     needsPayment,
@@ -12,7 +11,7 @@ import {
     persistPaymentGate,
     unwrapAuthPayload,
 } from '@/services/authFlow';
-import { socialPost } from '@/services/socialApi';
+import { ensureCsrf, socialPost } from '@/services/socialApi';
 import { useAlerts } from '@/composables/useAlerts';
 
 const roles = [
@@ -44,7 +43,7 @@ const canComplete = computed(() => !!verifiedPhone.value && !!form.role);
 
 const goToDashboard = token => {
     router.post(route('auth.sync-cache'), {
-        token: token || localStorage.getItem(AUTH_TOKEN_KEY) || null,
+        token: token || null,
         redirect_to: null,
     }, {
         replace: true,
@@ -144,8 +143,10 @@ const editPhone = () => {
     fieldErrors.value = {};
 };
 
-onMounted(() => {
-    if (!localStorage.getItem(AUTH_TOKEN_KEY)) {
+onMounted(async () => {
+    try {
+        await ensureCsrf();
+    } catch {
         router.visit(route('login'), { replace: true });
     }
 });

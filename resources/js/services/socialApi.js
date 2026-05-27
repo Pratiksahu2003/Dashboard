@@ -1,13 +1,16 @@
-import api from '@/api';
+import api, { ensureCsrf } from '@/api';
 
 const API_ORIGIN = (import.meta.env.VITE_API_DOMAIN || 'https://api.suganta.com').replace(/\/$/, '');
 const SOCIAL_API_BASE_URL = (import.meta.env.VITE_SOCIAL_API_BASE_URL || `${API_ORIGIN}/api`).replace(/\/$/, '');
 
+/** Sanctum SPA: session cookie + CSRF (see docs/SocialApi.md). Do not send Bearer PAT from localStorage. */
 export const socialApiConfig = (config = {}) => ({
     baseURL: SOCIAL_API_BASE_URL,
-    skipCsrfBootstrap: true,
+    statefulSanctum: true,
     ...config,
 });
+
+export { ensureCsrf };
 
 export const socialPost = (path, data = {}, config = {}) =>
     api.post(path, data, socialApiConfig(config));

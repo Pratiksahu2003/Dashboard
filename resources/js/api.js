@@ -96,6 +96,8 @@ const shouldSkipUnauthorizedRedirect = config => {
     if (/\/auth\/register(\/|$)/.test(p)) return true;
     if (/\/auth\/forgot-password(\/|$)/.test(p)) return true;
     if (/\/auth\/reset-password(\/|$)/.test(p)) return true;
+    if (/\/auth\/social-login(\/|$)/.test(p)) return true;
+    if (/\/auth\/passkey\/login\//.test(p)) return true;
     return false;
 };
 
@@ -147,9 +149,11 @@ api.interceptors.request.use(async config => {
     const deviceToken = getStorage()?.getItem(AUTH_DEVICE_TOKEN_KEY);
     if (deviceToken) config.headers['X-Device-Token'] = deviceToken;
 
-    const authToken = getStorage()?.getItem(AUTH_TOKEN_KEY);
-    if (authToken && !config.headers.Authorization) {
-        config.headers.Authorization = `Bearer ${authToken}`;
+    if (!config.statefulSanctum) {
+        const authToken = getStorage()?.getItem(AUTH_TOKEN_KEY);
+        if (authToken && !config.headers.Authorization) {
+            config.headers.Authorization = `Bearer ${authToken}`;
+        }
     }
 
     const xsrf = xsrfTokenFromCookie();

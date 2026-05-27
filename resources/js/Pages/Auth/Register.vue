@@ -110,6 +110,13 @@ const handleSocialRegister = async provider => {
     socialLoading.value = provider;
     fieldErrors.value = {};
     try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        socialLoading.value = '';
+        return;
+    }
+    try {
         const firebase = await signInWithFirebaseProvider(provider);
         const response = await socialPost('/auth/social-login', {
             provider,

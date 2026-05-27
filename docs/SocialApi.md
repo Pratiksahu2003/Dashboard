@@ -24,13 +24,15 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-For protected routes:
+For protected routes (mobile / non-browser clients):
 
 ```http
 Authorization: Bearer {sanctum_token}
 ```
 
-Protected routes use Laravel Sanctum through `auth:sanctum`. Browser SPA clients may also authenticate through a configured Sanctum session cookie.
+Protected routes use Laravel Sanctum through `auth:sanctum`.
+
+**Dashboard SPA (this repo):** call these endpoints with `credentials: 'include'`, bootstrap `GET /sanctum/csrf-cookie` before mutating requests, and send `X-XSRF-TOKEN` from the `XSRF-TOKEN` cookie. Do **not** attach `Authorization: Bearer` from `localStorage`; the API session cookie authenticates protected social routes. Optional PAT in the login response may still be stored for dashboard server-side `auth.sync-cache` only.
 
 ---
 
@@ -54,8 +56,8 @@ Protected routes use Laravel Sanctum through `auth:sanctum`. Browser SPA clients
 
 ## Recommended Flow
 
-1. Call `POST /api/auth/social-login`.
-2. Store the returned Sanctum token.
+1. Call `GET /sanctum/csrf-cookie`, then `POST /api/auth/social-login` with credentials (SPA session).
+2. For mobile clients, store the returned Sanctum token; SPA clients rely on the session cookie.
 3. If `needs_onboarding` is `true`, verify phone:
    - Call `POST /api/auth/send-otp`.
    - Call `POST /api/auth/verify-otp`.

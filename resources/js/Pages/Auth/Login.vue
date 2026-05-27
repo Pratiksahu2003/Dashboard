@@ -620,6 +620,13 @@ const handleSocialLogin = async provider => {
     socialLoading.value = provider;
     fieldErrors.value = {};
     try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        socialLoading.value = '';
+        return;
+    }
+    try {
         const firebase = await signInWithFirebaseProvider(provider);
         const response = await socialPost('/auth/social-login', {
             provider,
@@ -654,6 +661,13 @@ const handlePasskeyLogin = async () => {
 
     passkeyLoading.value = true;
     fieldErrors.value = {};
+    try {
+        await ensureCsrf();
+    } catch {
+        showError('Unable to establish a secure connection. Please check your network and try again.');
+        passkeyLoading.value = false;
+        return;
+    }
     try {
         const identifier = sanitizeString(form.identifier.trim());
         const response = await loginWithPasskey(identifier);
