@@ -996,9 +996,10 @@ onMounted(loadInstitute);
             >
               <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
               <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">Description</h2>
-              <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
-                {{ descriptionPlain }}
-              </p>
+              <p
+                class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg"
+                v-html="descriptionPlain"
+              ></p>
             </div>
 
             <div
@@ -1007,9 +1008,10 @@ onMounted(loadInstitute);
             >
               <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-violet-100/50 blur-3xl"></div>
               <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-violet-600">Bio</h2>
-              <p class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg">
-                {{ bioPlain }}
-              </p>
+              <p
+                class="relative max-w-3xl break-words whitespace-pre-line text-base leading-[1.7] text-slate-700 sm:text-lg"
+                v-html="bioPlain"
+              ></p>
             </div>
 
             <div
@@ -1018,9 +1020,10 @@ onMounted(loadInstitute);
             >
               <div class="pointer-events-none absolute -right-16 top-0 h-40 w-40 rounded-full bg-indigo-100/50 blur-3xl"></div>
               <h2 class="relative mb-3 text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">About</h2>
-              <p class="relative max-w-3xl text-base leading-[1.7] text-slate-500 sm:text-lg">
-                {{ DEFAULT_ABOUT }}
-              </p>
+              <p
+                class="relative max-w-3xl text-base leading-[1.7] text-slate-500 sm:text-lg"
+                v-html="DEFAULT_ABOUT"
+              ></p>
             </div>
           </div>
 

@@ -1055,9 +1055,8 @@ onMounted(loadTeacher);
               <p
                 class="relative max-w-3xl whitespace-pre-line text-base leading-[1.7] sm:text-lg"
                 :class="bioPlain ? 'text-slate-700' : 'text-slate-500'"
-              >
-                {{ profileBioDisplay }}
-              </p>
+                v-html="profileBioDisplay"
+              ></p>
             </div>
             <div v-if="subjects.length" class="rounded-3xl border border-slate-200/70 bg-white p-6 shadow-[0_8px_30px_-12px_rgba(15,23,42,0.08)] sm:p-8">
               <h2 class="mb-4 text-sm font-bold uppercase tracking-wider text-slate-400">Subjects</h2>
