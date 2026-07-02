@@ -19,6 +19,9 @@ const lastLoadedAt = ref('');
 const dashboardAvatarError = ref(false);
 const calendarData = ref(null);
 const calendarLoading = ref(false);
+const calendarLoadBlocked = ref(false);
+const calendarErrorShown = ref(false);
+const calendarConnectPromptShown = ref(false);
 const dashboardCalendarMonth = ref(new Date());
 const isGoogleConnectModalOpen = ref(false);
 
@@ -212,22 +215,68 @@ const dashboardGoToToday = () => {
     dashboardCalendarMonth.value = new Date();
 };
 
-const loadDashboardCalendar = async () => {
+function calendarErrorMessage(error) {
+    return String(
+        error?.responsePayload?.message
+        || error?.message
+        || error?.response?.data?.message
+        || '',
+    ).trim();
+}
+
+function isCalendarAuthError(error) {
+    const code = Number(error?.code ?? error?.status ?? 0);
+    return code === 401 || code === 403;
+}
+
+function isGoogleConnectError(message) {
+    const value = String(message || '').toLowerCase();
+    return value.includes('not connected')
+        || value.includes('refresh token')
+        || value.includes('google account')
+        || value.includes('connect google');
+}
+
+const loadDashboardCalendar = async (force = false) => {
+    if (calendarLoading.value) return;
+    if (calendarLoadBlocked.value && !force) return;
+
     calendarLoading.value = true;
     try {
-        calendarData.value = await getCalendarEvents({
-            calendar: { max_results: 60 },
-        });
+        calendarData.value = await getCalendarEvents(
+            { calendar: { max_results: 60 } },
+            { skipAuthRedirect: true },
+        );
+        calendarLoadBlocked.value = false;
     } catch (error) {
-        const message = error?.response?.data?.message || error?.message || '';
-        if (message.includes('not connected') || message.includes('refresh token')) {
-            isGoogleConnectModalOpen.value = true;
-        } else {
+        calendarLoadBlocked.value = true;
+        const message = calendarErrorMessage(error);
+
+        if (isCalendarAuthError(error)) {
+            return;
+        }
+
+        if (isGoogleConnectError(message)) {
+            if (!calendarConnectPromptShown.value || force) {
+                calendarConnectPromptShown.value = true;
+                isGoogleConnectModalOpen.value = true;
+            }
+            return;
+        }
+
+        if (!calendarErrorShown.value || force) {
+            calendarErrorShown.value = true;
             showError('Unable to load dashboard calendar events.', 'Dashboard Calendar');
         }
     } finally {
         calendarLoading.value = false;
     }
+};
+
+const refreshDashboardCalendar = () => {
+    calendarLoadBlocked.value = false;
+    calendarErrorShown.value = false;
+    void loadDashboardCalendar(true);
 };
 
 const fetchDashboard = async () => {
@@ -460,7 +509,7 @@ onMounted(() => {
                         <button type="button" class="dash-calendar-icon-btn" @click="dashboardChangeMonth(-1)">&#8249;</button>
                         <button type="button" class="dash-calendar-icon-btn" @click="dashboardChangeMonth(1)">&#8250;</button>
                         <span class="text-sm font-black text-slate-800">{{ dashboardCalendarMonthLabel }}</span>
-                        <button type="button" class="dash-calendar-btn" :disabled="calendarLoading" @click="loadDashboardCalendar">
+                        <button type="button" class="dash-calendar-btn" :disabled="calendarLoading" @click="refreshDashboardCalendar">
                             {{ calendarLoading ? 'Loading...' : 'Refresh' }}
                         </button>
                     </div>

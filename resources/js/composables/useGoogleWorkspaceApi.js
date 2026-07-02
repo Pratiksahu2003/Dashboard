@@ -14,7 +14,7 @@ export const useGoogleWorkspaceApi = () => {
     const createWatch = async body => readPayload(await api.post(`${GOOGLE_API_BASE_URL}/watch`, body));
     const deleteWatch = async channelId => readPayload(await api.delete(`${GOOGLE_API_BASE_URL}/watch/${channelId}`));
     const runSync = async body => readPayload(await api.post(`${GOOGLE_API_BASE_URL}/sync`, body));
-    const getCalendarEvents = async body => readPayload(await api.post(`${GOOGLE_API_BASE_URL}/calendar/events`, body || {}));
+    const getCalendarEvents = async (body, config = {}) => readPayload(await api.post(`${GOOGLE_API_BASE_URL}/calendar/events`, body || {}, config));
     const createCalendarEvent = async body => readPayload(await api.post(`${GOOGLE_API_BASE_URL}/calendar/events/create`, body));
     const getCalendarEvent = async eventId => readPayload(await api.get(`${GOOGLE_API_BASE_URL}/calendar/events/${eventId}`));
     const updateCalendarEvent = async (eventId, body) => readPayload(await api.put(`${GOOGLE_API_BASE_URL}/calendar/events/${eventId}`, body));

@@ -213,6 +213,8 @@ const reviewTitle        = ref('');
 const reviewComment      = ref('');
 const reviewSubmitting   = ref(false);
 const slugRedirectAttempted = ref(false);
+/** Set after review read APIs return 401/403 — blocks repeat fetches and login redirect loops. */
+const reviewsApiAuthFailed = ref(false);
 
 const isLoggedIn       = computed(() => page.props?.auth?.user != null);
 const authUser         = computed(() => page.props?.auth?.user ?? null);
@@ -240,16 +242,35 @@ function shouldSkipCanonicalReplace(row) {
   return m ? Number(m[1]) === Number(wantId) : false;
 }
 
-function redirectToLoginIfSessionStale(errOrCode, options = {}) {
+function reviewApiAuthErrorCode(errOrCode) {
   const code = typeof errOrCode === 'object' && errOrCode !== null ? (errOrCode?.code ?? errOrCode?.status) : errOrCode;
   const n = Number(code);
-  if ((n === 401 || n === 403) && typeof document !== 'undefined') {
+  return n === 401 || n === 403 ? n : null;
+}
+
+function markReviewApiAuthFailed() {
+  reviewsApiAuthFailed.value = true;
+}
+
+/** Only for explicit user actions (submit review). Optional reads must not redirect — that loops on public profiles. */
+function redirectToLoginIfSessionStale(errOrCode, options = {}) {
+  const n = reviewApiAuthErrorCode(errOrCode);
+  if (n != null && typeof document !== 'undefined') {
     if (options.always === true || isLoggedIn.value) {
       document.dispatchEvent(new CustomEvent('app:unauthorized'));
       return true;
     }
   }
   return false;
+}
+
+async function loadPublicReviewListFallback(userId) {
+  return listTeacherReviews(userId, {
+    page: 1,
+    per_page: reviewPagination.value.per_page || 10,
+    sort: 'latest',
+    use_public_list: true,
+  });
 }
 
 function parseReviewApiError(err) {
@@ -260,14 +281,18 @@ function parseReviewApiError(err) {
 
 async function loadReviewEligibility() {
   reviewEligibility.value = null; reviewCheckError.value = null;
-  if (!teacher.value || !isLoggedIn.value) return;
+  if (!teacher.value || !isLoggedIn.value || reviewsApiAuthFailed.value) return;
   if (isSelfProfile.value) { reviewEligibility.value = { can_review: false, has_reviewed: false, is_self: true }; return; }
   reviewCheckLoading.value = true;
   try {
     reviewEligibility.value = await checkReviewEligibility(reviewableUserId.value);
     if (reviewEligibility.value?.can_review && !reviewEligibility.value?.has_reviewed) { reviewRating.value = 5; reviewTitle.value = ''; reviewComment.value = ''; }
   } catch (e) {
-    if (redirectToLoginIfSessionStale(e, { always: true })) { reviewEligibility.value = null; return; }
+    if (reviewApiAuthErrorCode(e) != null) {
+      markReviewApiAuthFailed();
+      reviewEligibility.value = null;
+      return;
+    }
     reviewCheckError.value = e?.message ?? 'Could not verify review eligibility.';
     reviewEligibility.value = null;
   } finally { reviewCheckLoading.value = false; }
@@ -499,6 +524,10 @@ async function loadReviewData() {
     reviewsError.value = 'Invalid review target.';
     return;
   }
+  if (reviewsApiAuthFailed.value) {
+    reviewsFetchState.value = 'unauthorized';
+    return;
+  }
   reviewsFetchState.value = 'loading'; reviewsError.value = null; reviewStats.value = null;
   reviewList.value = []; reviewPagination.value = { current_page: 1, last_page: 1, total: 0, per_page: 10 };
   const [statsResult, listResult] = await Promise.allSettled([
@@ -526,8 +555,16 @@ async function loadReviewData() {
     reviewsFetchState.value = 'ok';
     if (!listOk) {
       const listError = listResult.reason;
-      const listCode = listError?.code ?? listError?.status;
-      if (!(listCode === 401 && redirectToLoginIfSessionStale(listError))) {
+      if (reviewApiAuthErrorCode(listError) != null) {
+        markReviewApiAuthFailed();
+        try {
+          const pub = await loadPublicReviewListFallback(userId);
+          reviewList.value = pub.items;
+          reviewPagination.value = pub.pagination;
+        } catch {
+          reviewsError.value = listError?.message ?? null;
+        }
+      } else {
         reviewsError.value = listError?.message ?? null;
       }
     }
@@ -535,10 +572,16 @@ async function loadReviewData() {
   }
 
   const statsError = statsResult.status === 'rejected' ? statsResult.reason : null;
-  const code = statsError?.code ?? statsError?.status;
-  if (code === 401) {
-    if (redirectToLoginIfSessionStale(statsError)) return;
-    reviewsFetchState.value = 'unauthorized';
+  if (reviewApiAuthErrorCode(statsError) != null) {
+    markReviewApiAuthFailed();
+    try {
+      const pub = await loadPublicReviewListFallback(userId);
+      reviewList.value = pub.items;
+      reviewPagination.value = pub.pagination;
+      reviewsFetchState.value = 'ok';
+    } catch {
+      reviewsFetchState.value = 'unauthorized';
+    }
     return;
   }
   reviewsFetchState.value = 'error';
@@ -560,8 +603,12 @@ async function loadMoreReviews() {
     });
     reviewList.value = [...reviewList.value, ...next.items];
     reviewPagination.value = next.pagination;
-  } catch (e) { if (redirectToLoginIfSessionStale(e)) return; }
-  finally { reviewsLoading.value = false; }
+  } catch (e) {
+    if (reviewApiAuthErrorCode(e) != null) {
+      markReviewApiAuthFailed();
+      return;
+    }
+  } finally { reviewsLoading.value = false; }
 }
 
 function navigateToTeacher(row) {
@@ -585,6 +632,7 @@ watch(isLoggedIn, (logged, wasLogged) => {
 
 watch(() => props.id, (id, prevId) => {
   if (prevId === undefined || Number(id) === Number(prevId)) return;
+  reviewsApiAuthFailed.value = false;
   void loadTeacher();
 });
 
@@ -1112,7 +1160,9 @@ onMounted(loadTeacher);
             to post a review. Public review statistics and comments are visible to everyone.
           </p>
           <p v-else class="text-sm leading-relaxed text-slate-600">
-            Reviews could not be loaded with your current session. Try refreshing the page.
+            Reviews could not be loaded with your current session.
+            <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in again</Link>
+            to refresh your session.
           </p>
         </template>
 

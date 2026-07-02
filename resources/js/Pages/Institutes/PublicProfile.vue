@@ -382,8 +382,7 @@ function shouldSkipCanonicalInstituteReplace(institute) {
   return m ? Number(m[1]) === Number(wantId) : false;
 }
 
-function redirectToLoginIfSessionStale(errOrCode, options = {}) {
-  const always = options.always === true;
+function reviewApiAuthErrorCode(errOrCode) {
   let code;
   if (typeof errOrCode === 'object' && errOrCode !== null) {
     code = errOrCode?.code ?? errOrCode?.status;
@@ -391,13 +390,32 @@ function redirectToLoginIfSessionStale(errOrCode, options = {}) {
     code = errOrCode;
   }
   const n = Number(code);
-  if ((n === 401 || n === 403) && typeof document !== 'undefined') {
+  return n === 401 || n === 403 ? n : null;
+}
+
+function markReviewApiAuthFailed() {
+  reviewsApiAuthFailed.value = true;
+}
+
+/** Only for explicit user actions (submit review). Optional reads must not redirect — that loops on public profiles. */
+function redirectToLoginIfSessionStale(errOrCode, options = {}) {
+  const always = options.always === true;
+  if (reviewApiAuthErrorCode(errOrCode) != null && typeof document !== 'undefined') {
     if (always || isLoggedIn.value) {
       document.dispatchEvent(new CustomEvent('app:unauthorized'));
       return true;
     }
   }
   return false;
+}
+
+async function loadPublicReviewListFallback(userId) {
+  return listTeacherReviews(userId, {
+    page: 1,
+    per_page: reviewPagination.value.per_page || 10,
+    sort: 'latest',
+    use_public_list: true,
+  });
 }
 
 const reviewsFetchState = ref('idle');
@@ -417,6 +435,8 @@ const reviewSubmitting = ref(false);
 
 /** At most one client-side canonical URL replace per payload load (avoids Inertia remount/replace loops). */
 const slugRedirectAttempted = ref(false);
+/** Set after review read APIs return 401/403 — blocks repeat fetches and login redirect loops. */
+const reviewsApiAuthFailed = ref(false);
 
 function parseReviewApiError(err) {
   const errors = err?.errors;
@@ -430,7 +450,7 @@ function parseReviewApiError(err) {
 async function loadReviewEligibility() {
   reviewEligibility.value = null;
   reviewCheckError.value = null;
-  if (!data.value || !isLoggedIn.value) return;
+  if (!data.value || !isLoggedIn.value || reviewsApiAuthFailed.value) return;
   if (isSelfProfile.value) {
     reviewEligibility.value = { can_review: false, has_reviewed: false, is_self: true };
     return;
@@ -444,7 +464,8 @@ async function loadReviewEligibility() {
       reviewComment.value = '';
     }
   } catch (e) {
-    if (redirectToLoginIfSessionStale(e, { always: true })) {
+    if (reviewApiAuthErrorCode(e) != null) {
+      markReviewApiAuthFailed();
       reviewEligibility.value = null;
       return;
     }
@@ -766,6 +787,10 @@ async function loadReviewData() {
     reviewsError.value = 'Invalid review target.';
     return;
   }
+  if (reviewsApiAuthFailed.value) {
+    reviewsFetchState.value = 'unauthorized';
+    return;
+  }
   reviewsFetchState.value = 'loading';
   reviewsError.value = null;
   reviewStats.value = null;
@@ -796,8 +821,16 @@ async function loadReviewData() {
     reviewsFetchState.value = 'ok';
     if (!listOk) {
       const listError = listResult.reason;
-      const listCode = listError?.code ?? listError?.status;
-      if (!(listCode === 401 && redirectToLoginIfSessionStale(listError))) {
+      if (reviewApiAuthErrorCode(listError) != null) {
+        markReviewApiAuthFailed();
+        try {
+          const pub = await loadPublicReviewListFallback(userId);
+          reviewList.value = pub.items;
+          reviewPagination.value = pub.pagination;
+        } catch {
+          reviewsError.value = listError?.message ?? null;
+        }
+      } else {
         reviewsError.value = listError?.message ?? null;
       }
     }
@@ -805,10 +838,16 @@ async function loadReviewData() {
   }
 
   const statsError = statsResult.status === 'rejected' ? statsResult.reason : null;
-  const code = statsError?.code ?? statsError?.status;
-  if (code === 401) {
-    if (redirectToLoginIfSessionStale(statsError)) return;
-    reviewsFetchState.value = 'unauthorized';
+  if (reviewApiAuthErrorCode(statsError) != null) {
+    markReviewApiAuthFailed();
+    try {
+      const pub = await loadPublicReviewListFallback(userId);
+      reviewList.value = pub.items;
+      reviewPagination.value = pub.pagination;
+      reviewsFetchState.value = 'ok';
+    } catch {
+      reviewsFetchState.value = 'unauthorized';
+    }
     return;
   }
   reviewsFetchState.value = 'error';
@@ -831,7 +870,10 @@ async function loadMoreReviews() {
     reviewList.value = [...reviewList.value, ...next.items];
     reviewPagination.value = next.pagination;
   } catch (e) {
-    if (redirectToLoginIfSessionStale(e)) return;
+    if (reviewApiAuthErrorCode(e) != null) {
+      markReviewApiAuthFailed();
+      return;
+    }
   } finally {
     reviewsLoading.value = false;
   }
@@ -872,6 +914,7 @@ watch(
   (id, prevId) => {
     if (prevId === undefined) return;
     if (Number(id) === Number(prevId)) return;
+    reviewsApiAuthFailed.value = false;
     void loadInstitute();
   },
 );
@@ -1560,7 +1603,11 @@ onMounted(loadInstitute);
                 <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in</Link>
                 to post a review. Public review statistics are visible to everyone.
               </p>
-              <p v-else class="text-sm leading-relaxed text-slate-600">Reviews could not be loaded. Try refreshing the page.</p>
+              <p v-else class="text-sm leading-relaxed text-slate-600">
+                Reviews could not be loaded with your current session.
+                <Link :href="loginUrl" class="font-semibold text-indigo-600 hover:text-violet-600">Sign in again</Link>
+                to refresh your session.
+              </p>
             </template>
 
             <p v-else-if="reviewsFetchState === 'error' && reviewsError" class="text-sm text-red-700">{{ reviewsError }}</p>
